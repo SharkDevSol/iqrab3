@@ -1,0 +1,806 @@
+/* ReportCard.module.css - Iqra Academy Report Card Design */
+
+/* ===== CONTAINER ===== */
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  padding: 24px;
+}
+
+.container.printMode {
+  padding: 0;
+  background: white;
+  min-height: auto;
+}
+
+.screenOnly {
+  display: block;
+}
+
+/* ===== LOADING ===== */
+.loadingContainer,
+.loadingReport {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  color: #718096;
+}
+
+.spinner {
+  font-size: 2rem;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+  color: #f39c12;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== HEADER ===== */
+.header {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+  border-radius: 20px;
+  padding: 28px 36px;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 40px rgba(243, 156, 18, 0.3);
+}
+
+.headerContent {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: white;
+}
+
+.headerIcon {
+  font-size: 2.5rem;
+  opacity: 0.9;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.header p {
+  margin: 4px 0 0;
+  opacity: 0.85;
+}
+
+/* ===== CONTROLS ===== */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-end;
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.controlGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.controlGroup label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4a5568;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.controlGroup select {
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  min-width: 200px;
+  outline: none;
+  cursor: pointer;
+  background: white;
+}
+
+.controlGroup select:focus {
+  border-color: #f39c12;
+}
+
+/* ===== ACTION BUTTONS ===== */
+.actionButtons {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.actionButtons button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.actionButtons button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.printBtn {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+  color: white;
+}
+
+.printAllBtn {
+  background: #3498db;
+  color: white;
+}
+
+.pdfBtn {
+  background: #e74c3c;
+  color: white;
+}
+
+.actionButtons button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* ===== NO DATA ===== */
+.noData {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px;
+  background: white;
+  border-radius: 20px;
+  color: #a0aec0;
+}
+
+.noDataIcon {
+  font-size: 5rem;
+  margin-bottom: 20px;
+  opacity: 0.3;
+}
+
+.noData h3 {
+  margin: 0 0 8px;
+  color: #4a5568;
+}
+
+/* ===== PREVIEW ===== */
+.previewSection {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.previewSection h3 {
+  margin: 0 0 20px;
+  color: #4a5568;
+  font-size: 1rem;
+}
+
+.previewCard {
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+
+/* ===== REPORT CARD (A5: 148mm x 210mm) ===== */
+.reportCard {
+  width: 148mm;
+  background: white;
+  font-family: 'Times New Roman', Times, serif;
+  color: #000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* ===== FRONT PAGE ===== */
+.frontPage {
+  width: 148mm;
+  min-height: 210mm;
+  padding: 10mm;
+  background: white;
+  border: 3px solid #f39c12;
+  position: relative;
+  page-break-after: always;
+}
+
+.decorativeCorner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40mm;
+  height: 40mm;
+  background: linear-gradient(135deg, #f39c12 0%, transparent 100%);
+  border-radius: 0 0 100% 0;
+  opacity: 0.3;
+}
+
+/* Header Section */
+.headerSection {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 5mm;
+  position: relative;
+  z-index: 1;
+}
+
+.photoBox {
+  width: 30mm;
+  height: 35mm;
+  border: 2px solid #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10pt;
+  font-weight: bold;
+  color: #999;
+  background: #f9f9f9;
+  overflow: hidden;
+}
+
+.studentPhoto {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.logoSection {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.logoCircle {
+  width: 35mm;
+  height: 35mm;
+  border: 3px solid #f39c12;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+}
+
+.schoolLogo {
+  width: 35mm;
+  height: 35mm;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.logoInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.logoArabic {
+  font-size: 14pt;
+  font-weight: bold;
+  color: #f39c12;
+  font-style: italic;
+}
+
+.logoSubtext {
+  font-size: 8pt;
+  font-weight: bold;
+  color: #000;
+  letter-spacing: 1pt;
+}
+
+.logoTagline {
+  font-size: 7pt;
+  color: #666;
+  font-style: italic;
+}
+
+/* School Names */
+.schoolNames {
+  text-align: center;
+  margin-bottom: 4mm;
+}
+
+.schoolNameMain {
+  margin: 0 0 1mm 0;
+  font-size: 13pt;
+  font-weight: bold;
+  color: #000;
+  letter-spacing: 0.3pt;
+}
+
+.schoolNameAmharic {
+  margin: 0 0 1mm 0;
+  font-size: 10pt;
+  color: #000;
+}
+
+.schoolNameEn {
+  margin: 0 0 1mm 0;
+  font-size: 9pt;
+  color: #000;
+  font-weight: 500;
+}
+
+.schoolNameAr {
+  margin: 0;
+  font-size: 10pt;
+  color: #000;
+  direction: rtl;
+}
+
+/* Report Title */
+.reportTitle {
+  text-align: center;
+  border: 2px solid #000;
+  padding: 2mm;
+  margin-bottom: 4mm;
+}
+
+.reportTitle h2 {
+  margin: 0;
+  font-size: 11pt;
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+/* Student Info */
+.studentInfo {
+  margin-bottom: 4mm;
+}
+
+.infoRow {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 2mm;
+  font-size: 9pt;
+}
+
+.infoRowSplit {
+  display: flex;
+  gap: 5mm;
+  margin-bottom: 2mm;
+}
+
+.infoHalf {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  font-size: 9pt;
+}
+
+.label {
+  font-weight: normal;
+  margin-right: 2mm;
+  white-space: nowrap;
+}
+
+.value {
+  flex: 1;
+  border-bottom: 1px solid #000;
+  min-height: 4mm;
+  padding: 0 2mm;
+}
+
+/* Promotion Text */
+.promotionText {
+  margin-bottom: 4mm;
+  font-size: 9pt;
+}
+
+.promotionText p {
+  margin: 0 0 1mm 0;
+}
+
+.promotionLine {
+  display: flex;
+  align-items: baseline;
+  gap: 2mm;
+}
+
+.underline {
+  border-bottom: 1px solid #000;
+  min-width: 20mm;
+  display: inline-block;
+}
+
+/* Signatures */
+.signatures {
+  margin-bottom: 4mm;
+}
+
+.signatureRow {
+  display: flex;
+  gap: 5mm;
+  margin-bottom: 2mm;
+}
+
+.signatureField {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 2mm;
+  font-size: 9pt;
+}
+
+/* Grading Scale */
+.gradingScale {
+  border: 2px solid #000;
+  border-radius: 8px;
+  padding: 3mm;
+  margin-bottom: 4mm;
+}
+
+.gradingScale h3 {
+  margin: 0 0 2mm 0;
+  font-size: 10pt;
+  font-weight: bold;
+  text-align: center;
+}
+
+.gradeList {
+  display: flex;
+  flex-direction: column;
+  gap: 1mm;
+}
+
+.gradeItem {
+  display: flex;
+  align-items: center;
+  font-size: 9pt;
+  gap: 3mm;
+}
+
+.gradeItem span:first-child {
+  width: 25mm;
+}
+
+.gradeLetter {
+  width: 8mm;
+  font-weight: bold;
+  text-align: center;
+}
+
+.gradeItem span:last-child {
+  flex: 1;
+}
+
+/* Parent Section */
+.parentSection {
+  border-top: 1px solid #000;
+  padding-top: 3mm;
+}
+
+.parentSignature {
+  display: flex;
+  gap: 5mm;
+  margin-bottom: 3mm;
+}
+
+.parentMessage h4 {
+  margin: 0 0 2mm 0;
+  font-size: 10pt;
+  font-weight: bold;
+}
+
+.parentMessage p {
+  margin: 0 0 2mm 0;
+  font-size: 7pt;
+  line-height: 1.4;
+  text-align: justify;
+}
+
+/* ===== BACK PAGE ===== */
+.backPage {
+  width: 148mm;
+  min-height: 210mm;
+  padding: 10mm;
+  background: white;
+  border: 3px solid #f39c12;
+  page-break-before: always;
+}
+
+.backHeader {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 5mm;
+}
+
+.backLogo {
+  width: 25mm;
+  height: 25mm;
+}
+
+.backLogoImg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.backLogoCircle {
+  width: 25mm;
+  height: 25mm;
+  border: 2px solid #f39c12;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+}
+
+.backLogoText {
+  font-size: 10pt;
+  font-weight: bold;
+  color: #f39c12;
+  font-style: italic;
+}
+
+/* Marks Table */
+.marksTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 5mm;
+  border: 2px solid #000;
+}
+
+.marksTable th {
+  background: white;
+  color: #000;
+  padding: 2mm;
+  text-align: center;
+  font-weight: bold;
+  font-size: 9pt;
+  border: 1px solid #000;
+}
+
+.subjectCol {
+  text-align: left !important;
+  padding-left: 3mm !important;
+}
+
+.marksTable td {
+  padding: 2mm;
+  border: 1px solid #000;
+  color: #000;
+  font-size: 9pt;
+  text-align: center;
+  background: white;
+}
+
+.subjectName {
+  text-align: left !important;
+  padding-left: 3mm !important;
+  font-weight: normal;
+}
+
+.totalRow {
+  font-weight: bold;
+}
+
+.totalRow td {
+  font-weight: bold;
+}
+
+/* Activity Section */
+.activitySection {
+  margin-top: 5mm;
+}
+
+.activitySection h3 {
+  margin: 0 0 3mm 0;
+  font-size: 11pt;
+  font-weight: bold;
+  text-align: center;
+}
+
+.activityTable {
+  width: 100%;
+  border-collapse: collapse;
+  border: 2px solid #000;
+}
+
+.activityTable th {
+  background: white;
+  color: #000;
+  padding: 2mm;
+  text-align: center;
+  font-weight: bold;
+  font-size: 8pt;
+  border: 1px solid #000;
+}
+
+.characterCol {
+  text-align: left !important;
+  padding-left: 3mm !important;
+}
+
+.legendCol {
+  border-left: none !important;
+}
+
+.activityTable td {
+  padding: 2mm;
+  border: 1px solid #000;
+  color: #000;
+  font-size: 8pt;
+  text-align: center;
+  background: white;
+}
+
+.activityTable tbody tr td:first-child {
+  text-align: left;
+  padding-left: 3mm;
+  font-weight: normal;
+}
+
+.legendCell {
+  border-left: none !important;
+  text-align: left !important;
+  padding-left: 3mm !important;
+}
+
+/* ===== PRINT CONTAINER ===== */
+.printContainer {
+  display: none;
+}
+
+.printMode .printContainer {
+  display: block;
+}
+
+.printCard {
+  width: 148mm;
+  page-break-after: always;
+  break-after: page;
+}
+
+/* ===== PRINT STYLES ===== */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .container,
+  .container *,
+  .printContainer,
+  .printContainer * {
+    visibility: visible;
+  }
+
+  .screenOnly {
+    display: none !important;
+  }
+
+  .container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    background: white;
+  }
+
+  .printContainer {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 148mm;
+  }
+
+  @page {
+    size: A5 portrait;
+    margin: 0;
+  }
+
+  .printCard {
+    width: 148mm;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .reportCard {
+    width: 100%;
+    box-shadow: none;
+  }
+
+  .frontPage {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .backPage {
+    page-break-before: auto;
+    break-before: auto;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  .header {
+    padding: 20px;
+    border-radius: 16px;
+  }
+
+  .header h1 {
+    font-size: 1.4rem;
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .controlGroup select {
+    min-width: 100%;
+  }
+
+  .actionButtons {
+    margin-left: 0;
+    justify-content: center;
+  }
+
+  .reportCard {
+    width: 100%;
+    max-width: 148mm;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 16px;
+  }
+
+  .headerIcon {
+    font-size: 1.8rem;
+  }
+
+  .header h1 {
+    font-size: 1.2rem;
+  }
+
+  .actionButtons button {
+    padding: 10px 14px;
+    font-size: 0.85rem;
+  }
+
+  .noData {
+    padding: 40px 20px;
+  }
+
+  .noDataIcon {
+    font-size: 3rem;
+  }
+}

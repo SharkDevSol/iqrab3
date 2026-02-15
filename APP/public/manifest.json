@@ -1,0 +1,43 @@
+{
+  "name": "School Management System",
+  "short_name": "School App",
+  "description": "Complete school management system for students, teachers, and guardians",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#10b981",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Staff Login",
+      "short_name": "Staff",
+      "description": "Login as staff member",
+      "url": "/app/staff-login",
+      "icons": [{ "src": "/vite.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Student Login",
+      "short_name": "Student",
+      "description": "Login as student",
+      "url": "/app/student-login",
+      "icons": [{ "src": "/vite.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Guardian Login",
+      "short_name": "Guardian",
+      "description": "Login as guardian",
+      "url": "/app/guardian-login",
+      "icons": [{ "src": "/vite.svg", "sizes": "any" }]
+    }
+  ]
+}

@@ -1,0 +1,172 @@
+.container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f5f5;
+}
+
+.header {
+  background: white;
+  padding: 20px 30px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header svg {
+  font-size: 1.8rem;
+  color: #007bff;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.content {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 280px 320px 1fr;
+  overflow: hidden;
+}
+
+.sidebar, .conversations, .chat {
+  background: white;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebarHeader, .conversationsHeader {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.sidebarHeader h3, .conversationsHeader h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.search {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search svg {
+  color: #999;
+}
+
+.search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 0.9rem;
+}
+
+.guardianList {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.loading, .empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #999;
+}
+
+.guardianItem {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.guardianItem:hover {
+  background: #f8f9fa;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #007bff;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.info {
+  flex: 1;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.phone {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.students {
+  font-size: 0.75rem;
+  color: #007bff;
+  margin-top: 4px;
+  line-height: 1.3;
+}
+
+.chat {
+  border-right: none;
+}
+
+.chatHeader {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chatHeader h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.chatHeader span {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.noChat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  gap: 12px;
+}
+
+.noChat svg {
+  font-size: 4rem;
+}
+
+.noChat h3 {
+  margin: 0;
+  font-weight: 500;
+}
