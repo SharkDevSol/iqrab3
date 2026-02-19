@@ -717,6 +717,10 @@ router.get('/subject-class-combinations', async (req, res) => {
 router.get('/teacher-mark-lists/:teacherName', async (req, res) => {
   const { teacherName } = req.params;
   
+  console.log(`\n========== TEACHER MARK LISTS REQUEST ==========`);
+  console.log(`Teacher Name (from URL): "${teacherName}"`);
+  console.log(`Teacher Name (decoded): "${decodeURIComponent(teacherName)}"`);
+  
   try {
     // Get teacher's assigned subject-class combinations
     const assignmentsResult = await pool.query(
@@ -724,10 +728,11 @@ router.get('/teacher-mark-lists/:teacherName', async (req, res) => {
       [teacherName]
     );
     
-    console.log(`Fetching mark lists for teacher: ${teacherName}`); // Debug
-    console.log(`Found ${assignmentsResult.rows.length} assignments`); // Debug
+    console.log(`Found ${assignmentsResult.rows.length} assignments in database`);
+    console.log(`Assignments:`, assignmentsResult.rows);
     
     if (assignmentsResult.rows.length === 0) {
+      console.log(`No assignments found - returning empty array`);
       return res.json({ message: 'No subjects assigned to this teacher', assignments: [] });
     }
     
@@ -738,13 +743,15 @@ router.get('/teacher-mark-lists/:teacherName', async (req, res) => {
     const configResult = await pool.query('SELECT term_count FROM subjects_of_school_schema.school_config WHERE id = 1');
     const termCount = configResult.rows[0]?.term_count || 2;
     
+    console.log(`Term count: ${termCount}`);
+    
     for (const assignment of assignments) {
       // Parse subject and class from subject_class string
       const match = assignment.subject_class.match(/^(.+) Class (.+)$/);
       if (match) {
         const [, subjectName, className] = match;
         
-        console.log(`Processing: ${subjectName} Class ${className}`); // Debug
+        console.log(`Processing: ${subjectName} Class ${className}`);
         
         // Check which terms have mark list forms
         const schemaName = `subject_${subjectName.toLowerCase().replace(/[\s\-]+/g, '_')}_schema`;
@@ -769,20 +776,21 @@ router.get('/teacher-mark-lists/:teacherName', async (req, res) => {
                 subjectClass: assignment.subject_class,
                 formId: `${subjectName}_${className}_${term}`
               });
-              console.log(`✓ Added: ${subjectName} Class ${className} Term ${term}`); // Debug
+              console.log(`✓ Added: ${subjectName} Class ${className} Term ${term}`);
             } else {
-              console.log(`✗ Table not found: ${schemaName}.${tableName}`); // Debug
+              console.log(`✗ Table not found: ${schemaName}.${tableName}`);
             }
           } catch (error) {
             console.log(`Error checking table ${schemaName}.${tableName}:`, error.message);
           }
         }
       } else {
-        console.log(`Could not parse subject_class: ${assignment.subject_class}`); // Debug
+        console.log(`Could not parse subject_class: ${assignment.subject_class}`);
       }
     }
     
-    console.log(`Returning ${markListForms.length} mark list forms`); // Debug
+    console.log(`Returning ${markListForms.length} mark list forms`);
+    console.log(`================================================\n`);
     
     res.json({
       teacherName,

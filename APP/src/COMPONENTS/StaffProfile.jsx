@@ -252,16 +252,32 @@ const StaffProfile = () => {
 
   // Fetch teacher's assigned mark lists
   const fetchTeacherMarkLists = async (teacherName) => {
-    if (!teacherName) return;
+    console.log(`\n========== FETCHING TEACHER MARK LISTS ==========`);
+    console.log(`Teacher Name: "${teacherName}"`);
+    
+    if (!teacherName) {
+      console.log(`No teacher name provided - skipping fetch`);
+      return;
+    }
+    
     setMarkListLoading(true);
     try {
-      const response = await axios.get(`http://localhost:5000/api/mark-list/teacher-mark-lists/${encodeURIComponent(teacherName)}`);
+      const url = `http://localhost:5000/api/mark-list/teacher-mark-lists/${encodeURIComponent(teacherName)}`;
+      console.log(`API URL: ${url}`);
+      
+      const response = await axios.get(url);
+      console.log(`API Response:`, response.data);
+      console.log(`Assignments count: ${response.data.assignments?.length || 0}`);
+      
       setTeacherAssignments(response.data.assignments || []);
+      console.log(`State updated with ${response.data.assignments?.length || 0} assignments`);
     } catch (error) {
       console.error('Error fetching teacher mark lists:', error);
+      console.error('Error details:', error.response?.data);
       setTeacherAssignments([]);
     } finally {
       setMarkListLoading(false);
+      console.log(`================================================\n`);
     }
   };
 
