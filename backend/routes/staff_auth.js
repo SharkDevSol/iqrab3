@@ -176,8 +176,20 @@ const getStaffProfile = async (globalStaffId, staffType, className) => {
       return basicProfile.rows[0] || null;
     }
     
+    // Check if is_active column exists
+    const columnCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_schema = $1 
+        AND table_name = $2 
+        AND column_name = 'is_active'
+    `, [schemaName, className]);
+    
+    const hasIsActive = columnCheck.rows.length > 0;
+    const whereClause = hasIsActive ? 'AND (is_active = TRUE OR is_active IS NULL)' : '';
+    
     const result = await pool.query(
-      `SELECT * FROM "${schemaName}"."${className}" WHERE global_staff_id = $1 AND (is_active = TRUE OR is_active IS NULL)`,
+      `SELECT * FROM "${schemaName}"."${className}" WHERE global_staff_id = $1 ${whereClause}`,
       [globalStaffId]
     );
     
