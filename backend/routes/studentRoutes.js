@@ -159,8 +159,20 @@ router.get('/search-guardian/:phone', async (req, res) => {
     const tables = (await db.query('SELECT table_name FROM information_schema.tables WHERE table_schema = $1', ['classes_schema'])).rows.map(row => row.table_name);
     console.log(`Searching for guardian with phone: ${phone} across tables: ${tables.join(', ')}`);
     for (const table of tables) {
+      // Check if is_active column exists
+      const columnCheck = await db.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'classes_schema' 
+          AND table_name = $1 
+          AND column_name = 'is_active'
+      `, [table]);
+      
+      const hasIsActive = columnCheck.rows.length > 0;
+      const whereClause = hasIsActive ? 'AND (is_active = TRUE OR is_active IS NULL)' : '';
+      
       const result = await db.query(
-        `SELECT guardian_name, guardian_username, guardian_password FROM classes_schema."${table}" WHERE guardian_phone = $1 AND (is_active = TRUE OR is_active IS NULL) LIMIT 1`,
+        `SELECT guardian_name, guardian_username, guardian_password FROM classes_schema."${table}" WHERE guardian_phone = $1 ${whereClause} LIMIT 1`,
         [phone]
       );
       if (result.rows.length > 0) {
@@ -621,7 +633,19 @@ router.get('/id-statistics', async (req, res) => {
     
     const classStats = [];
     for (const table of tables) {
-      const countResult = await db.query(`SELECT COUNT(*) as student_count FROM classes_schema."${table}" WHERE is_active = TRUE OR is_active IS NULL`);
+      // Check if is_active column exists
+      const columnCheck = await db.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'classes_schema' 
+          AND table_name = $1 
+          AND column_name = 'is_active'
+      `, [table]);
+      
+      const hasIsActive = columnCheck.rows.length > 0;
+      const whereClause = hasIsActive ? 'WHERE is_active = TRUE OR is_active IS NULL' : '';
+      
+      const countResult = await db.query(`SELECT COUNT(*) as student_count FROM classes_schema."${table}" ${whereClause}`);
       const maxClassIdResult = await db.query(`SELECT COALESCE(MAX(class_id), 0) as max_class_id FROM classes_schema."${table}"`);
       
       classStats.push({
@@ -773,8 +797,20 @@ router.get('/profile/:username', async (req, res) => {
     let student = null;
     
     for (const table of tables) {
+      // Check if is_active column exists
+      const columnCheck = await db.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'classes_schema' 
+          AND table_name = $1 
+          AND column_name = 'is_active'
+      `, [table]);
+      
+      const hasIsActive = columnCheck.rows.length > 0;
+      const whereClause = hasIsActive ? 'AND (is_active = TRUE OR is_active IS NULL)' : '';
+      
       const result = await db.query(
-        `SELECT * FROM classes_schema."${table}" WHERE username = $1 AND (is_active = TRUE OR is_active IS NULL)`,
+        `SELECT * FROM classes_schema."${table}" WHERE username = $1 ${whereClause}`,
         [username]
       );
       
@@ -809,8 +845,20 @@ router.get('/guardian-profile/:username', async (req, res) => {
     let wards = [];
     
     for (const table of tables) {
+      // Check if is_active column exists
+      const columnCheck = await db.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'classes_schema' 
+          AND table_name = $1 
+          AND column_name = 'is_active'
+      `, [table]);
+      
+      const hasIsActive = columnCheck.rows.length > 0;
+      const whereClause = hasIsActive ? 'AND (is_active = TRUE OR is_active IS NULL)' : '';
+      
       const result = await db.query(
-        `SELECT * FROM classes_schema."${table}" WHERE guardian_username = $1 AND (is_active = TRUE OR is_active IS NULL)`,
+        `SELECT * FROM classes_schema."${table}" WHERE guardian_username = $1 ${whereClause}`,
         [username]
       );
       

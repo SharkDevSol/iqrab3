@@ -61,7 +61,7 @@ const getStaffByRole = async (role) => {
     for (const schema of staffSchemasResult.rows) {
       const tablesResult = await client.query("SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_name != 'staff_counter'", [schema.schema_name]);
       for (const table of tablesResult.rows) {
-        const staffResult = await client.query(`SELECT * FROM "${schema.schema_name}"."${table.table_name}" WHERE role = $1 AND (is_active = TRUE OR is_active IS NULL)`, [role]);
+        const staffResult = await client.query(`SELECT * FROM "${schema.schema_name}"."${table.table_name}" WHERE role = $1`, [role]);
         allStaff = allStaff.concat(staffResult.rows.map(row => ({ ...row, schema: schema.schema_name, class: table.table_name })));
       }
     }
@@ -78,8 +78,8 @@ const getStaffByRole = async (role) => {
 const getStudentsFromClass = async (className) => {
   const client = await pool.connect();
   try {
-    // Querying from classes_schema as per marklist routes (only active students)
-    const result = await client.query(`SELECT student_name, age as student_age, gender as student_gender FROM classes_schema."${className}" WHERE is_active = TRUE OR is_active IS NULL ORDER BY student_name`);
+    // Querying from classes_schema as per marklist routes
+    const result = await client.query(`SELECT student_name, age as student_age, gender as student_gender FROM classes_schema."${className}" ORDER BY student_name`);
     return result.rows;
   } catch (error) {
     console.error('Error fetching students from class:', error);
