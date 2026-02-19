@@ -108,20 +108,35 @@ initializeClassCommunicationTables().catch(error => {
 // ==================== API ENDPOINTS ====================
 
 // GET /api/class-communication/teacher-classes/:teacherName
-// Get all classes a teacher is assigned to teach
+// Get all classes a teacher is assigned to teach (from subject assignments)
 router.get('/teacher-classes/:teacherName', async (req, res) => {
   try {
     const { teacherName } = req.params;
     
-    // Query school_schema_points.teachers_period to get unique classes for this teacher
-    const result = await pool.query(`
-      SELECT DISTINCT class_name
-      FROM school_schema_points.teachers_period
-      WHERE teacher_name = $1
-      ORDER BY class_name
+    // Get classes from subject-class assignments in mark list system
+    const subjectAssignments = await pool.query(`
+      SELECT DISTINCT scm.class_name
+      FROM subjects_of_school_schema.teachers_subjects ts
+      JOIN subjects_of_school_schema.subject_class_mappings scm 
+        ON ts.subject_class = scm.subject_class
+      WHERE ts.teacher_name = $1
+      ORDER BY scm.class_name
     `, [teacherName]);
     
-    const classes = result.rows.map(row => row.class_name);
+    const classes = subjectAssignments.rows.map(row => row.class_name);
+    
+    // If no subject assignments found, fallback to schedule-based classes
+    if (classes.length === 0) {
+      const scheduleResult = await pool.query(`
+        SELECT DISTINCT class_name
+        FROM school_schema_points.teachers_period
+        WHERE teacher_name = $1
+        ORDER BY class_name
+      `, [teacherName]);
+      
+      const scheduleClasses = scheduleResult.rows.map(row => row.class_name);
+      return res.json({ classes: scheduleClasses });
+    }
     
     res.json({ classes });
   } catch (error) {

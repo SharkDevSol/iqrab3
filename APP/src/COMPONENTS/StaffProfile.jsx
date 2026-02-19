@@ -33,6 +33,7 @@ const StaffProfile = () => {
   // Attendance state
   const [isClassTeacher, setIsClassTeacher] = useState(false);
   const [assignedClass, setAssignedClass] = useState(null);
+  const [teacherClasses, setTeacherClasses] = useState([]); // All classes teacher teaches
   const [students, setStudents] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState({});
   const [attendanceLoading, setAttendanceLoading] = useState(false);
@@ -207,23 +208,48 @@ const StaffProfile = () => {
     setIsLoading(false);
   }, [navigate]);
 
-  // Check if staff is a class teacher
+  // Check if staff is a class teacher - NOW BASED ON SUBJECT ASSIGNMENTS
   const checkClassTeacherStatus = async (globalStaffId, profileName) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/class-teacher/check/${globalStaffId}`);
-      setIsClassTeacher(response.data.isClassTeacher);
-      setAssignedClass(response.data.assignedClass);
-      if (response.data.isClassTeacher && response.data.assignedClass) {
-        fetchStudentsForAttendance(response.data.assignedClass);
-        fetchSchoolDays();
-        // Class teachers are also teachers - show schedule for them
+      // Get teacher's subject assignments from mark list system
+      const response = await axios.get(`http://localhost:5000/api/mark-list/teacher-mark-lists/${encodeURIComponent(profileName)}`);
+      
+      if (response.data.assignments && response.data.assignments.length > 0) {
+        // Extract unique classes from subject assignments
+        const uniqueClasses = [...new Set(response.data.assignments.map(a => a.className))];
+        
+        // Set as class teacher if they have any subject assignments
+        setIsClassTeacher(true);
+        
+        // For now, use the first class as the primary assigned class
+        // You can modify this to show all classes
+        setAssignedClass(uniqueClasses[0]);
+        
+        // Store all classes the teacher teaches
+        setTeacherClasses(uniqueClasses);
+        
+        // Fetch students for the first class
+        if (uniqueClasses[0]) {
+          fetchStudentsForAttendance(uniqueClasses[0]);
+          fetchSchoolDays();
+        }
+        
+        // Teachers with subject assignments are also teachers - show schedule
         if (!isTeacher) {
           setIsTeacher(true);
           fetchTeacherSchedule(profileName);
         }
+      } else {
+        // No subject assignments - not a class teacher
+        setIsClassTeacher(false);
+        setAssignedClass(null);
+        setTeacherClasses([]);
       }
     } catch (error) {
       console.error('Error checking class teacher status:', error);
+      setIsClassTeacher(false);
+      setAssignedClass(null);
+      setTeacherClasses([]);
     }
   };
 
@@ -2439,6 +2465,7 @@ const StaffProfile = () => {
           userType="teacher"
           userId={profile?.global_staff_id}
           userName={profile?.name}
+          teachingClasses={teacherClasses}
         />
       ) : renderProfileTab();
       case 'attendance': return isClassTeacher ? renderAttendanceTab() : renderProfileTab();
