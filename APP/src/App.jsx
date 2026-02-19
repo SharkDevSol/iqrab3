@@ -1,5 +1,7 @@
 // Updated App.jsx
 import { Routes, Route, Navigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import LoadingScreen from "./COMPONENTS/LoadingScreen";
 import Home from "./PAGE/Home";
 import CreateRegisterStaff from "./PAGE/CreateRegister/CreateRegisterStaff/CreateRegisterStaff";
 import CreateRegisterStudent from "./PAGE/CreateRegister/CreateRegisterStudent/CreateRegisterStudent";
@@ -125,6 +127,21 @@ const GuardianProfileRedirect = () => {
 };
 
 function App() {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Minimum loading time for smooth experience
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2000); // 2 seconds
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <div>
       <Provider store={store}>

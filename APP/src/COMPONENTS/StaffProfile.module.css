@@ -2710,3 +2710,1076 @@
   background: #334155;
   color: #cbd5e1;
 }
+
+/* ========================================
+   EVALUATION FORM & REPORT STYLES
+   Modern Design for Inline Evaluation Forms
+   ======================================== */
+
+/* Evaluation Form Header */
+.evalFormHeader {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  padding: 1rem 1.25rem;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.backBtn {
+  background: rgba(16, 185, 129, 0.1);
+  border: none;
+  color: #10b981;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.backBtn:hover {
+  background: rgba(16, 185, 129, 0.2);
+  transform: translateX(-4px);
+}
+
+.backBtn:active {
+  transform: translateX(-2px);
+}
+
+.evalFormTitle {
+  flex: 1;
+  min-width: 0;
+}
+
+.evalFormTitle h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.evalFormMeta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+  flex-wrap: wrap;
+}
+
+.evalFormMeta span {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+/* Evaluation Form Error/Success Messages */
+.formErrorState,
+.evalFormError,
+.evalFormSuccess {
+  padding: 1rem 1.25rem;
+  border-radius: 16px;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  animation: slideInDown 0.4s ease;
+}
+
+.formErrorState,
+.evalFormError {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.evalFormSuccess {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.formErrorState svg,
+.evalFormError svg,
+.evalFormSuccess svg {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+/* Evaluation Areas */
+.evalFormAreas {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 0 0.5rem;
+}
+
+.evalAreaCard {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeInUp 0.5s ease backwards;
+}
+
+.evalAreaCard:nth-child(1) { animation-delay: 0.1s; }
+.evalAreaCard:nth-child(2) { animation-delay: 0.2s; }
+.evalAreaCard:nth-child(3) { animation-delay: 0.3s; }
+.evalAreaCard:nth-child(4) { animation-delay: 0.4s; }
+
+.evalAreaCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+}
+
+.evalAreaHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(16, 185, 129, 0.1);
+}
+
+.evalAreaIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+  flex-shrink: 0;
+}
+
+.evalAreaName {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+/* Student Evaluation Cards */
+.evalStudentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.evalStudentCard {
+  background: #f9fafb;
+  border-radius: 16px;
+  padding: 1.25rem;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.evalStudentCard:hover {
+  border-color: rgba(16, 185, 129, 0.2);
+  background: white;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.evalStudentHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.evalStudentNumber {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.evalStudentName {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+  flex: 1;
+}
+
+/* Criteria Grid */
+.evalCriteriaGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.evalCriterionItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.evalCriterionLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #4b5563;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.evalCriterionMax {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-weight: 500;
+  background: #f3f4f6;
+  padding: 0.25rem 0.625rem;
+  border-radius: 8px;
+}
+
+.evalScoreInput {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.evalScoreInput input[type="number"] {
+  flex: 1;
+  padding: 0.875rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  text-align: center;
+  background: white;
+  transition: all 0.3s ease;
+  color: #1f2937;
+}
+
+.evalScoreInput input[type="number"]:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+  transform: scale(1.02);
+}
+
+.evalScoreInput input[type="number"]::placeholder {
+  color: #d1d5db;
+}
+
+/* Select Dropdowns in Evaluation Form */
+.evalScoreInput select,
+.evalCriterionItem select,
+.evalScoreSelect {
+  flex: 1;
+  padding: 0.875rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  background: white;
+  color: #1f2937;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%2310b981' d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  padding-right: 3rem;
+}
+
+.evalScoreInput select:focus,
+.evalCriterionItem select:focus,
+.evalScoreSelect:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+  transform: scale(1.02);
+}
+
+.evalScoreInput select:hover,
+.evalCriterionItem select:hover,
+.evalScoreSelect:hover {
+  border-color: #10b981;
+  background-color: #f9fafb;
+}
+
+/* Text Inputs in Evaluation Form */
+.evalScoreInput input[type="text"],
+.evalCriterionItem input[type="text"],
+.evalNotesInput[type="text"] {
+  flex: 1;
+  padding: 0.875rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  background: white;
+  color: #1f2937;
+  transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.evalScoreInput input[type="text"]:focus,
+.evalCriterionItem input[type="text"]:focus,
+.evalNotesInput[type="text"]:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+  transform: scale(1.02);
+}
+
+.evalScoreInput input[type="text"]::placeholder,
+.evalCriterionItem input[type="text"]::placeholder,
+.evalNotesInput[type="text"]::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.evalNotesInput {
+  margin-top: 0.5rem;
+}
+
+/* Additional Evaluation Form Styles */
+.evalFormStudents {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 0 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.evalStudentCard {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeInUp 0.5s ease backwards;
+}
+
+.evalStudentCard:nth-child(1) { animation-delay: 0.1s; }
+.evalStudentCard:nth-child(2) { animation-delay: 0.15s; }
+.evalStudentCard:nth-child(3) { animation-delay: 0.2s; }
+.evalStudentCard:nth-child(4) { animation-delay: 0.25s; }
+.evalStudentCard:nth-child(5) { animation-delay: 0.3s; }
+
+.evalStudentCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+}
+
+.evalStudentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(16, 185, 129, 0.1);
+}
+
+.evalStudentInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.evalStudentNum {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.125rem;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.evalStudentName {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.3px;
+}
+
+.evalStudentDetails {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.evalStudentTotal {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.375rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.evalStudentTotal svg {
+  color: #10b981;
+  font-size: 1.25rem;
+}
+
+/* Criteria List */
+.evalCriteriaList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.evalAreaSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.evalAreaName {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #10b981;
+  margin: 0 0 0.5rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(16, 185, 129, 0.2);
+  letter-spacing: -0.2px;
+}
+
+.evalCriterionRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.evalCriterionRow:hover {
+  background: white;
+  border-color: rgba(16, 185, 129, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.evalCriterionInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.evalCriterionName {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  flex: 1;
+}
+
+.evalCriterionMax {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 600;
+  background: #e5e7eb;
+  padding: 0.375rem 0.75rem;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.evalCriterionInputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.evalNotesInput {
+  margin-top: 0.5rem;
+}
+
+.evalNotesInput textarea {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+  background: white;
+  transition: all 0.3s ease;
+  color: #1f2937;
+}
+
+.evalNotesInput textarea:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+}
+
+.evalNotesInput textarea::placeholder {
+  color: #9ca3af;
+}
+
+/* Form Actions */
+.evalFormActions {
+  position: sticky;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  padding: 1.25rem;
+  border-radius: 0 0 20px 20px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 2rem;
+  z-index: 10;
+}
+
+.evalFormActions button {
+  flex: 1;
+  padding: 1rem;
+  border: none;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 52px;
+}
+
+.evalFormActions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.evalFormActions button:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+
+.evalFormActions button:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.evalSaveBtn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+}
+
+.evalSaveBtn:not(:disabled):hover {
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.evalSubmitBtn {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+}
+
+.evalSubmitBtn:not(:disabled):hover {
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+}
+
+/* Evaluation Report View */
+.evalReportContainer {
+  padding: 1rem;
+  padding-bottom: 5rem;
+}
+
+.evalReportHeader {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  padding: 1.5rem;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem;
+  animation: fadeInUp 0.5s ease;
+}
+
+.evalReportHeader h2 {
+  font-size: 1.375rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 0.75rem 0;
+  letter-spacing: -0.5px;
+}
+
+.evalReportMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.evalReportMeta span {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Report Summary Cards */
+.evalReportSummary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.evalReportSummaryCard {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  padding: 1.25rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  text-align: center;
+  transition: all 0.3s ease;
+  animation: fadeInUp 0.5s ease backwards;
+}
+
+.evalReportSummaryCard:nth-child(1) { animation-delay: 0.1s; }
+.evalReportSummaryCard:nth-child(2) { animation-delay: 0.2s; }
+.evalReportSummaryCard:nth-child(3) { animation-delay: 0.3s; }
+.evalReportSummaryCard:nth-child(4) { animation-delay: 0.4s; }
+
+.evalReportSummaryCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.evalReportSummaryValue {
+  font-size: 2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.evalReportSummaryLabel {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Report Student List */
+.evalReportStudentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.evalReportStudentCard {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  animation: fadeInUp 0.5s ease backwards;
+}
+
+.evalReportStudentCard:nth-child(1) { animation-delay: 0.1s; }
+.evalReportStudentCard:nth-child(2) { animation-delay: 0.15s; }
+.evalReportStudentCard:nth-child(3) { animation-delay: 0.2s; }
+.evalReportStudentCard:nth-child(4) { animation-delay: 0.25s; }
+.evalReportStudentCard:nth-child(5) { animation-delay: 0.3s; }
+
+.evalReportStudentCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+.evalReportStudentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(16, 185, 129, 0.1);
+}
+
+.evalReportStudentInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.evalReportStudentName {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.evalReportTotalScore {
+  text-align: right;
+}
+
+.evalReportTotalLabel {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.25rem;
+}
+
+.evalReportTotalValue {
+  font-size: 1.75rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+}
+
+/* Report Criteria Details */
+.evalReportCriteriaList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.evalReportCriterionItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.875rem 1rem;
+  background: #f9fafb;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.evalReportCriterionItem:hover {
+  background: #f3f4f6;
+  transform: translateX(4px);
+}
+
+.evalReportCriterionName {
+  font-size: 0.9rem;
+  color: #4b5563;
+  font-weight: 500;
+  flex: 1;
+}
+
+.evalReportCriterionScore {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.evalReportCriterionMax {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.evalReportNotes {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(16, 185, 129, 0.05);
+  border-left: 4px solid #10b981;
+  border-radius: 0 12px 12px 0;
+}
+
+.evalReportNotesLabel {
+  font-size: 0.75rem;
+  color: #059669;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.evalReportNotesText {
+  font-size: 0.9rem;
+  color: #1f2937;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ========================================
+   RESPONSIVE EVALUATION STYLES
+   ======================================== */
+
+/* Tablet */
+@media (min-width: 768px) {
+  .evalFormHeader {
+    padding: 1.5rem 2rem;
+  }
+
+  .evalFormTitle h2 {
+    font-size: 1.375rem;
+  }
+
+  .evalAreaCard {
+    padding: 2rem;
+  }
+
+  .evalCriteriaGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+
+  .evalFormActions {
+    padding: 1.5rem 2rem;
+  }
+
+  .evalReportSummary {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .evalReportStudentCard {
+    padding: 2rem;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .evaluationsContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .evalFormAreas {
+    padding: 0 1rem;
+  }
+
+  .evalCriteriaGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .evalReportContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+}
+
+/* ========================================
+   DARK MODE EVALUATION STYLES
+   ======================================== */
+
+:global(.darkMode) .evalFormHeader,
+:global(body.dark-mode) .evalFormHeader {
+  background: rgba(30, 41, 59, 0.98);
+}
+
+:global(.darkMode) .evalFormTitle h2,
+:global(body.dark-mode) .evalFormTitle h2 {
+  color: #10b981;
+}
+
+:global(.darkMode) .evalAreaCard,
+:global(body.dark-mode) .evalAreaCard {
+  background: rgba(30, 41, 59, 0.98);
+  border: 1px solid #334155;
+}
+
+:global(.darkMode) .evalAreaName,
+:global(body.dark-mode) .evalAreaName {
+  color: #f3f4f6;
+}
+
+:global(.darkMode) .evalStudentCard,
+:global(body.dark-mode) .evalStudentCard {
+  background: #1e293b;
+}
+
+:global(.darkMode) .evalStudentCard:hover,
+:global(body.dark-mode) .evalStudentCard:hover {
+  background: #334155;
+}
+
+:global(.darkMode) .evalStudentName,
+:global(body.dark-mode) .evalStudentName {
+  color: #f3f4f6;
+}
+
+:global(.darkMode) .evalCriterionLabel,
+:global(body.dark-mode) .evalCriterionLabel {
+  color: #d1d5db;
+}
+
+:global(.darkMode) .evalScoreInput input,
+:global(body.dark-mode) .evalScoreInput input,
+:global(.darkMode) .evalNotesInput textarea,
+:global(body.dark-mode) .evalNotesInput textarea,
+:global(.darkMode) .evalScoreInput select,
+:global(body.dark-mode) .evalScoreInput select,
+:global(.darkMode) .evalCriterionItem select,
+:global(body.dark-mode) .evalCriterionItem select,
+:global(.darkMode) .evalScoreSelect,
+:global(body.dark-mode) .evalScoreSelect,
+:global(.darkMode) .evalNotesInput[type="text"],
+:global(body.dark-mode) .evalNotesInput[type="text"] {
+  background: #1e293b;
+  border-color: #475569;
+  color: #f3f4f6;
+}
+
+:global(.darkMode) .evalScoreInput select,
+:global(body.dark-mode) .evalScoreInput select,
+:global(.darkMode) .evalCriterionItem select,
+:global(body.dark-mode) .evalCriterionItem select,
+:global(.darkMode) .evalScoreSelect,
+:global(body.dark-mode) .evalScoreSelect {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%2310b981' d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+}
+
+:global(.darkMode) .evalScoreInput select:hover,
+:global(body.dark-mode) .evalScoreInput select:hover,
+:global(.darkMode) .evalCriterionItem select:hover,
+:global(body.dark-mode) .evalCriterionItem select:hover,
+:global(.darkMode) .evalScoreSelect:hover,
+:global(body.dark-mode) .evalScoreSelect:hover {
+  background-color: #334155;
+}
+
+:global(.darkMode) .evalStudentCard,
+:global(body.dark-mode) .evalStudentCard {
+  background: rgba(30, 41, 59, 0.98);
+  border: 1px solid #334155;
+}
+
+:global(.darkMode) .evalStudentName,
+:global(body.dark-mode) .evalStudentName {
+  color: #f3f4f6;
+}
+
+:global(.darkMode) .evalStudentDetails,
+:global(body.dark-mode) .evalStudentDetails {
+  color: #9ca3af;
+}
+
+:global(.darkMode) .evalAreaName,
+:global(body.dark-mode) .evalAreaName {
+  color: #10b981;
+}
+
+:global(.darkMode) .evalCriterionRow,
+:global(body.dark-mode) .evalCriterionRow {
+  background: #1e293b;
+}
+
+:global(.darkMode) .evalCriterionRow:hover,
+:global(body.dark-mode) .evalCriterionRow:hover {
+  background: #334155;
+}
+
+:global(.darkMode) .evalCriterionName,
+:global(body.dark-mode) .evalCriterionName {
+  color: #e5e7eb;
+}
+
+:global(.darkMode) .evalCriterionMax,
+:global(body.dark-mode) .evalCriterionMax {
+  background: #475569;
+  color: #d1d5db;
+}
+
+:global(.darkMode) .evalFormActions,
+:global(body.dark-mode) .evalFormActions {
+  background: rgba(30, 41, 59, 0.98);
+}
+
+:global(.darkMode) .evalReportHeader,
+:global(body.dark-mode) .evalReportHeader,
+:global(.darkMode) .evalReportSummaryCard,
+:global(body.dark-mode) .evalReportSummaryCard,
+:global(.darkMode) .evalReportStudentCard,
+:global(body.dark-mode) .evalReportStudentCard {
+  background: rgba(30, 41, 59, 0.98);
+  border: 1px solid #334155;
+}
+
+:global(.darkMode) .evalReportStudentName,
+:global(body.dark-mode) .evalReportStudentName,
+:global(.darkMode) .evalReportCriterionName,
+:global(body.dark-mode) .evalReportCriterionName {
+  color: #f3f4f6;
+}
+
+:global(.darkMode) .evalReportCriterionItem,
+:global(body.dark-mode) .evalReportCriterionItem {
+  background: #1e293b;
+}
+
+:global(.darkMode) .evalReportCriterionItem:hover,
+:global(body.dark-mode) .evalReportCriterionItem:hover {
+  background: #334155;
+}
+
+:global(.darkMode) .evalReportNotes,
+:global(body.dark-mode) .evalReportNotes {
+  background: rgba(16, 185, 129, 0.1);
+}
+
+:global(.darkMode) .evalReportNotesText,
+:global(body.dark-mode) .evalReportNotesText {
+  color: #e5e7eb;
+}

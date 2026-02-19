@@ -59,6 +59,62 @@
   border-left: 4px solid #c33;
 }
 
+/* Live Time Card Styles */
+.timeCard {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  margin-bottom: 20px;
+  color: white;
+}
+
+.timeCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.9;
+  margin-bottom: 15px;
+}
+
+.timeCardIcon {
+  font-size: 18px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.timeCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.currentTime {
+  font-size: 48px;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.currentDate {
+  font-size: 16px;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
 .filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -505,6 +561,14 @@
 
   .header h1 {
     font-size: 22px;
+  }
+
+  .currentTime {
+    font-size: 36px;
+  }
+  
+  .timeCard {
+    padding: 20px;
   }
 
   .filters {

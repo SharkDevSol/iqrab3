@@ -1,16 +1,28 @@
 {
-  "name": "School Management System",
-  "short_name": "School App",
-  "description": "Complete school management system for students, teachers, and guardians",
+  "name": "Skoolific - School Management System",
+  "short_name": "Skoolific",
+  "description": "Complete school management system powered by ALKHWARIZMI",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#10b981",
+  "theme_color": "#667eea",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/vite.svg",
+      "src": "/alkhwarizmi-logo.svg",
       "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/alkhwarizmi-logo.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/alkhwarizmi-logo.svg",
+      "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any"
     }
@@ -23,21 +35,21 @@
       "short_name": "Staff",
       "description": "Login as staff member",
       "url": "/app/staff-login",
-      "icons": [{ "src": "/vite.svg", "sizes": "any" }]
+      "icons": [{ "src": "/alkhwarizmi-logo.svg", "sizes": "any" }]
     },
     {
       "name": "Student Login",
       "short_name": "Student",
       "description": "Login as student",
       "url": "/app/student-login",
-      "icons": [{ "src": "/vite.svg", "sizes": "any" }]
+      "icons": [{ "src": "/alkhwarizmi-logo.svg", "sizes": "any" }]
     },
     {
       "name": "Guardian Login",
       "short_name": "Guardian",
       "description": "Login as guardian",
       "url": "/app/guardian-login",
-      "icons": [{ "src": "/vite.svg", "sizes": "any" }]
+      "icons": [{ "src": "/alkhwarizmi-logo.svg", "sizes": "any" }]
     }
   ]
 }

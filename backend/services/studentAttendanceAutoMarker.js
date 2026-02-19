@@ -6,6 +6,45 @@ const getWeekNumber = (day) => {
   return Math.ceil(day / 7);
 };
 
+// Convert Ethiopian date to Gregorian date
+const ethiopianToGregorian = (ethYear, ethMonth, ethDay) => {
+  // Ethiopian New Year (Meskerem 1) = September 11 (or Sept 12 in leap years)
+  const gregYear = ethYear + 7;
+  
+  // Check if it's a leap year in Gregorian calendar
+  const isGregorianLeapYear = (year) => {
+    return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+  };
+  
+  // Ethiopian New Year offset (Sept 11 or Sept 12)
+  const ethNewYearDay = isGregorianLeapYear(gregYear) ? 12 : 11;
+  
+  // Calculate total days from Ethiopian New Year
+  let totalDays = 0;
+  
+  // Add days from complete months
+  for (let m = 1; m < ethMonth; m++) {
+    if (m <= 12) {
+      totalDays += 30; // First 12 months have 30 days each
+    } else {
+      // Pagume (13th month) has 5 or 6 days
+      totalDays += isGregorianLeapYear(gregYear + 1) ? 6 : 5;
+    }
+  }
+  
+  // Add days in current month
+  totalDays += ethDay - 1; // -1 because Meskerem 1 = day 0
+  
+  // Create date starting from Ethiopian New Year
+  const ethNewYear = new Date(gregYear, 8, ethNewYearDay); // Month 8 = September
+  
+  // Add the total days
+  const gregorianDate = new Date(ethNewYear);
+  gregorianDate.setDate(ethNewYear.getDate() + totalDays);
+  
+  return gregorianDate;
+};
+
 // Get all students from all class tables with their shift assignments
 const getAllStudents = async () => {
   try {
@@ -30,6 +69,18 @@ const getAllStudents = async () => {
       
       const shiftNumber = shiftResult.rows.length > 0 ? shiftResult.rows[0].shift_number : 1;
       
+      // Check if is_active column exists
+      const columnCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'classes_schema' 
+          AND table_name = $1 
+          AND column_name = 'is_active'
+      `, [tableName]);
+      
+      const hasIsActive = columnCheck.rows.length > 0;
+      const whereClause = hasIsActive ? 'WHERE (is_active = TRUE OR is_active IS NULL)' : '';
+      
       const studentsResult = await pool.query(`
         SELECT 
           CAST(school_id AS VARCHAR) as student_id,
@@ -38,8 +89,7 @@ const getAllStudents = async () => {
           '${tableName}' as class_name,
           ${shiftNumber} as shift_number
         FROM classes_schema."${tableName}"
-        WHERE smachine_id IS NOT NULL
-          AND (is_active = TRUE OR is_active IS NULL)
+        ${whereClause}
         ORDER BY student_name
       `);
 
@@ -80,7 +130,11 @@ async function markAbsentStudents() {
 
     // Get current Ethiopian date
     const currentDate = getCurrentEthiopianDate();
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
     console.log(`📅 Current Date: ${currentDate.year}/${currentDate.month}/${currentDate.day}`);
+    console.log(`🕐 Current Time: ${currentTime}`);
 
     // Get all students
     const students = await getAllStudents();
@@ -91,10 +145,10 @@ async function markAbsentStudents() {
     let totalErrors = 0;
     const daysProcessed = [];
 
-    // Process all days from start of year until today (inclusive)
+    // Process all days from start of year until today
     for (let month = 1; month <= currentDate.month; month++) {
       const daysInMonth = month === 13 ? 5 : 30; // Pagume has 5 days, others have 30
-      const maxDay = month === currentDate.month ? currentDate.day : daysInMonth; // Include today
+      const maxDay = month === currentDate.month ? currentDate.day : daysInMonth;
 
       for (let day = 1; day <= maxDay; day++) {
         const dayOfWeek = getEthiopianDayOfWeek(currentDate.year, month, day);
@@ -103,6 +157,9 @@ async function markAbsentStudents() {
         if (!settings.school_days.includes(dayOfWeek)) {
           continue;
         }
+
+        // Check if this is today
+        const isToday = (month === currentDate.month && day === currentDate.day);
 
         const weekNumber = getWeekNumber(day);
         let dayMarked = 0;
@@ -133,18 +190,33 @@ async function markAbsentStudents() {
               ? settings.shift2_absent_marking 
               : settings.shift1_absent_marking;
 
+            // If this is TODAY, only mark absent if current time is past the absent marking time
+            if (isToday) {
+              const absentTimeOnly = absentMarkingTime.substring(0, 5); // HH:MM
+              
+              if (currentTime < absentTimeOnly) {
+                // Too early to mark this student absent
+                daySkipped++;
+                continue;
+              }
+            }
+
+            // Convert Ethiopian date to Gregorian for the date column
+            const gregorianDate = ethiopianToGregorian(currentDate.year, month, day);
+
             // Mark student as ABSENT
             await pool.query(`
               INSERT INTO academic_student_attendance (
                 student_id, student_name, class_name, smachine_id,
-                ethiopian_year, ethiopian_month, ethiopian_day,
+                date, ethiopian_year, ethiopian_month, ethiopian_day,
                 day_of_week, week_number, check_in_time, status, notes, shift_number
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             `, [
               student.student_id,
               student.student_name,
               student.class_name,
               student.smachine_id,
+              gregorianDate,
               currentDate.year,
               month,
               day,
@@ -202,9 +274,53 @@ async function markAbsentStudents() {
   }
 }
 
-// Export for use in scheduled jobs or manual triggers
+// Auto-marker class with scheduling
+class StudentAttendanceAutoMarker {
+  constructor() {
+    this.isRunning = false;
+    this.interval = null;
+  }
+
+  // Start the auto-marker (runs every hour)
+  start() {
+    if (this.isRunning) {
+      console.log('⚠️ Student attendance auto-marker is already running');
+      return;
+    }
+
+    this.isRunning = true;
+    console.log('🤖 Student attendance auto-marker started');
+
+    // Run immediately on startup
+    markAbsentStudents();
+
+    // Then run every hour (3600000 ms)
+    this.interval = setInterval(() => {
+      markAbsentStudents();
+    }, 3600000); // 1 hour
+  }
+
+  // Stop the auto-marker
+  stop() {
+    if (this.interval) {
+      clearInterval(this.interval);
+      this.isRunning = false;
+      console.log('🛑 Student attendance auto-marker stopped');
+    }
+  }
+
+  // Manual trigger
+  async markNow() {
+    return await markAbsentStudents();
+  }
+}
+
+// Export singleton instance
+const autoMarkerInstance = new StudentAttendanceAutoMarker();
+
 module.exports = {
-  markAbsentStudents
+  markAbsentStudents,
+  autoMarker: autoMarkerInstance
 };
 
 // If run directly (node studentAttendanceAutoMarker.js)

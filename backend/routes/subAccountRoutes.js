@@ -49,9 +49,29 @@ initializeSubAccountsTable();
 // Apply input sanitization to all routes
 router.use(sanitizeInputs);
 
-// All sub-account routes require admin authentication
+// All sub-account routes require PRIMARY admin authentication (not sub-accounts)
 router.use(authenticateToken);
-router.use(authorizeRoles('admin'));
+router.use((req, res, next) => {
+  // Only primary admins can manage sub-accounts
+  // Check both role and userType to ensure it's a primary admin
+  if (req.user.role === 'admin' && req.user.userType === 'admin') {
+    return next();
+  }
+  
+  // Sub-accounts cannot manage other sub-accounts
+  if (req.user.role === 'sub-account' || req.user.userType === 'sub-account') {
+    return res.status(403).json({ 
+      error: 'Access denied: Only primary administrators can manage sub-accounts' 
+    });
+  }
+  
+  // Super admin has access
+  if (req.user.isSuperAdmin || req.user.role === 'super_admin') {
+    return next();
+  }
+  
+  return res.status(403).json({ error: 'Access denied: Insufficient permissions' });
+});
 
 // GET all sub-accounts
 router.get('/', async (req, res) => {

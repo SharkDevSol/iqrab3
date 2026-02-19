@@ -24,6 +24,7 @@ const StudentAttendanceTimeSettings = () => {
   const [classShiftAssignments, setClassShiftAssignments] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -31,6 +32,13 @@ const StudentAttendanceTimeSettings = () => {
     fetchSettings();
     fetchClasses();
     fetchClassShiftAssignments();
+
+    // Update current time every second
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
   }, []);
 
   const fetchSettings = async () => {
@@ -38,7 +46,16 @@ const StudentAttendanceTimeSettings = () => {
       setIsLoading(true);
       const response = await axios.get('http://localhost:5000/api/academic/student-attendance/settings');
       if (response.data.success) {
-        setSettings(response.data.data);
+        // Merge fetched data with default values to prevent undefined errors
+        setSettings(prev => ({
+          ...prev,
+          ...response.data.data,
+          // Ensure these fields always exist
+          school_days: response.data.data.school_days || prev.school_days,
+          auto_absent_enabled: response.data.data.auto_absent_enabled !== undefined 
+            ? response.data.data.auto_absent_enabled 
+            : prev.auto_absent_enabled
+        }));
       }
     } catch (err) {
       console.error('Error fetching settings:', err);
@@ -84,9 +101,9 @@ const StudentAttendanceTimeSettings = () => {
   const handleDayToggle = (day) => {
     setSettings(prev => ({
       ...prev,
-      school_days: prev.school_days.includes(day)
-        ? prev.school_days.filter(d => d !== day)
-        : [...prev.school_days, day]
+      school_days: (prev.school_days || []).includes(day)
+        ? (prev.school_days || []).filter(d => d !== day)
+        : [...(prev.school_days || []), day]
     }));
   };
 
@@ -127,6 +144,24 @@ const StudentAttendanceTimeSettings = () => {
     return time.substring(0, 5); // Convert HH:MM:SS to HH:MM
   };
 
+  const formatCurrentTime = () => {
+    return currentTime.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit',
+      hour12: true 
+    });
+  };
+
+  const formatCurrentDate = () => {
+    return currentTime.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -140,6 +175,18 @@ const StudentAttendanceTimeSettings = () => {
           <span>{message.text}</span>
         </div>
       )}
+
+      {/* Live Time Card */}
+      <div className={styles.timeCard}>
+        <div className={styles.timeCardHeader}>
+          <FiClock className={styles.timeCardIcon} />
+          <span>Current Time</span>
+        </div>
+        <div className={styles.timeCardBody}>
+          <div className={styles.currentTime}>{formatCurrentTime()}</div>
+          <div className={styles.currentDate}>{formatCurrentDate()}</div>
+        </div>
+      </div>
 
       <div className={styles.content}>
         {/* Shift 1 Time Settings */}
@@ -345,7 +392,7 @@ const StudentAttendanceTimeSettings = () => {
               <label key={day} className={styles.dayCheckbox}>
                 <input
                   type="checkbox"
-                  checked={settings.school_days.includes(day)}
+                  checked={settings.school_days?.includes(day) || false}
                   onChange={() => handleDayToggle(day)}
                   disabled={isLoading}
                 />

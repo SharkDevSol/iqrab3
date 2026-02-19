@@ -70,24 +70,56 @@ class AttendanceAutoMarker {
 
   // Get time settings from database
   async getSettings() {
-    const result = await pool.query(`
-      SELECT 
-        late_threshold,
-        half_day_threshold,
-        max_checkout_hours,
-        absent_threshold_time,
-        weekend_days
-      FROM hr_attendance_time_settings 
-      LIMIT 1
-    `);
+    try {
+      // Check if table exists
+      const tableCheck = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+          AND table_name = 'hr_attendance_time_settings'
+      `);
+      
+      if (tableCheck.rows.length === 0) {
+        // Table doesn't exist, return defaults
+        console.log('⚠️ hr_attendance_time_settings table not found, using defaults');
+        return {
+          late_threshold: '08:15',
+          half_day_threshold: 4.0,
+          max_checkout_hours: 3.0,
+          absent_threshold_time: '15:00',
+          weekend_days: []
+        };
+      }
+      
+      const result = await pool.query(`
+        SELECT 
+          late_threshold,
+          half_day_threshold,
+          max_checkout_hours,
+          absent_threshold_time,
+          weekend_days
+        FROM hr_attendance_time_settings 
+        LIMIT 1
+      `);
 
-    return result.rows[0] || {
-      late_threshold: '08:15',
-      half_day_threshold: 4.0,
-      max_checkout_hours: 3.0,
-      absent_threshold_time: '15:00', // 3:00 PM
-      weekend_days: [] // No weekends by default
-    };
+      return result.rows[0] || {
+        late_threshold: '08:15',
+        half_day_threshold: 4.0,
+        max_checkout_hours: 3.0,
+        absent_threshold_time: '15:00',
+        weekend_days: []
+      };
+    } catch (error) {
+      console.error('Error getting settings:', error.message);
+      // Return defaults on error
+      return {
+        late_threshold: '08:15',
+        half_day_threshold: 4.0,
+        max_checkout_hours: 3.0,
+        absent_threshold_time: '15:00',
+        weekend_days: []
+      };
+    }
   }
 
   // Check if a date is a weekend

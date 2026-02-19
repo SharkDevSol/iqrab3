@@ -1426,23 +1426,6 @@ ${index + 1}. ${student.studentName || 'Unknown'}
               <h3 style={{ color: 'white', opacity: 0.9, fontSize: '0.9em', marginBottom: '10px' }}>Total Invoices</h3>
               <p className={styles.bigNumber} style={{ color: 'white' }}>{studentDetails.totalInvoices}</p>
             </div>
-            <div className={styles.card} style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', color: 'white' }}>
-              <h3 style={{ color: 'white', opacity: 0.9, fontSize: '0.9em', marginBottom: '10px' }}>Total Amount</h3>
-              <p className={styles.bigNumber} style={{ color: 'white' }}>{studentDetails.totalAmount.toFixed(2)} Birr</p>
-            </div>
-            <div className={`${styles.card} ${styles.cardSuccess}`} style={{ background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)', color: 'white' }}>
-              <h3 style={{ color: 'white', opacity: 0.9, fontSize: '0.9em', marginBottom: '10px' }}>TOTAL PAID</h3>
-              <p className={styles.bigNumber} style={{ color: 'white' }}>{studentDetails.totalPaid.toFixed(2)} Birr</p>
-            </div>
-            <div className={`${styles.card} ${styles.cardDanger}`} style={{ background: 'linear-gradient(135deg, #eb3349 0%, #f45c43 100%)', color: 'white' }}>
-              <h3 style={{ color: 'white', opacity: 0.9, fontSize: '0.9em', marginBottom: '10px' }}>BALANCE (UNLOCKED)</h3>
-              <p className={styles.bigNumber} style={{ color: 'white' }}>
-                {studentDetails.invoices
-                  .filter(inv => isMonthUnlocked(inv.monthNumber) && inv.balance > 0)
-                  .reduce((sum, inv) => sum + inv.balance, 0)
-                  .toFixed(2)} Birr
-              </p>
-            </div>
             <div className={`${styles.card} ${styles.cardWarning}`} style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: 'white' }}>
               <h3 style={{ color: 'white', opacity: 0.9, fontSize: '0.9em', marginBottom: '10px' }}>UNPAID MONTHS</h3>
               <p className={styles.bigNumber} style={{ color: 'white' }}>{studentDetails.unpaidMonths}</p>

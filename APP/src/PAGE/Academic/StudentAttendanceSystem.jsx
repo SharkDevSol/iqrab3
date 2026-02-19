@@ -28,6 +28,7 @@ const StudentAttendanceSystem = () => {
     notes: ''
   });
   const [showCurrentWeekModal, setShowCurrentWeekModal] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const ethiopianMonths = [
     'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit',
@@ -39,6 +40,13 @@ const StudentAttendanceSystem = () => {
     fetchCurrentDate();
     fetchClasses();
     fetchSettings();
+
+    // Update current time every second
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
   }, []);
 
   // Generate school weeks when settings and date are loaded
@@ -566,6 +574,24 @@ const StudentAttendanceSystem = () => {
     );
   };
 
+  const formatCurrentTime = () => {
+    return currentTime.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit',
+      hour12: true 
+    });
+  };
+
+  const formatCurrentDate = () => {
+    return currentTime.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
   const selectedWeek = getSelectedWeek();
 
   return (
@@ -584,6 +610,18 @@ const StudentAttendanceSystem = () => {
       </div>
 
       {error && <div className={styles.error}>{error}</div>}
+
+      {/* Live Time Card */}
+      <div className={styles.timeCard}>
+        <div className={styles.timeCardHeader}>
+          <FiClock className={styles.timeCardIcon} />
+          <span>Current Time</span>
+        </div>
+        <div className={styles.timeCardBody}>
+          <div className={styles.currentTime}>{formatCurrentTime()}</div>
+          <div className={styles.currentDate}>{formatCurrentDate()}</div>
+        </div>
+      </div>
 
       {/* Filters */}
       <div className={styles.filters}>

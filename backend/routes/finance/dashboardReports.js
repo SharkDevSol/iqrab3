@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+// Temporarily disabled until Prisma is generated
+// const { PrismaClient } = require('@prisma/client');
+// const prisma = new PrismaClient();
 const { authenticateToken } = require('../../middleware/auth');
 
 // GET /api/reports/finance/summary - Finance summary for dashboard

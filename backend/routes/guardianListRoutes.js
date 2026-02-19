@@ -12,6 +12,7 @@ router.get("/guardians", async (req, res) => {
     );
     
     const classes = tablesResult.rows.map(row => row.table_name);
+    console.log('Found classes:', classes);
     
     if (classes.length === 0) {
       return res.json([]);
@@ -22,6 +23,29 @@ router.get("/guardians", async (req, res) => {
     
     for (const className of classes) {
       try {
+        // First check if the table has guardian columns
+        const columnsCheck = await db.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_schema = 'classes_schema' 
+            AND table_name = $1 
+            AND column_name IN ('guardian_name', 'guardian_phone', 'guardian_username', 'guardian_password', 'is_active')
+        `, [className]);
+        
+        const columnNames = columnsCheck.rows.map(r => r.column_name);
+        const hasGuardianColumns = columnNames.filter(c => c.startsWith('guardian')).length >= 3;
+        const hasIsActive = columnNames.includes('is_active');
+        
+        if (!hasGuardianColumns) {
+          console.log(`Skipping class ${className}: Missing guardian columns`);
+          continue;
+        }
+        
+        // Build query with conditional is_active filter
+        const whereClause = hasIsActive 
+          ? `WHERE guardian_name IS NOT NULL AND guardian_name != '' AND (is_active = TRUE OR is_active IS NULL)`
+          : `WHERE guardian_name IS NOT NULL AND guardian_name != ''`;
+        
         const result = await db.query(`
           SELECT 
             guardian_name,
@@ -36,9 +60,10 @@ router.get("/guardians", async (req, res) => {
             age,
             gender
           FROM classes_schema."${className}"
-          WHERE guardian_name IS NOT NULL AND guardian_name != ''
-            AND (is_active = TRUE OR is_active IS NULL)
+          ${whereClause}
         `);
+        
+        console.log(`Class ${className}: Found ${result.rows.length} students with guardians`);
         
         for (const row of result.rows) {
           // Use guardian_phone as unique key (or guardian_name if no phone)
@@ -78,12 +103,15 @@ router.get("/guardians", async (req, res) => {
           }
         }
       } catch (err) {
-        console.warn(`Error fetching from class ${className}:`, err.message);
+        console.error(`Error fetching from class ${className}:`, err.message);
+        console.error('Full error:', err);
       }
     }
     
     const guardians = Array.from(guardiansMap.values());
     guardians.sort((a, b) => (a.guardian_name || '').localeCompare(b.guardian_name || ''));
+    
+    console.log(`Total unique guardians found: ${guardians.length}`);
     
     res.json(guardians);
   } catch (error) {
@@ -109,6 +137,22 @@ router.get("/guardian/:guardianId/students", async (req, res) => {
     
     for (const className of classes) {
       try {
+        // Check if table has is_active column
+        const columnsCheck = await db.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_schema = 'classes_schema' 
+            AND table_name = $1 
+            AND column_name = 'is_active'
+        `, [className]);
+        
+        const hasIsActive = columnsCheck.rows.length > 0;
+        
+        // Build query with conditional is_active filter
+        const whereClause = hasIsActive 
+          ? `WHERE (guardian_phone = $1 OR guardian_name = $1) AND (is_active = TRUE OR is_active IS NULL)`
+          : `WHERE (guardian_phone = $1 OR guardian_name = $1)`;
+        
         const result = await db.query(`
           SELECT 
             student_name,
@@ -120,8 +164,7 @@ router.get("/guardian/:guardianId/students", async (req, res) => {
             username,
             class
           FROM classes_schema."${className}"
-          WHERE (guardian_phone = $1 OR guardian_name = $1)
-            AND (is_active = TRUE OR is_active IS NULL)
+          ${whereClause}
         `, [guardianId]);
         
         // Add class name to each student

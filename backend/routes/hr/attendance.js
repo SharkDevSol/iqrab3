@@ -420,23 +420,40 @@ router.post('/attendance/ethiopian', authenticateToken, async (req, res) => {
     let shiftAssignment = 'shift1'; // default
     
     for (const schema of staffSchemas) {
-      const tablesResult = await pool.query(
-        `SELECT table_name FROM information_schema.tables WHERE table_schema = $1`,
-        [schema]
-      );
-      
-      for (const tableRow of tablesResult.rows) {
-        const staffResult = await pool.query(
-          `SELECT shift_assignment FROM "${schema}"."${tableRow.table_name}" WHERE global_staff_id = $1`,
-          [staffId]
+      try {
+        const tablesResult = await pool.query(
+          `SELECT table_name FROM information_schema.tables WHERE table_schema = $1`,
+          [schema]
         );
         
-        if (staffResult.rows.length > 0) {
-          shiftAssignment = staffResult.rows[0].shift_assignment || 'shift1';
-          break;
+        for (const tableRow of tablesResult.rows) {
+          try {
+            // Check if shift_assignment column exists
+            const columnCheck = await pool.query(
+              `SELECT column_name FROM information_schema.columns 
+               WHERE table_schema = $1 AND table_name = $2 AND column_name = 'shift_assignment'`,
+              [schema, tableRow.table_name]
+            );
+            
+            if (columnCheck.rows.length > 0) {
+              const staffResult = await pool.query(
+                `SELECT shift_assignment FROM "${schema}"."${tableRow.table_name}" WHERE global_staff_id = $1`,
+                [staffId]
+              );
+              
+              if (staffResult.rows.length > 0) {
+                shiftAssignment = staffResult.rows[0].shift_assignment || 'shift1';
+                break;
+              }
+            }
+          } catch (err) {
+            console.log(`Could not check shift_assignment in ${schema}.${tableRow.table_name}:`, err.message);
+          }
         }
+        if (shiftAssignment !== 'shift1') break;
+      } catch (err) {
+        console.log(`Could not check schema ${schema}:`, err.message);
       }
-      if (shiftAssignment !== 'shift1') break;
     }
 
     console.log(`Staff ${staffName} (${staffId}) has shift assignment: ${shiftAssignment}`);

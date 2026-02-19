@@ -401,20 +401,77 @@ const Home = () => {
   ];
 
   // Get user type and permissions for filtering navigation
-  const userType = localStorage.getItem('userType') || 'admin';
-  let userPermissions = [];
-  try {
-    const storedPermissions = localStorage.getItem('userPermissions');
-    if (storedPermissions) {
-      userPermissions = JSON.parse(storedPermissions);
+  // Use useState to make these reactive
+  const [userType, setUserType] = useState(() => {
+    const stored = localStorage.getItem('userType');
+    console.log('🔐 Initial userType from localStorage:', stored);
+    // If no userType is stored, default to 'admin' for backward compatibility
+    return stored || 'admin';
+  });
+  const [userPermissions, setUserPermissions] = useState(() => {
+    try {
+      const storedPermissions = localStorage.getItem('userPermissions');
+      const parsed = storedPermissions ? JSON.parse(storedPermissions) : [];
+      console.log('🔑 Initial permissions from localStorage:', parsed.length, 'permissions', parsed);
+      return parsed;
+    } catch (e) {
+      console.error('❌ Error parsing permissions:', e);
+      return [];
     }
-  } catch (e) {
-    console.error('Error parsing permissions:', e);
-  }
+  });
+
+  // Update user type and permissions when localStorage changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const newUserType = localStorage.getItem('userType') || 'admin';
+      console.log('🔄 Storage changed - userType:', newUserType);
+      setUserType(newUserType);
+      
+      try {
+        const storedPermissions = localStorage.getItem('userPermissions');
+        const parsed = storedPermissions ? JSON.parse(storedPermissions) : [];
+        console.log('🔄 Storage changed - permissions:', parsed.length, 'permissions');
+        setUserPermissions(parsed);
+      } catch (e) {
+        console.error('❌ Error parsing permissions on storage change:', e);
+        setUserPermissions([]);
+      }
+    };
+
+    // Listen for storage changes
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check on mount
+    handleStorageChange();
+
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // Filter navigation items based on user permissions
   const filteredNavItems = useMemo(() => {
-    return filterNavByPermissions(navItems, userPermissions, userType);
+    console.log('🔍 Filtering navigation:', { 
+      userType, 
+      permissionCount: userPermissions.length,
+      permissions: userPermissions 
+    });
+    
+    let filtered = filterNavByPermissions(navItems, userPermissions, userType);
+    
+    // Sub-accounts should never see the Sub-Accounts management page
+    if (userType === 'sub-account') {
+      filtered = filtered.map(item => {
+        if (item.items) {
+          return {
+            ...item,
+            items: item.items.filter(subItem => subItem.path !== '/admin-sub-accounts')
+          };
+        }
+        return item;
+      }).filter(item => !item.items || item.items.length > 0);
+    }
+    
+    console.log('✅ Filtered navigation items:', filtered.length, 'sections');
+    return filtered;
   }, [userPermissions, userType]);
 
   return (
@@ -504,7 +561,7 @@ const Home = () => {
             <FiMenu />
           </motion.button>
 
-          <div className={styles.logoText}>Skulify</div>
+          <div className={styles.logoText}>Skoolific</div>
 
           <motion.div 
             className={styles.profileDropdown}
@@ -545,7 +602,7 @@ const Home = () => {
             transition={{ delay: 0.2 }}
             className={styles.logoText}
           >
-            Skulify
+            Skoolific
           </motion.h2>
           <motion.p
             initial={{ opacity: 0 }}

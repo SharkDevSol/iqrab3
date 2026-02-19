@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import styles from './Login.module.css';
+import { getPermissionPath } from '../../config/adminPermissions';
 
 const Login = () => {
   const [credentials, setCredentials] = useState({
@@ -57,6 +58,7 @@ const Login = () => {
         localStorage.setItem('adminUser', JSON.stringify(user));
         localStorage.setItem('userType', user.userType || 'admin');
         localStorage.setItem('isLoggedIn', 'true');
+        
         // Store permissions for sub-accounts
         if (user.permissions) {
           localStorage.setItem('userPermissions', JSON.stringify(user.permissions));
@@ -64,7 +66,20 @@ const Login = () => {
           localStorage.removeItem('userPermissions');
         }
         
-        const redirectPath = location.state?.from?.pathname || '/';
+        // Determine redirect path based on user type and permissions
+        let redirectPath = '/';
+        
+        if (user.userType === 'sub-account' && user.permissions && user.permissions.length > 0) {
+          // For sub-accounts, redirect to their first permitted page
+          const firstPermittedPath = getPermissionPath(user.permissions[0]);
+          if (firstPermittedPath) {
+            redirectPath = firstPermittedPath;
+          }
+        } else if (user.userType === 'admin') {
+          // Primary admin goes to home/dashboard
+          redirectPath = location.state?.from?.pathname || '/';
+        }
+        
         navigate(redirectPath, { replace: true });
       }
     } catch (error) {

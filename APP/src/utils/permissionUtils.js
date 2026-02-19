@@ -9,9 +9,22 @@ import { ADMIN_PERMISSIONS, getPermissionByKey, getPermissionPath } from '../con
  * @returns {Array} Filtered navigation items
  */
 export const filterNavByPermissions = (navItems, permissions, userType) => {
-  // Primary admin has full access
-  if (userType === 'admin' || !permissions || permissions.length === 0) {
+  console.log('🔍 filterNavByPermissions called:', { 
+    userType, 
+    permissionCount: permissions?.length || 0,
+    permissions: permissions 
+  });
+
+  // Primary admin and staff have full access
+  if (userType === 'admin' || userType === 'staff') {
+    console.log('✅ Admin/Staff user - returning all nav items');
     return navItems;
+  }
+
+  // Sub-accounts with no permissions see nothing
+  if (!permissions || permissions.length === 0) {
+    console.log('⚠️ No permissions found - returning empty nav');
+    return [];
   }
 
   // Get all permitted paths
@@ -19,8 +32,10 @@ export const filterNavByPermissions = (navItems, permissions, userType) => {
     .map(key => getPermissionPath(key))
     .filter(path => path !== null);
 
+  console.log('📍 Permitted paths:', permittedPaths);
+
   // Filter navigation items
-  return navItems
+  const filtered = navItems
     .map(item => {
       // Single item (not a section)
       if (item.path) {
@@ -48,18 +63,21 @@ export const filterNavByPermissions = (navItems, permissions, userType) => {
       return item;
     })
     .filter(item => item !== null);
+
+  console.log('✅ Filtered result:', filtered.length, 'sections/items');
+  return filtered;
 };
 
 /**
  * Check if user has a specific permission
  * @param {Array} permissions - Array of permission keys
  * @param {string} requiredPermission - Permission key to check
- * @param {string} userType - 'admin' or 'sub-account'
+ * @param {string} userType - 'admin', 'sub-account', or 'staff'
  * @returns {boolean} Whether user has the permission
  */
 export const hasPermission = (permissions, requiredPermission, userType) => {
-  // Primary admin has all permissions
-  if (userType === 'admin') {
+  // Primary admin and staff have all permissions
+  if (userType === 'admin' || userType === 'staff') {
     return true;
   }
 
@@ -75,12 +93,12 @@ export const hasPermission = (permissions, requiredPermission, userType) => {
  * Check if user has permission to access a specific path
  * @param {Array} permissions - Array of permission keys
  * @param {string} path - Path to check
- * @param {string} userType - 'admin' or 'sub-account'
+ * @param {string} userType - 'admin', 'sub-account', or 'staff'
  * @returns {boolean} Whether user can access the path
  */
 export const hasPathPermission = (permissions, path, userType) => {
-  // Primary admin has full access
-  if (userType === 'admin') {
+  // Primary admin and staff have full access
+  if (userType === 'admin' || userType === 'staff') {
     return true;
   }
 

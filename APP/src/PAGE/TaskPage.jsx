@@ -1,4 +1,4 @@
-// TaskPage.jsx - Modern Task Dashboard Design
+// TaskPage.jsx - Modern Task Dashboard Design with Database Integration
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -8,18 +8,34 @@ import {
 } from 'react-icons/fi';
 import styles from './TaskPage.module.css';
 import { useApp } from '../context/AppContext';
+import api from '../utils/api';
 
 const TOTAL_TASKS = 7;
 
 function TaskPage() {
   const { t } = useApp();
   const [completed, setCompleted] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem('completedTasks') || '[]');
-    setCompleted(stored);
-    // No longer auto-redirect when all tasks completed - allow users to view/review tasks
+    fetchTaskStatus();
   }, []);
+
+  const fetchTaskStatus = async () => {
+    try {
+      const response = await api.get('/tasks/status');
+      if (response.data.success) {
+        setCompleted(response.data.completedTasks);
+      }
+    } catch (error) {
+      console.error('Error fetching task status:', error);
+      // Fallback to localStorage if API fails
+      const stored = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+      setCompleted(stored);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const progress = Math.round((completed.length / 7) * 100);
 
@@ -94,8 +110,15 @@ function TaskPage() {
         </div>
       </motion.div>
 
-      {/* Progress Section */}
-      <motion.div 
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
+          <FiClock size={48} style={{ marginBottom: '1rem' }} />
+          <p>Loading task status...</p>
+        </div>
+      ) : (
+        <>
+          {/* Progress Section */}
+          <motion.div 
         className={styles.progressSection}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -172,6 +195,8 @@ function TaskPage() {
           );
         })}
       </div>
+        </>
+      )}
     </div>
   );
 }

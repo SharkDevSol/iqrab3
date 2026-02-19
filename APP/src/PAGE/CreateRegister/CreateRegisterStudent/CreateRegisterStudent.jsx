@@ -974,7 +974,7 @@ const AddStudentS = () => {
           <h2>Custom Fields</h2>
           <div className={styles.formGrid}>
             {tableColumns
-              .filter(col => !['id', 'school_id', 'class_id', 'image_student', 'student_name', 'smachine_id', 'age', 'gender', 'class', 'guardian_name', 'guardian_phone', 'guardian_relation', 'username', 'password', 'guardian_username', 'guardian_password'].includes(col.column_name))
+              .filter(col => !['id', 'school_id', 'class_id', 'image_student', 'student_name', 'smachine_id', 'age', 'gender', 'class', 'guardian_name', 'guardian_phone', 'guardian_relation', 'username', 'password', 'guardian_username', 'guardian_password', 'is_active', 'is_free', 'exemption_type', 'exemption_reason'].includes(col.column_name))
               .map(column => renderCustomField(column))
             }
           </div>

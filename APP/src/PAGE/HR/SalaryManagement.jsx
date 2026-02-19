@@ -683,10 +683,6 @@ const SalaryManagement = () => {
           }}
         />
       )}
-            });
-          }}
-        />
-      )}
 
       {showAddDeductionModal && (
         <AddDeductionModal

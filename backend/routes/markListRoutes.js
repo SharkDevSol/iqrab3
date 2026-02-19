@@ -2,6 +2,20 @@ const express = require('express');
 const pool = require('../config/db');
 const router = express.Router();
 
+// Helper function to check if is_active column exists and build WHERE clause
+const getActiveStudentsWhereClause = async (client, className) => {
+  const columnCheck = await client.query(`
+    SELECT column_name 
+    FROM information_schema.columns 
+    WHERE table_schema = 'classes_schema' 
+      AND table_name = $1 
+      AND column_name = 'is_active'
+  `, [className]);
+  
+  const hasIsActive = columnCheck.rows.length > 0;
+  return hasIsActive ? 'WHERE is_active = TRUE OR is_active IS NULL' : '';
+};
+
 // Initialize subjects_of_school_schema and required tables
 const initializeSubjectsSchema = async () => {
   try {
@@ -17,6 +31,7 @@ const initializeSubjectsSchema = async () => {
     `);
     
     // Create subject_class_mappings table for selective subject-class mappings
+    // Note: Removed foreign key constraint to avoid issues with subject deletion
     await pool.query(`
       CREATE TABLE IF NOT EXISTS subjects_of_school_schema.subject_class_mappings (
         id SERIAL PRIMARY KEY,
@@ -24,8 +39,7 @@ const initializeSubjectsSchema = async () => {
         class_name VARCHAR(50) NOT NULL,
         subject_class VARCHAR(150) GENERATED ALWAYS AS (subject_name || ' Class ' || class_name) STORED,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(subject_name, class_name),
-        FOREIGN KEY (subject_name) REFERENCES subjects_of_school_schema.subjects(subject_name) ON DELETE CASCADE
+        UNIQUE(subject_name, class_name)
       )
     `);
     
@@ -173,6 +187,18 @@ router.post('/map-subjects-classes', async (req, res) => {
   try {
     await client.query('BEGIN');
     
+    // Ensure table exists
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS subjects_of_school_schema.subject_class_mappings (
+        id SERIAL PRIMARY KEY,
+        subject_name VARCHAR(100) NOT NULL,
+        class_name VARCHAR(50) NOT NULL,
+        subject_class VARCHAR(150) GENERATED ALWAYS AS (subject_name || ' Class ' || class_name) STORED,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(subject_name, class_name)
+      )
+    `);
+    
     // Clear existing mappings
     await client.query('DELETE FROM subjects_of_school_schema.subject_class_mappings');
     
@@ -189,7 +215,8 @@ router.post('/map-subjects-classes', async (req, res) => {
         [mapping.className]
       );
       if (classResult.rows.length === 0) {
-        throw new Error(`Class ${mapping.className} not found in classes_schema`);
+        console.warn(`Class ${mapping.className} not found in classes_schema, skipping`);
+        continue; // Skip instead of throwing error
       }
       
       // Validate subject exists
@@ -198,12 +225,13 @@ router.post('/map-subjects-classes', async (req, res) => {
         [mapping.subjectName]
       );
       if (subjectResult.rows.length === 0) {
-        throw new Error(`Subject ${mapping.subjectName} not found`);
+        console.warn(`Subject ${mapping.subjectName} not found, skipping`);
+        continue; // Skip instead of throwing error
       }
       
       // Insert mapping
       await client.query(
-        'INSERT INTO subjects_of_school_schema.subject_class_mappings (class_name, subject_name) VALUES ($1, $2)',
+        'INSERT INTO subjects_of_school_schema.subject_class_mappings (class_name, subject_name) VALUES ($1, $2) ON CONFLICT (subject_name, class_name) DO NOTHING',
         [mapping.className, mapping.subjectName]
       );
     }
@@ -299,8 +327,24 @@ router.post('/create-mark-forms', async (req, res) => {
     await client.query(`DROP TABLE IF EXISTS ${schemaName}.${tableName}`);
     await client.query(`CREATE TABLE ${schemaName}.${tableName} (${allColumns.join(', ')})`);
     
+    // Check if is_active column exists in the class table
+    const columnCheck = await client.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_schema = 'classes_schema' 
+        AND table_name = $1 
+        AND column_name = 'is_active'
+    `, [className]);
+    
+    const hasIsActive = columnCheck.rows.length > 0;
+    const whereClause = hasIsActive ? 'WHERE is_active = TRUE OR is_active IS NULL' : '';
+    
     // Get students from the class table in classes_schema (only active students)
-    const studentsResult = await client.query(`SELECT student_name, age, gender FROM classes_schema."${className}" WHERE is_active = TRUE OR is_active IS NULL`);
+    const studentsResult = await client.query(`
+      SELECT student_name, age, gender 
+      FROM classes_schema."${className}" 
+      ${whereClause}
+    `);
     
     for (const student of studentsResult.rows) {
       const insertColumns = ['student_name', 'age', 'gender'];
@@ -360,11 +404,23 @@ router.get('/mark-list/:subjectName/:className/:termNumber', async (req, res) =>
     const schemaName = `subject_${subjectName.toLowerCase().replace(/\s+/g, '_')}_schema`;
     const tableName = `${className.toLowerCase()}_term_${termNumber}`;
     
+    // Check if is_active column exists
+    const columnCheck = await client.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_schema = 'classes_schema' 
+        AND table_name = $1 
+        AND column_name = 'is_active'
+    `, [className]);
+    
+    const hasIsActive = columnCheck.rows.length > 0;
+    const whereClause = hasIsActive ? 'WHERE is_active = TRUE OR is_active IS NULL' : '';
+    
     // SYNC STUDENTS: Add new active students and remove deactivated ones
     // Get current active students from class table
     const activeStudentsResult = await client.query(
       `SELECT student_name, age, gender FROM classes_schema."${className}" 
-       WHERE is_active = TRUE OR is_active IS NULL`
+       ${whereClause}`
     );
     const activeStudents = activeStudentsResult.rows;
     
@@ -1353,10 +1409,13 @@ router.post('/sync-class-students/:className', async (req, res) => {
   try {
     await client.query('BEGIN');
     
+    // Check if is_active column exists
+    const whereClause = await getActiveStudentsWhereClause(client, className);
+    
     // Get all active students from the class
     const activeStudentsResult = await client.query(
       `SELECT student_name, age, gender FROM classes_schema."${className}" 
-       WHERE is_active = TRUE OR is_active IS NULL`
+       ${whereClause}`
     );
     const activeStudents = activeStudentsResult.rows;
     const activeStudentNames = activeStudents.map(s => s.student_name);

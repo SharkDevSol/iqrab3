@@ -13,6 +13,7 @@ const { apiLimiter, loginLimiter } = require('./middleware/rateLimiter');
 const { sanitizeInputs } = require('./middleware/inputValidation');
 
 // Route imports
+const healthRoutes = require('./routes/healthRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const studentListRoutes = require('./routes/studentListRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
@@ -65,6 +66,7 @@ const machineWebhookRoutes = require('./routes/machineWebhook');
 const settingsRoutes = require('./routes/settingsRoutes');
 const academicStudentAttendanceRoutes = require('./routes/academic/studentAttendance');
 const shiftSettingsRoutes = require('./routes/shiftSettings');
+const taskStatusRoutes = require('./routes/taskStatusRoutes');
 
 const app = express();
 
@@ -248,6 +250,7 @@ app.get('/api/test-attendance', (req, res) => {
 });
 
 // Routes - IMPORTANT: Remove duplicate '/dashboard' from the path
+app.use('/api/health', healthRoutes); // Health check endpoint
 app.use('/api/students', studentRoutes);
 app.use('/api/student-list', studentListRoutes);
 app.use('/api/attendance', attendanceRoutes);
@@ -301,6 +304,7 @@ app.use('/api/machine-webhook', machineWebhookRoutes);
 app.use('/api/usb-attendance', require('./routes/usbAttendanceImport'));
 app.use('/api/settings', settingsRoutes);
 app.use('/api/academic/student-attendance', academicStudentAttendanceRoutes);
+app.use('/api/tasks', taskStatusRoutes);
 
 // ===========================================
 // AI06 WEBSOCKET SERVICE
@@ -317,16 +321,48 @@ ai06Service.start(io);
 app.set('ai06Service', ai06Service);
 
 // ===========================================
-// ATTENDANCE AUTO-MARKER SERVICE
+// ATTENDANCE AUTO-MARKER SERVICES
 // ===========================================
+// HR Attendance Auto-Marker
 const attendanceAutoMarker = require('./services/attendanceAutoMarker');
 attendanceAutoMarker.start();
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Dashboard endpoints available at:`);
-  console.log(`  http://localhost:${PORT}/api/dashboard/stats`);
+// Student Attendance Auto-Marker
+const { autoMarker: studentAttendanceAutoMarker } = require('./services/studentAttendanceAutoMarker');
+studentAttendanceAutoMarker.start();
+
+// DATABASE MIGRATIONS - Temporarily disabled
+// ===========================================
+// const { Pool } = require('pg');
+// const MigrationRunner = require('./migrations/migrationRunner');
+
+// // Initialize database pool for migrations
+// const migrationPool = new Pool({
+//   connectionString: process.env.DATABASE_URL
+// });
+
+// Import auto-setup utility
+const { autoSetup } = require('./utils/autoSetup');
+
+// Run migrations and auto-setup on startup, then start server
+(async () => {
+  // try {
+  //   const migrationRunner = new MigrationRunner(migrationPool);
+  //   await migrationRunner.runPendingMigrations();
+  // } catch (error) {
+  //   console.error('❌ Failed to run migrations:', error.message);
+  //   console.error('⚠️ Server will continue, but some features may not work correctly');
+  // }
+
+  // Run auto-setup (creates default accounts, checks migrations, etc.)
+  await autoSetup();
+
+  // Start server after setup complete
+  const PORT = process.env.PORT || 5000;
+  server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Dashboard endpoints available at:`);
+    console.log(`  http://localhost:${PORT}/api/dashboard/stats`);
   console.log(`  http://localhost:${PORT}/api/dashboard/recent-faults`);
   console.log(`  http://localhost:${PORT}/api/dashboard/top-offenders`);
   
@@ -340,7 +376,8 @@ server.listen(PORT, () => {
   console.log(`   - Server IP: YOUR_LOCAL_IP (e.g., 192.168.1.100)`);
   console.log(`   - Server Port: 7788`);
   console.log(`   - Server Reg: YES`);
-});
+  });
+})(); // Close the async function
 
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully');

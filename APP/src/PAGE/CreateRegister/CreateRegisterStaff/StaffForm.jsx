@@ -69,8 +69,7 @@ const StaffForm = ({ staffTypeProp, classNameProp, onSuccess }) => {
       'Assistant', 'Manager', 'Trainer', 'Advisor', 'Inspector'
     ],
     staff_enrollment_type: ['Permanent', 'Contract'],
-    staff_work_time: ['Full Time', 'Part Time'],
-    shift_assignment: ['Shift 1', 'Shift 2', 'Both']
+    staff_work_time: ['Full Time', 'Part Time']
   };
 
   // File type configurations
@@ -637,33 +636,7 @@ const StaffForm = ({ staffTypeProp, classNameProp, onSuccess }) => {
       );
     }
 
-    // Shift Assignment field (for attendance shifts)
-    if (fieldName === 'shift_assignment') {
-      return (
-        <div key={fieldName} className={styles.fieldGroup}>
-          <label>
-            {formatFieldLabel(fieldName)} {isRequired && <span className={styles.required}>*</span>}
-            <span className={styles.fieldHint}> (Attendance Shift)</span>
-          </label>
-          <select
-            value={value || 'shift1'}
-            onChange={(e) => setFormData({ ...formData, shift_assignment: e.target.value })}
-            className={styles.select}
-          >
-            <option value="shift1">🌅 Shift 1 (Morning)</option>
-            <option value="shift2">🌆 Shift 2 (Afternoon)</option>
-            <option value="both">🔄 Both Shifts</option>
-          </select>
-          <small className={styles.fieldDescription}>
-            {value === 'both' 
-              ? 'Staff will have 2 separate check-in/out records per day' 
-              : value === 'shift2'
-              ? 'Staff works afternoon/evening shift'
-              : 'Staff works morning shift'}
-          </small>
-        </div>
-      );
-    }
+    // Shift Assignment removed - now managed in Time & Shift Settings
 
     // Checkbox field
     if (col.data_type === 'checkbox') {
@@ -888,7 +861,7 @@ const StaffForm = ({ staffTypeProp, classNameProp, onSuccess }) => {
       <form onSubmit={handleSubmit} className={styles.staffForm}>
         <div className={styles.formGrid}>
           {columns
-            .filter(col => !['id', 'global_staff_id', 'staff_id'].includes(col.column_name))
+            .filter(col => !['id', 'global_staff_id', 'staff_id', 'shift_assignment'].includes(col.column_name))
             .map(col => {
               const fieldName = col.column_name;
               const hasError = validationErrors[fieldName];

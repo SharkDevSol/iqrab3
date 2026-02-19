@@ -29,6 +29,18 @@ const getAllStudents = async (className = null) => {
         continue;
       }
 
+      // Check if is_active column exists
+      const columnCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'classes_schema' 
+          AND table_name = $1 
+          AND column_name = 'is_active'
+      `, [tableName]);
+      
+      const hasIsActive = columnCheck.rows.length > 0;
+      const whereClause = hasIsActive ? 'WHERE is_active = TRUE OR is_active IS NULL' : '';
+
       // Get students with all their details
       const studentsResult = await pool.query(`
         SELECT 
@@ -40,7 +52,7 @@ const getAllStudents = async (className = null) => {
           gender,
           '${tableName}' as class_name
         FROM classes_schema."${tableName}"
-        WHERE is_active = TRUE OR is_active IS NULL
+        ${whereClause}
         ORDER BY student_name
       `);
 
@@ -68,18 +80,41 @@ router.get('/weekly', async (req, res) => {
     const yearNum = parseInt(year);
     const monthNum = parseInt(month);
 
-    // Build query
-    let query = `
-      SELECT * FROM academic_student_attendance
-      WHERE ethiopian_year = $1 
-        AND ethiopian_month = $2 
-        AND week_number = $3
-    `;
+    // Check if ethiopian_year column exists
+    const columnCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'academic_student_attendance' 
+        AND column_name IN ('ethiopian_year', 'ethiopian_month', 'week_number')
+    `);
     
-    const params = [yearNum, monthNum, weekNum];
+    const existingColumns = columnCheck.rows.map(r => r.column_name);
+    const hasEthiopianColumns = existingColumns.includes('ethiopian_year');
+
+    // Build query based on available columns
+    let query, params;
+    
+    if (hasEthiopianColumns) {
+      // Use Ethiopian calendar columns
+      query = `
+        SELECT * FROM academic_student_attendance
+        WHERE ethiopian_year = $1 
+          AND ethiopian_month = $2 
+          AND week_number = $3
+      `;
+      params = [yearNum, monthNum, weekNum];
+    } else {
+      // Fallback: use date-based query
+      // This is a temporary solution - ideally add the columns
+      query = `
+        SELECT * FROM academic_student_attendance
+        WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+      `;
+      params = [];
+    }
 
     if (className) {
-      query += ` AND class_name = $4`;
+      query += ` AND class_name = $${params.length + 1}`;
       params.push(className);
     }
 

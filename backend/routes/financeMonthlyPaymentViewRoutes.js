@@ -181,10 +181,27 @@ router.get('/overview', authenticateToken, requirePermission(FINANCE_PERMISSIONS
       let freeStudentsCount = 0;
       
       try {
+        // Check if is_active column exists
+        const columnCheck = await prisma.$queryRawUnsafe(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_schema = 'classes_schema' 
+            AND table_name = '${className}'
+            AND column_name IN ('is_active', 'is_free')
+        `);
+        
+        const columnNames = columnCheck.map(c => c.column_name);
+        const hasIsActive = columnNames.includes('is_active');
+        const hasIsFree = columnNames.includes('is_free');
+        
+        // Build query with conditional columns and filters
+        const whereClause = hasIsActive ? 'WHERE is_active = TRUE OR is_active IS NULL' : '';
+        const selectIsFree = hasIsFree ? ', is_free' : '';
+        
         const activeStudents = await prisma.$queryRawUnsafe(`
-          SELECT school_id, class_id, student_name, is_free
+          SELECT school_id, class_id, student_name${selectIsFree}
           FROM classes_schema."${className}"
-          WHERE is_active = TRUE OR is_active IS NULL
+          ${whereClause}
         `);
         
         console.log(`Active students found: ${activeStudents.length}`);
@@ -219,10 +236,24 @@ router.get('/overview', authenticateToken, requirePermission(FINANCE_PERMISSIONS
       // STEP 2: Build map of free students (exempt from payments)
       const freeStudentIds = new Set();
       try {
+        // Check if is_active column exists (reuse from previous check)
+        const columnCheck = await prisma.$queryRawUnsafe(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_schema = 'classes_schema' 
+            AND table_name = '${className}'
+            AND column_name = 'is_active'
+        `);
+        
+        const hasIsActive = columnCheck.length > 0;
+        const whereClause = hasIsActive 
+          ? 'WHERE (is_active = TRUE OR is_active IS NULL) AND is_free = TRUE'
+          : 'WHERE is_free = TRUE';
+        
         const freeStudents = await prisma.$queryRawUnsafe(`
           SELECT school_id, class_id, student_name, exemption_type
           FROM classes_schema."${className}"
-          WHERE (is_active = TRUE OR is_active IS NULL) AND is_free = TRUE
+          ${whereClause}
         `);
         
         console.log(`Free students found: ${freeStudents.length}`);
@@ -524,12 +555,26 @@ router.get('/class/:className', authenticateToken, requirePermission(FINANCE_PER
           const classId = parseInt(parts[4], 10); // Parse as decimal, remove leading zeros
           
           try {
+            // Check if is_active column exists
+            const columnCheck = await prisma.$queryRawUnsafe(`
+              SELECT column_name 
+              FROM information_schema.columns 
+              WHERE table_schema = 'classes_schema' 
+                AND table_name = '${className}'
+                AND column_name = 'is_active'
+            `);
+            
+            const hasIsActive = columnCheck.length > 0;
+            const whereClause = hasIsActive 
+              ? 'AND (is_active = TRUE OR is_active IS NULL)'
+              : '';
+            
             // Query the class table for this school_id and class_id
             const result = await prisma.$queryRawUnsafe(`
               SELECT school_id, class_id, student_name, is_free, exemption_type, exemption_reason
               FROM classes_schema."${className}"
               WHERE school_id = $1 AND class_id = $2
-                AND (is_active = TRUE OR is_active IS NULL)
+                ${whereClause}
             `, schoolId, classId);
 
             if (result.length > 0) {
@@ -1015,6 +1060,153 @@ router.get('/reports/multiple-monthly-payments', authenticateToken, requirePermi
     res.status(500).json({
       error: 'SYSTEM_ERROR',
       message: 'Failed to generate report',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/finance/monthly-payments-view/unpaid-students
+ * Get detailed list of students with unpaid unlocked months
+ */
+router.get('/unpaid-students', authenticateToken, requirePermission(FINANCE_PERMISSIONS.INVOICES_VIEW), async (req, res) => {
+  try {
+    const currentEthiopianMonth = parseInt(req.query.currentMonth) || 5;
+
+    console.log('\n========================================');
+    console.log('📋 FETCHING UNPAID STUDENTS DETAILS');
+    console.log('========================================');
+    console.log(`Current Ethiopian Month: ${currentEthiopianMonth}\n`);
+
+    // Get all active fee structures
+    const feeStructures = await prisma.feeStructure.findMany({
+      where: { isActive: true },
+      include: { items: true }
+    });
+
+    const unpaidStudentsList = [];
+
+    // Process each class
+    for (const feeStructure of feeStructures) {
+      const className = feeStructure.gradeLevel;
+      console.log(`\n--- Processing Class ${className} ---`);
+
+      // Get ACTIVE students from class table
+      let activeStudentIds = new Set();
+      let studentInfoMap = new Map();
+      
+      try {
+        // Check if is_active column exists
+        const columnCheck = await prisma.$queryRawUnsafe(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_schema = 'classes_schema' 
+            AND table_name = '${className}'
+            AND column_name = 'is_active'
+        `);
+        
+        const hasIsActive = columnCheck.length > 0;
+        const whereClause = hasIsActive ? 'WHERE is_active = TRUE OR is_active IS NULL' : '';
+        
+        const activeStudents = await prisma.$queryRawUnsafe(`
+          SELECT school_id, class_id, student_name, is_free
+          FROM classes_schema."${className}"
+          ${whereClause}
+        `);
+        
+        console.log(`Active students found: ${activeStudents.length}`);
+        
+        // Build UUID format student IDs and store student info
+        for (const student of activeStudents) {
+          const schoolIdPadded = String(student.school_id).padStart(4, '0');
+          const classIdPadded = String(student.class_id).padStart(12, '0');
+          const studentId = `00000000-0000-0000-${schoolIdPadded}-${classIdPadded}`;
+          activeStudentIds.add(studentId);
+          
+          studentInfoMap.set(studentId, {
+            name: student.student_name,
+            is_free: student.is_free || false,
+            class: className
+          });
+        }
+      } catch (error) {
+        console.error(`ERROR fetching students for ${className}:`, error.message);
+        continue;
+      }
+
+      if (activeStudentIds.size === 0) {
+        console.log(`No active students in ${className}, skipping...`);
+        continue;
+      }
+
+      // Get ALL invoices for this class
+      const allInvoices = await prisma.invoice.findMany({
+        where: { feeStructureId: feeStructure.id },
+        include: { items: true }
+      });
+
+      // Filter to ONLY active, PAYING student invoices (exclude free students)
+      const activeInvoices = allInvoices.filter(inv => activeStudentIds.has(inv.studentId));
+      const payingStudentInvoices = activeInvoices.filter(inv => {
+        const studentInfo = studentInfoMap.get(inv.studentId);
+        return studentInfo && !studentInfo.is_free;
+      });
+
+      // Group invoices by student
+      const studentInvoiceMap = new Map();
+      for (const invoice of payingStudentInvoices) {
+        if (!studentInvoiceMap.has(invoice.studentId)) {
+          studentInvoiceMap.set(invoice.studentId, []);
+        }
+        studentInvoiceMap.get(invoice.studentId).push(invoice);
+      }
+
+      // Find students with unpaid unlocked months
+      for (const [studentId, invoices] of studentInvoiceMap.entries()) {
+        const unlockedInvoices = invoices.filter(inv => {
+          const monthNumber = inv.metadata?.monthNumber || 0;
+          return monthNumber <= currentEthiopianMonth;
+        });
+
+        const unpaidUnlockedInvoices = unlockedInvoices.filter(inv => inv.status !== 'PAID');
+
+        if (unpaidUnlockedInvoices.length > 0) {
+          const studentInfo = studentInfoMap.get(studentId);
+          const totalPending = unpaidUnlockedInvoices.reduce((sum, inv) => 
+            sum + (parseFloat(inv.totalAmount) - parseFloat(inv.paidAmount)), 0
+          );
+
+          unpaidStudentsList.push({
+            student_name: studentInfo?.name || 'Unknown',
+            class: studentInfo?.class || className,
+            unpaid_months_count: unpaidUnlockedInvoices.length,
+            total_pending: totalPending,
+            unpaid_months: unpaidUnlockedInvoices.map(inv => inv.metadata?.month || 'Unknown').join(', ')
+          });
+
+          console.log(`  ⚠️ ${studentInfo?.name}: ${unpaidUnlockedInvoices.length} unpaid months, ${totalPending.toFixed(2)} Birr pending`);
+        }
+      }
+    }
+
+    // Sort by total pending (highest first)
+    unpaidStudentsList.sort((a, b) => b.total_pending - a.total_pending);
+
+    console.log('\n========================================');
+    console.log(`TOTAL UNPAID STUDENTS: ${unpaidStudentsList.length}`);
+    console.log('========================================\n');
+
+    res.json({
+      currentMonth: currentEthiopianMonth,
+      totalUnpaidStudents: unpaidStudentsList.length,
+      students: unpaidStudentsList
+    });
+
+  } catch (error) {
+    console.error('ERROR in unpaid-students endpoint:', error);
+    res.status(500).json({
+      error: 'SYSTEM_ERROR',
+      message: 'Failed to fetch unpaid students',
       details: error.message
     });
   }

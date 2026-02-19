@@ -10,6 +10,8 @@ const FinanceReports = () => {
     const currentMonth = getCurrentEthiopianMonth();
     return currentMonth.month;
   });
+  const [showUnpaidModal, setShowUnpaidModal] = useState(false);
+  const [unpaidStudents, setUnpaidStudents] = useState([]);
 
   const ethiopianMonths = [
     'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit',
@@ -47,6 +49,21 @@ const FinanceReports = () => {
     } catch (error) {
       console.error('Error fetching overview:', error);
       alert('Failed to fetch financial reports');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUnpaidStudents = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get(`/finance/monthly-payments-view/unpaid-students?currentMonth=${currentEthiopianMonth}`);
+      console.log('📋 Unpaid Students Data:', response.data);
+      setUnpaidStudents(response.data.students || []);
+      setShowUnpaidModal(true);
+    } catch (error) {
+      console.error('Error fetching unpaid students:', error);
+      alert('Failed to fetch unpaid students details');
     } finally {
       setLoading(false);
     }
@@ -159,13 +176,33 @@ const FinanceReports = () => {
           <p style={{ fontSize: '0.95em', opacity: 0.85, margin: 0 }}>Payment Collection Rate</p>
         </div>
 
-        <div style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' }}>
+        <div 
+          onClick={fetchUnpaidStudents}
+          style={{ 
+            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', 
+            color: 'white', 
+            padding: '30px', 
+            borderRadius: '12px', 
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+            cursor: 'pointer',
+            transition: 'transform 0.2s, box-shadow 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-5px)';
+            e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+          }}
+        >
           <div style={{ fontSize: '3.5em', marginBottom: '15px', opacity: 0.9 }}>⚠️</div>
           <h3 style={{ color: 'white', margin: '0 0 8px 0', fontSize: '1.1em' }}>Unpaid Students (Unlocked)</h3>
           <p style={{ color: 'white', fontSize: '3em', fontWeight: 'bold', margin: '15px 0' }}>
             {overview.summary.unpaidUnlockedStudents || 0}
           </p>
           <p style={{ fontSize: '0.95em', opacity: 0.85, margin: 0 }}>Students with unpaid unlocked months</p>
+          <p style={{ fontSize: '0.85em', opacity: 0.7, margin: '10px 0 0 0', fontStyle: 'italic' }}>Click to view details</p>
         </div>
       </div>
 
@@ -262,6 +299,157 @@ const FinanceReports = () => {
           </table>
         </div>
       </div>
+
+      {/* Unpaid Students Modal */}
+      {showUnpaidModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}
+          onClick={() => setShowUnpaidModal(false)}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              maxWidth: '900px',
+              width: '100%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              padding: '25px 30px',
+              borderBottom: '2px solid #f0f0f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              color: 'white',
+              borderRadius: '12px 12px 0 0'
+            }}>
+              <h2 style={{ margin: 0, fontSize: '1.8em' }}>⚠️ Unpaid Students Details</h2>
+              <button
+                onClick={() => setShowUnpaidModal(false)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '1.5em',
+                  cursor: 'pointer',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div style={{ padding: '30px' }}>
+              {loading ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <div className={styles.loader}></div>
+                  <p>Loading unpaid students...</p>
+                </div>
+              ) : unpaidStudents.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                  <div style={{ fontSize: '4em', marginBottom: '20px' }}>✓</div>
+                  <h3>No unpaid students found</h3>
+                  <p>All students have paid their unlocked months!</p>
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginBottom: '20px', padding: '15px', background: '#fff3cd', borderRadius: '8px', border: '1px solid #ffc107' }}>
+                    <p style={{ margin: 0, color: '#856404' }}>
+                      <strong>Total Unpaid Students:</strong> {unpaidStudents.length}
+                    </p>
+                  </div>
+                  
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
+                          <th style={{ padding: '15px', textAlign: 'left', fontWeight: '600' }}>Student Name</th>
+                          <th style={{ padding: '15px', textAlign: 'center', fontWeight: '600' }}>Class</th>
+                          <th style={{ padding: '15px', textAlign: 'center', fontWeight: '600' }}>Unpaid Months</th>
+                          <th style={{ padding: '15px', textAlign: 'right', fontWeight: '600' }}>Total Pending</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {unpaidStudents.map((student, index) => (
+                          <tr 
+                            key={index}
+                            style={{
+                              backgroundColor: index % 2 === 0 ? '#f8f9fa' : 'white',
+                              borderBottom: '1px solid #e0e0e0'
+                            }}
+                          >
+                            <td style={{ padding: '15px', fontWeight: '500' }}>{student.student_name}</td>
+                            <td style={{ padding: '15px', textAlign: 'center' }}>
+                              <span style={{
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                color: 'white',
+                                padding: '5px 12px',
+                                borderRadius: '12px',
+                                fontSize: '0.9em',
+                                fontWeight: 'bold'
+                              }}>
+                                {student.class}
+                              </span>
+                            </td>
+                            <td style={{ padding: '15px', textAlign: 'center' }}>
+                              <span style={{
+                                background: '#dc3545',
+                                color: 'white',
+                                padding: '5px 12px',
+                                borderRadius: '12px',
+                                fontSize: '0.9em',
+                                fontWeight: 'bold'
+                              }}>
+                                {student.unpaid_months_count}
+                              </span>
+                            </td>
+                            <td style={{ padding: '15px', textAlign: 'right', fontWeight: 'bold', color: '#dc3545' }}>
+                              {student.total_pending?.toFixed(2) || '0.00'} Birr
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', fontWeight: 'bold' }}>
+                          <td colSpan="3" style={{ padding: '15px', textAlign: 'right' }}>TOTAL PENDING:</td>
+                          <td style={{ padding: '15px', textAlign: 'right' }}>
+                            {unpaidStudents.reduce((sum, s) => sum + (s.total_pending || 0), 0).toFixed(2)} Birr
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

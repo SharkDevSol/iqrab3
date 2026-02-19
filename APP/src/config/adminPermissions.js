@@ -19,6 +19,59 @@ export const ADMIN_PERMISSIONS = {
       { key: 'list_guardians', label: 'View Guardians', path: '/list-guardian' },
     ],
   },
+  finance: {
+    label: 'Finance Management',
+    permissions: [
+      { key: 'finance_dashboard', label: 'Finance Dashboard', path: '/finance' },
+      { key: 'fee_management', label: 'Fee Management', path: '/finance/fee-management' },
+      { key: 'fee_types', label: 'Fee Types', path: '/finance/fee-types' },
+      { key: 'monthly_payments', label: 'Monthly Payments', path: '/finance/monthly-payments' },
+      { key: 'payment_settings', label: 'Payment Settings', path: '/finance/monthly-payment-settings' },
+      { key: 'expenses', label: 'Expenses', path: '/finance/expenses' },
+      { key: 'expense_approval', label: 'Expense Approval', path: '/finance/expense-approval' },
+      { key: 'budgets', label: 'Budgets', path: '/finance/budgets' },
+      { key: 'financial_reports', label: 'Financial Reports', path: '/finance/reports' },
+      { key: 'inventory_integration', label: 'Inventory Integration', path: '/finance/inventory-integration' },
+    ],
+  },
+  inventory: {
+    label: 'Inventory & Stock',
+    permissions: [
+      { key: 'inventory_dashboard', label: 'Inventory Dashboard', path: '/inventory' },
+      { key: 'inventory_items', label: 'Items', path: '/inventory/items' },
+      { key: 'purchase_orders', label: 'Purchase Orders', path: '/inventory/purchase-orders' },
+      { key: 'stock_movements', label: 'Stock Movements', path: '/inventory/movements' },
+      { key: 'suppliers', label: 'Suppliers', path: '/inventory/suppliers' },
+      { key: 'inventory_reports', label: 'Inventory Reports', path: '/inventory/reports' },
+    ],
+  },
+  assets: {
+    label: 'Asset Management',
+    permissions: [
+      { key: 'asset_dashboard', label: 'Asset Dashboard', path: '/assets' },
+      { key: 'asset_registry', label: 'Asset Registry', path: '/assets/registry' },
+      { key: 'asset_assignments', label: 'Assignments', path: '/assets/assignments' },
+      { key: 'asset_maintenance', label: 'Maintenance', path: '/assets/maintenance' },
+      { key: 'asset_depreciation', label: 'Depreciation', path: '/assets/depreciation' },
+      { key: 'asset_disposal', label: 'Disposal', path: '/assets/disposal' },
+      { key: 'asset_reports', label: 'Asset Reports', path: '/assets/reports' },
+    ],
+  },
+  hr: {
+    label: 'HR & Staff Management',
+    permissions: [
+      { key: 'hr_dashboard', label: 'HR Dashboard', path: '/hr' },
+      { key: 'salary_management', label: 'Salary Management', path: '/hr/salary' },
+      { key: 'staff_attendance', label: 'Attendance System', path: '/hr/attendance' },
+      { key: 'device_status', label: 'Device Status', path: '/hr/device-status' },
+      { key: 'attendance_time_settings', label: 'Time & Shift Settings', path: '/hr/attendance-time-settings' },
+      { key: 'attendance_deduction_settings', label: 'Attendance Deductions', path: '/hr/attendance-deduction-settings' },
+      { key: 'leave_management', label: 'Leave Management', path: '/hr/leave' },
+      { key: 'payroll_system', label: 'Payroll System', path: '/hr/payroll' },
+      { key: 'performance', label: 'Performance', path: '/hr/performance' },
+      { key: 'hr_reports', label: 'HR Reports', path: '/hr/reports' },
+    ],
+  },
   academic: {
     label: 'Academic',
     permissions: [
@@ -26,7 +79,8 @@ export const ADMIN_PERMISSIONS = {
       { key: 'evaluation_book', label: 'Evaluation Book', path: '/evaluation-book' },
       { key: 'evaluation_book_reports', label: 'Eval Book Reports', path: '/evaluation-book/reports' },
       { key: 'mark_list_view', label: 'Mark Lists', path: '/mark-list-view' },
-      { key: 'student_attendance_system', label: 'Student Attendance', path: '/student-attendance-system' },
+      { key: 'student_attendance_system', label: 'Student Attendance (Weekly)', path: '/student-attendance-system' },
+      { key: 'student_attendance_settings', label: 'Student Attendance Settings', path: '/student-attendance-time-settings' },
       { key: 'create_mark_list', label: 'Create Mark List', path: '/create-mark-list' },
       { key: 'mark_list_management', label: 'Mark List Management', path: '/Mark-List-Management' },
       { key: 'report_card', label: 'Report Card', path: '/report-card' },
@@ -91,10 +145,15 @@ export const getPermittedPaths = (permissionKeys) => {
 };
 
 // Check if a path is permitted for given permission keys
-export const isPathPermitted = (path, permissionKeys) => {
-  // Empty permissions array means full access (primary admin)
-  if (!permissionKeys || permissionKeys.length === 0) {
+export const isPathPermitted = (path, permissionKeys, userType = 'sub-account') => {
+  // Primary admin has full access
+  if (userType === 'admin') {
     return true;
+  }
+
+  // Sub-accounts with empty permissions have no access
+  if (!permissionKeys || permissionKeys.length === 0) {
+    return false;
   }
   
   const permittedPaths = getPermittedPaths(permissionKeys);

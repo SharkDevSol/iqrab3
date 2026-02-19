@@ -1,7 +1,7 @@
 // PAGE/TaskDetail.jsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 import styles from './TaskDetail.module.css';
 import StudentFormBuilder from '../PAGE/CreateRegister/CreateRegisterStudent/StudentFormBuilder';
 import StaffFormBuilder from '../PAGE/CreateRegister/CreateRegisterStaff/StaffFormBuilder';
@@ -33,8 +33,8 @@ function TaskDetail() {
     setCheckingSchedule(true);
     try {
       const [scheduleResponse, conflictsResponse] = await Promise.all([
-        axios.get('/api/schedule/schedule'),
-        axios.get('/api/schedule/conflicts')
+        api.get('/schedule/schedule'),
+        api.get('/schedule/conflicts')
       ]);
 
       const totalSlots = scheduleResponse.data.length;
@@ -60,22 +60,43 @@ function TaskDetail() {
 
   const TOTAL_TASKS = 7;
   
-  const handleComplete = () => {
+  const handleComplete = async () => {
     const id = parseInt(taskId);
-    const stored = JSON.parse(localStorage.getItem('completedTasks') || '[]');
-    if (!stored.includes(id)) {
-      stored.push(id);
-      localStorage.setItem('completedTasks', JSON.stringify(stored));
-    }
+    console.log(`🔵 Attempting to complete task ${id}`);
     
-    // Check if all tasks are now completed
-    const updatedCompleted = JSON.parse(localStorage.getItem('completedTasks') || '[]');
-    if (updatedCompleted.length >= TOTAL_TASKS) {
-      // All tasks completed, redirect to dashboard
-      navigate('/dashboard', { replace: true });
-    } else {
-      // More tasks remaining, go back to tasks list
-      navigate('/tasks');
+    try {
+      // Mark task as completed in database
+      console.log(`📡 Calling API: POST /tasks/complete/${id}`);
+      const response = await api.post(`/tasks/complete/${id}`);
+      console.log(`✅ API Response:`, response.data);
+      
+      // Also update localStorage for backward compatibility
+      const stored = JSON.parse(localStorage.getItem('completedTasks') || '[]');
+      if (!stored.includes(id)) {
+        stored.push(id);
+        localStorage.setItem('completedTasks', JSON.stringify(stored));
+        console.log(`💾 Updated localStorage:`, stored);
+      }
+      
+      // Check if all tasks are now completed
+      console.log(`📡 Fetching task status...`);
+      const statusResponse = await api.get('/tasks/status');
+      console.log(`📊 Task status:`, statusResponse.data);
+      const completedCount = statusResponse.data.completedTasks.length;
+      
+      if (completedCount >= TOTAL_TASKS) {
+        // All tasks completed, redirect to dashboard
+        console.log(`🎉 All tasks completed! Redirecting to dashboard...`);
+        navigate('/dashboard', { replace: true });
+      } else {
+        // More tasks remaining, go back to tasks list
+        console.log(`📋 ${completedCount}/${TOTAL_TASKS} tasks completed. Redirecting to tasks page...`);
+        navigate('/tasks');
+      }
+    } catch (error) {
+      console.error('❌ Error completing task:', error);
+      console.error('Error details:', error.response?.data);
+      setError(`Failed to mark task as complete: ${error.response?.data?.error || error.message}`);
     }
   };
 
@@ -89,7 +110,7 @@ function TaskDetail() {
     }
 
     // Check for teacher conflicts
-    const conflictsResponse = await axios.get('/api/schedule/conflicts');
+    const conflictsResponse = await api.get('/schedule/conflicts');
     const teacherConflicts = conflictsResponse.data.filter(conflict => 
       conflict.conflict_type === 'TEACHER_DOUBLE_BOOKING'
     );
@@ -139,7 +160,7 @@ function TaskDetail() {
       
       // Also save academic year to branding settings
       const academicYearStr = `${year}-${year + 1}`;
-      await axios.put('http://localhost:5000/api/admin/branding', {
+      await api.put('/admin/branding', {
         academic_year: academicYearStr
       });
       
@@ -165,7 +186,7 @@ function TaskDetail() {
     if (taskId === '1') {
       const loadAcademicYear = async () => {
         try {
-          const response = await axios.get('http://localhost:5000/api/admin/branding');
+          const response = await api.get('/admin/branding');
           if (response.data.academic_year) {
             setAcademicYear(response.data.academic_year);
             // Parse year from academic year string (e.g., "2024-2025" -> 2024)
@@ -373,15 +394,40 @@ function TaskDetail() {
         <div className={styles.contentArea}>
           <CreateRegisterStaff />
         </div>
-        <button 
-          onClick={handleComplete}
-          className={styles.completeButton}
-        >
-          Complete Task
-        </button>
-        <p style={{ textAlign: 'center', color: '#666', marginTop: '1rem' }}>
-          Click after adding at least one staff member using the forms above.
-        </p>
+        <div style={{ 
+          marginTop: '2rem', 
+          padding: '2rem', 
+          backgroundColor: '#f0f9ff', 
+          borderRadius: '8px',
+          border: '2px solid #667eea',
+          textAlign: 'center'
+        }}>
+          <button 
+            onClick={() => {
+              console.log('🔴 BUTTON CLICKED - Task 4');
+              alert('Button clicked! Check console for details.');
+              handleComplete();
+            }}
+            className={styles.completeButton}
+            style={{
+              fontSize: '18px',
+              padding: '16px 32px',
+              backgroundColor: '#667eea',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              zIndex: 9999,
+              position: 'relative'
+            }}
+          >
+            ✓ Complete Task 4
+          </button>
+          <p style={{ marginTop: '1rem', color: '#666' }}>
+            Click after adding at least one staff member using the forms above.
+          </p>
+        </div>
       </div>
     );
   }

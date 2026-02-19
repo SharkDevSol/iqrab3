@@ -973,6 +973,13 @@ router.post('/add-staff', upload, async (req, res) => {
       if (formData.hasOwnProperty(c)) insertData[c] = formData[c];
     }
 
+    // ---- Ensure shift_assignment has a valid value (set default if empty) ----
+    if (tableCols.includes('shift_assignment')) {
+      if (!insertData.shift_assignment || insertData.shift_assignment === '') {
+        insertData.shift_assignment = 'shift1';
+      }
+    }
+
     // ---- File handling with dynamic field names ----
     const files = req.files || [];
     console.log('Received files:', files.map(f => ({ fieldname: f.fieldname, filename: f.filename })));
