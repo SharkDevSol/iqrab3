@@ -696,8 +696,20 @@ router.post('/login', async (req, res) => {
     
     // Search for student
     for (const table of tables) {
+      // Check if is_active column exists
+      const columnCheck = await db.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'classes_schema' 
+          AND table_name = $1 
+          AND column_name = 'is_active'
+      `, [table]);
+      
+      const hasIsActive = columnCheck.rows.length > 0;
+      const whereClause = hasIsActive ? 'AND (is_active = TRUE OR is_active IS NULL)' : '';
+      
       const result = await db.query(
-        `SELECT * FROM classes_schema."${table}" WHERE username = $1 AND password = $2 AND (is_active = TRUE OR is_active IS NULL)`,
+        `SELECT * FROM classes_schema."${table}" WHERE username = $1 AND password = $2 ${whereClause}`,
         [username, password]
       );
       
@@ -711,8 +723,20 @@ router.post('/login', async (req, res) => {
     // If not found as student, search for guardian
     if (!user) {
       for (const table of tables) {
+        // Check if is_active column exists
+        const columnCheck = await db.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_schema = 'classes_schema' 
+            AND table_name = $1 
+            AND column_name = 'is_active'
+        `, [table]);
+        
+        const hasIsActive = columnCheck.rows.length > 0;
+        const whereClause = hasIsActive ? 'AND (is_active = TRUE OR is_active IS NULL)' : '';
+        
         const result = await db.query(
-          `SELECT * FROM classes_schema."${table}" WHERE guardian_username = $1 AND guardian_password = $2 AND (is_active = TRUE OR is_active IS NULL)`,
+          `SELECT * FROM classes_schema."${table}" WHERE guardian_username = $1 AND guardian_password = $2 ${whereClause}`,
           [username, password]
         );
         
