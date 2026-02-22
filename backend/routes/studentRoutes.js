@@ -229,7 +229,12 @@ router.post('/create-form', async (req, res) => {
         'guardian_phone VARCHAR(20) NOT NULL',
         'guardian_relation VARCHAR(50) NOT NULL',
         'guardian_username VARCHAR(255)',
-        'guardian_password VARCHAR(255)'
+        'guardian_password VARCHAR(255)',
+        // Finance-related columns (required for monthly payment tracking)
+        'is_active BOOLEAN DEFAULT TRUE',
+        'is_free BOOLEAN DEFAULT FALSE',
+        'exemption_type VARCHAR(50)',
+        'exemption_reason TEXT'
       ];
       
       // Add custom fields
@@ -494,11 +499,55 @@ router.post('/add-student', upload.any(), async (req, res) => {
     
     const newClassId = (classIdResult.rows[0].max_class_id || 0) + 1;
     
-    // Generate credentials
+    // Generate student credentials
     const studentUsername = `${formData.student_name.toLowerCase().replace(/\s/g, '')}_${Math.floor(Math.random() * 10000)}`;
     const studentPassword = uuidv4().slice(0, 8);
-    const guardianUsername = formData.guardian_username || `${formData.guardian_name.toLowerCase().replace(/\s/g, '')}_${Math.floor(Math.random() * 10000)}`;
-    const guardianPassword = formData.guardian_password || uuidv4().slice(0, 8);
+    
+    // Check if guardian already exists by phone number across all classes
+    let guardianUsername, guardianPassword, guardianName;
+    let guardianFound = false;
+    
+    if (formData.guardian_phone) {
+      // Get all available classes
+      const availableClasses = (await client.query(
+        'SELECT table_name FROM information_schema.tables WHERE table_schema = $1',
+        ['classes_schema']
+      )).rows.map(row => row.table_name);
+      
+      // Search for existing guardian in all available classes
+      for (const cls of availableClasses) {
+        try {
+          const existingGuardianQuery = `
+            SELECT guardian_username, guardian_password, guardian_name 
+            FROM classes_schema."${cls}" 
+            WHERE guardian_phone = $1 
+            LIMIT 1
+          `;
+          const existingGuardianResult = await client.query(existingGuardianQuery, [formData.guardian_phone]);
+          
+          if (existingGuardianResult.rows.length > 0) {
+            // Guardian exists - reuse credentials and name
+            guardianUsername = existingGuardianResult.rows[0].guardian_username;
+            guardianPassword = existingGuardianResult.rows[0].guardian_password;
+            guardianName = existingGuardianResult.rows[0].guardian_name;
+            guardianFound = true;
+            console.log(`Found existing guardian: ${guardianUsername} for phone ${formData.guardian_phone}`);
+            break;
+          }
+        } catch (err) {
+          // Skip if table doesn't have guardian columns
+          continue;
+        }
+      }
+    }
+    
+    if (!guardianFound) {
+      // New guardian - create credentials
+      guardianUsername = formData.guardian_username || `${formData.guardian_name.toLowerCase().replace(/\s/g, '')}_${Math.floor(Math.random() * 10000)}`;
+      guardianPassword = formData.guardian_password || uuidv4().slice(0, 8);
+      guardianName = formData.guardian_name;
+      console.log(`Creating new guardian: ${guardianUsername} for phone ${formData.guardian_phone}`);
+    }
     
     // Get columns with their data types
     const columnsResult = await client.query(
@@ -523,6 +572,42 @@ router.post('/add-student', upload.any(), async (req, res) => {
       guardian_username: guardianUsername,
       guardian_password: guardianPassword
     };
+    
+    // Validate smachine_id uniqueness across ALL classes if provided
+    if (formData.smachine_id) {
+      // Check global tracker table first (most reliable)
+      const globalCheck = await client.query(
+        'SELECT student_name, class_name FROM school_schema_points.global_machine_ids WHERE smachine_id = $1',
+        [formData.smachine_id]
+      );
+      
+      if (globalCheck.rows.length > 0) {
+        throw new Error(
+          `Machine ID ${formData.smachine_id} already added. This ID is used by student "${globalCheck.rows[0].student_name}" in ${globalCheck.rows[0].class_name}.`
+        );
+      }
+      
+      // Fallback: Check all class tables (in case tracker table doesn't exist yet)
+      const allClasses = (await client.query(
+        'SELECT table_name FROM information_schema.tables WHERE table_schema = $1',
+        ['classes_schema']
+      )).rows.map(row => row.table_name);
+      
+      for (const cls of allClasses) {
+        const existingMachineId = await client.query(
+          `SELECT student_name, class FROM classes_schema."${cls}" WHERE smachine_id = $1`,
+          [formData.smachine_id]
+        );
+        
+        if (existingMachineId.rows.length > 0) {
+          throw new Error(
+            `Machine ID ${formData.smachine_id} already added. This ID is used by student "${existingMachineId.rows[0].student_name}" in ${existingMachineId.rows[0].class}.`
+          );
+        }
+      }
+      
+      insertData.smachine_id = formData.smachine_id;
+    }
     
     // Handle student image
     const imageFile = files.find(file => file.fieldname === 'image_student');
@@ -571,6 +656,26 @@ router.post('/add-student', upload.any(), async (req, res) => {
     
     const insertQuery = `INSERT INTO classes_schema."${className}" (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
     const result = await client.query(insertQuery, values);
+    
+    // Add to global machine ID tracker if smachine_id was provided
+    if (formData.smachine_id) {
+      try {
+        await client.query(`
+          INSERT INTO school_schema_points.global_machine_ids 
+          (smachine_id, student_name, class_name, school_id, class_id)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (smachine_id) DO UPDATE 
+          SET student_name = EXCLUDED.student_name,
+              class_name = EXCLUDED.class_name,
+              school_id = EXCLUDED.school_id,
+              class_id = EXCLUDED.class_id,
+              updated_at = CURRENT_TIMESTAMP
+        `, [formData.smachine_id, formData.student_name, className, newSchoolId, newClassId]);
+      } catch (err) {
+        // Tracker table might not exist yet, that's okay
+        console.log('Note: Global machine ID tracker not available:', err.message);
+      }
+    }
     
     await client.query('COMMIT');
     
@@ -1067,8 +1172,62 @@ router.post('/bulk-import', async (req, res) => {
             guardian_password: guardianPassword
           };
           
-          // Add smachine_id if provided
+          // Validate and add smachine_id if provided
           if (studentData.smachine_id) {
+            // Check global tracker table first (most reliable)
+            try {
+              const globalCheck = await client.query(
+                'SELECT student_name, class_name FROM school_schema_points.global_machine_ids WHERE smachine_id = $1',
+                [studentData.smachine_id]
+              );
+              
+              if (globalCheck.rows.length > 0) {
+                results.failedCount++;
+                results.errors.push({
+                  row: i + 2,
+                  class: targetClass,
+                  student: studentData.student_name || 'Unknown',
+                  error: `Machine ID ${studentData.smachine_id} already added. This ID is used by student "${globalCheck.rows[0].student_name}" in ${globalCheck.rows[0].class_name}.`
+                });
+                continue; // Skip this student
+              }
+            } catch (err) {
+              // Tracker table might not exist, fall back to checking all classes
+            }
+            
+            // Fallback: Check if smachine_id already exists in ANY class
+            let machineIdExists = false;
+            let existingStudent = null;
+            
+            for (const cls of availableClasses) {
+              try {
+                const existingMachineId = await client.query(
+                  `SELECT student_name, class FROM classes_schema."${cls}" WHERE smachine_id = $1`,
+                  [studentData.smachine_id]
+                );
+                
+                if (existingMachineId.rows.length > 0) {
+                  machineIdExists = true;
+                  existingStudent = existingMachineId.rows[0];
+                  break;
+                }
+              } catch (err) {
+                // Skip if table doesn't have smachine_id column
+                continue;
+              }
+            }
+            
+            if (machineIdExists) {
+              results.failedCount++;
+              results.errors.push({
+                row: i + 2,
+                class: targetClass,
+                student: studentData.student_name || 'Unknown',
+                error: `Machine ID ${studentData.smachine_id} already added. This ID is used by student "${existingStudent.student_name}" in ${existingStudent.class}.`
+              });
+              continue; // Skip this student
+            }
+            
             insertData.smachine_id = studentData.smachine_id;
           }
           
@@ -1101,6 +1260,26 @@ router.post('/bulk-import', async (req, res) => {
           
           const insertQuery = `INSERT INTO classes_schema."${targetClass}" (${columns.join(', ')}) VALUES (${placeholders})`;
           await client.query(insertQuery, values);
+          
+          // Add to global machine ID tracker if smachine_id was provided
+          if (studentData.smachine_id) {
+            try {
+              await client.query(`
+                INSERT INTO school_schema_points.global_machine_ids 
+                (smachine_id, student_name, class_name, school_id, class_id)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (smachine_id) DO UPDATE 
+                SET student_name = EXCLUDED.student_name,
+                    class_name = EXCLUDED.class_name,
+                    school_id = EXCLUDED.school_id,
+                    class_id = EXCLUDED.class_id,
+                    updated_at = CURRENT_TIMESTAMP
+              `, [studentData.smachine_id, studentData.student_name, targetClass, newSchoolId, currentClassId]);
+            } catch (err) {
+              // Tracker table might not exist yet, that's okay
+              console.log('Note: Global machine ID tracker not available:', err.message);
+            }
+          }
           
           results.successCount++;
           

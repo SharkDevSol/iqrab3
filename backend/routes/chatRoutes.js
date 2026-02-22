@@ -200,7 +200,7 @@ router.post('/conversations', async (req, res) => {
     // Check if conversation already exists between these users
     const participantIds = participants.map(p => p.user_id).sort();
     const existingConv = await client.query(`
-      SELECT c.id
+      SELECT c.id, c.created_at
       FROM conversations c
       WHERE c.id IN (
         SELECT conversation_id
@@ -210,6 +210,7 @@ router.post('/conversations', async (req, res) => {
         HAVING COUNT(DISTINCT user_id) = $2
       )
       AND c.type = $3
+      ORDER BY c.created_at DESC
       LIMIT 1
     `, [participantIds, participantIds.length, type]);
 

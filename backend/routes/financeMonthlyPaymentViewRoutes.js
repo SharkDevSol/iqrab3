@@ -544,62 +544,53 @@ router.get('/class/:className', authenticateToken, requirePermission(FINANCE_PER
       // Get the class name from fee structure
       const className = feeStructure.gradeLevel;
       
-      // Extract school_id from UUID studentId
-      // UUID format: 00000000-0000-0000-{schoolId}-{classId}
-      // Example: 00000000-0000-0000-0001-000000000001
-      for (const studentId of studentIds) {
-        const parts = studentId.split('-');
-        if (parts.length >= 5) {
-          // Extract the school_id from the 4th segment (index 3) and class_id from 5th segment (index 4)
-          const schoolId = parseInt(parts[3], 10); // Parse as decimal, remove leading zeros
-          const classId = parseInt(parts[4], 10); // Parse as decimal, remove leading zeros
-          
-          try {
-            // Check if is_active column exists
-            const columnCheck = await prisma.$queryRawUnsafe(`
-              SELECT column_name 
-              FROM information_schema.columns 
-              WHERE table_schema = 'classes_schema' 
-                AND table_name = '${className}'
-                AND column_name = 'is_active'
-            `);
-            
-            const hasIsActive = columnCheck.length > 0;
-            const whereClause = hasIsActive 
-              ? 'AND (is_active = TRUE OR is_active IS NULL)'
-              : '';
-            
-            // Query the class table for this school_id and class_id
-            const result = await prisma.$queryRawUnsafe(`
-              SELECT school_id, class_id, student_name, is_free, exemption_type, exemption_reason
-              FROM classes_schema."${className}"
-              WHERE school_id = $1 AND class_id = $2
-                ${whereClause}
-            `, schoolId, classId);
-
-            if (result.length > 0) {
-              studentNameMap.set(studentId, {
-                name: result[0].student_name,
-                is_free: result[0].is_free || false,
-                exemption_type: result[0].exemption_type || null,
-                exemption_reason: result[0].exemption_reason || null
-              });
-              console.log(`Found student: ${studentId} → ${result[0].student_name} (school_id: ${schoolId}, class_id: ${classId})${result[0].is_free ? ' [FREE]' : ''}`);
-            } else {
-              console.log(`No student found for ${studentId} (school_id: ${schoolId}, class_id: ${classId})`);
-            }
-          } catch (queryError) {
-            console.error(`Error querying for school_id ${schoolId}, class_id ${classId}:`, queryError.message);
-          }
+      // OPTIMIZED: Check for is_active column ONCE, not in the loop
+      const columnCheck = await prisma.$queryRawUnsafe(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'classes_schema' 
+          AND table_name = '${className}'
+          AND column_name = 'is_active'
+      `);
+      
+      const hasIsActive = columnCheck.length > 0;
+      const whereClause = hasIsActive 
+        ? 'WHERE (is_active = TRUE OR is_active IS NULL)'
+        : '';
+      
+      // OPTIMIZED: Fetch ALL students in a SINGLE query instead of looping
+      const allStudents = await prisma.$queryRawUnsafe(`
+        SELECT school_id, class_id, student_name, is_free, exemption_type, exemption_reason
+        FROM classes_schema."${className}"
+        ${whereClause}
+      `);
+      
+      console.log(`Fetched ${allStudents.length} students from classes_schema.${className}`);
+      
+      // Build the student name map
+      for (const student of allStudents) {
+        const schoolIdPadded = String(student.school_id).padStart(4, '0');
+        const classIdPadded = String(student.class_id).padStart(12, '0');
+        const studentId = `00000000-0000-0000-${schoolIdPadded}-${classIdPadded}`;
+        
+        // Only add students that have invoices
+        if (studentIds.includes(studentId)) {
+          studentNameMap.set(studentId, {
+            name: student.student_name,
+            is_free: student.is_free || false,
+            exemption_type: student.exemption_type || null,
+            exemption_reason: student.exemption_reason || null
+          });
+          console.log(`Found student: ${studentId} → ${student.student_name}${student.is_free ? ' [FREE]' : ''}`);
         }
       }
 
-      console.log(`Fetched ${studentNameMap.size} student names from classes_schema.${className}`);
+      console.log(`Mapped ${studentNameMap.size} student names from classes_schema.${className}`);
       
       // Log which students are in the name map
       console.log('Students in name map:');
-      for (const [id, name] of studentNameMap.entries()) {
-        console.log(`  - ${id}: ${name}`);
+      for (const [id, info] of studentNameMap.entries()) {
+        console.log(`  - ${id}: ${info.name}`);
       }
       
     } catch (error) {

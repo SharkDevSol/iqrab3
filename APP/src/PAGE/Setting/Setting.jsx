@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import api from '../../utils/api';
 import styles from './Setting.module.css';
 import { useApp } from '../../context/AppContext';
-import { FiUser, FiLock, FiGlobe, FiSun, FiImage, FiSave, FiCheck, FiX, FiCamera, FiUpload, FiHome } from 'react-icons/fi';
+import { FiUser, FiLock, FiGlobe, FiSun, FiImage, FiSave, FiCheck, FiX, FiCamera, FiUpload, FiHome, FiSmartphone, FiDownload, FiShare2, FiCopy } from 'react-icons/fi';
 
 const Setting = () => {
   const { theme, updateTheme, language, updateLanguage, profile, updateProfile, websiteName, updateWebsiteName, t } = useApp();
@@ -11,6 +11,10 @@ const Setting = () => {
   const iconInputRef = useRef(null);
   
   const [activeTab, setActiveTab] = useState('profile');
+  
+  // PWA Install prompt state
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [installMessage, setInstallMessage] = useState('');
   
   // Local profile state for form
   const [localProfile, setLocalProfile] = useState({
@@ -56,6 +60,90 @@ const Setting = () => {
     loadBrandingSettings();
   }, []);
   
+  // Capture PWA install prompt
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      console.log('PWA install prompt captured');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+  
+  // PWA Install handlers
+  const handleInstallApp = async (appType) => {
+    if (!deferredPrompt) {
+      // Check if we're on desktop
+      const isDesktop = window.innerWidth > 768;
+      
+      if (isDesktop) {
+        setInstallMessage('Look for the install icon (⊕) in your browser address bar, or use Chrome menu → Install Skoolific');
+      } else {
+        setInstallMessage('Please open this page in Chrome or Safari to install the app');
+      }
+      
+      setTimeout(() => setInstallMessage(''), 8000);
+      return;
+    }
+
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        setInstallMessage(`${appType} app installed successfully!`);
+      } else {
+        setInstallMessage('Installation cancelled');
+      }
+      
+      setDeferredPrompt(null);
+      setTimeout(() => setInstallMessage(''), 5000);
+    } catch (error) {
+      console.error('Install error:', error);
+      setInstallMessage('Installation failed. Please try again.');
+      setTimeout(() => setInstallMessage(''), 5000);
+    }
+  };
+
+  const copyInstallLink = (appType, url) => {
+    navigator.clipboard.writeText(url);
+    setInstallMessage(`${appType} link copied! Share it on Telegram.`);
+    setTimeout(() => setInstallMessage(''), 3000);
+  };
+
+  const shareOnTelegram = (appType, url) => {
+    const message = `Install Skoolific ${appType} App: ${url}`;
+    const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(`Install Skoolific ${appType} App`)}`;
+    window.open(telegramUrl, '_blank');
+  };
+  
+  // Helper function to update favicon and manifest
+  const updateFaviconAndManifest = (iconUrl) => {
+    // Update standard favicon
+    const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+    link.type = 'image/x-icon';
+    link.rel = 'shortcut icon';
+    link.href = iconUrl;
+    document.getElementsByTagName('head')[0].appendChild(link);
+    
+    // Update apple touch icon
+    let appleLink = document.querySelector("link[rel='apple-touch-icon']");
+    if (!appleLink) {
+      appleLink = document.createElement('link');
+      appleLink.rel = 'apple-touch-icon';
+      document.getElementsByTagName('head')[0].appendChild(appleLink);
+    }
+    appleLink.href = iconUrl;
+    
+    // Update manifest
+    updateManifestIcons(iconUrl);
+  };
+  
   const loadBrandingSettings = async () => {
     try {
       const response = await api.get('/admin/branding');
@@ -64,18 +152,18 @@ const Setting = () => {
       setLocalWebsiteName(data.website_name || 'School Management System');
       updateWebsiteName(data.website_name || 'School Management System');
       
+      // Set favicon - use custom icon if uploaded, otherwise use default skoolific-icon.png
+      const faviconUrl = data.website_icon 
+        ? `http://localhost:5000/uploads/branding/${data.website_icon}`
+        : '/skoolific-icon.png';
+      
       if (data.website_icon) {
-        const iconUrl = `http://localhost:5000/uploads/branding/${data.website_icon}`;
         setWebIcon(data.website_icon);
-        setWebIconUrl(iconUrl);
-        
-        // Update favicon
-        const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
-        link.type = 'image/x-icon';
-        link.rel = 'shortcut icon';
-        link.href = iconUrl;
-        document.getElementsByTagName('head')[0].appendChild(link);
       }
+      setWebIconUrl(faviconUrl);
+      
+      // Update favicon and manifest in browser
+      updateFaviconAndManifest(faviconUrl);
       
       // Load school info
       setSchoolInfo({
@@ -104,6 +192,8 @@ const Setting = () => {
       }
     } catch (error) {
       console.error('Failed to load branding settings:', error);
+      // On error, set default Skoolific favicon
+      updateFaviconAndManifest('/skoolific-icon.png');
     }
   };
 
@@ -331,6 +421,18 @@ const Setting = () => {
         link.href = iconUrl;
         document.getElementsByTagName('head')[0].appendChild(link);
         
+        // Update apple touch icon
+        let appleLink = document.querySelector("link[rel='apple-touch-icon']");
+        if (!appleLink) {
+          appleLink = document.createElement('link');
+          appleLink.rel = 'apple-touch-icon';
+          document.getElementsByTagName('head')[0].appendChild(appleLink);
+        }
+        appleLink.href = iconUrl;
+        
+        // Update manifest icons
+        updateManifestIcons(iconUrl);
+        
         showMessage('success', 'Web icon saved to database!');
       } catch (error) {
         console.error('Failed to upload icon:', error);
@@ -338,6 +440,46 @@ const Setting = () => {
       } finally {
         setLoading(false);
       }
+    }
+  };
+  
+  // Helper function to update manifest icons dynamically
+  const updateManifestIcons = (iconUrl) => {
+    try {
+      let manifestLink = document.querySelector("link[rel='manifest']");
+      if (!manifestLink) {
+        manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        document.getElementsByTagName('head')[0].appendChild(manifestLink);
+      }
+      
+      const manifest = {
+        short_name: "Skoolific",
+        name: "Skoolific School Management",
+        icons: [
+          {
+            src: iconUrl,
+            sizes: "192x192",
+            type: "image/png"
+          },
+          {
+            src: iconUrl,
+            sizes: "512x512",
+            type: "image/png"
+          }
+        ],
+        start_url: "/",
+        display: "standalone",
+        theme_color: "#667eea",
+        background_color: "#ffffff",
+        orientation: "portrait"
+      };
+      
+      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+      const manifestURL = URL.createObjectURL(manifestBlob);
+      manifestLink.href = manifestURL;
+    } catch (error) {
+      console.error('Error updating manifest:', error);
     }
   };
   
@@ -360,7 +502,8 @@ const Setting = () => {
     { id: 'theme', label: t('theme'), icon: <FiSun /> },
     { id: 'language', label: t('language'), icon: <FiGlobe /> },
     { id: 'branding', label: t('branding'), icon: <FiImage /> },
-    { id: 'schoolInfo', label: t('schoolInfo') || 'School Info', icon: <FiHome /> }
+    { id: 'schoolInfo', label: t('schoolInfo') || 'School Info', icon: <FiHome /> },
+    { id: 'apps', label: 'Apps', icon: <FiSmartphone /> }
   ];
 
   return (
@@ -666,7 +809,7 @@ const Setting = () => {
                     {webIconUrl ? (
                       <img src={webIconUrl} alt="Web Icon" />
                     ) : (
-                      <div className={styles.iconPlaceholder}>🎓</div>
+                      <img src="/skoolific-icon.png" alt="Default Icon" />
                     )}
                   </div>
                   <button 
@@ -783,6 +926,254 @@ const Setting = () => {
                 >
                   <FiSave /> {loading ? 'Saving...' : t('saveSchoolInfo') || 'Save School Information'}
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Apps Tab */}
+          {activeTab === 'apps' && (
+            <div className={styles.section}>
+              <h2 className={styles.sectionTitle}>Mobile Apps (PWA)</h2>
+              <p className={styles.subtitle}>Install Skoolific apps directly on your mobile devices</p>
+              
+              {installMessage && (
+                <div className={styles.installMessage}>
+                  <FiCheck /> {installMessage}
+                </div>
+              )}
+              
+              <div className={styles.appsGrid}>
+                {/* Student App */}
+                <div className={styles.appCard}>
+                  <div className={styles.appIcon} style={{ background: 'linear-gradient(135deg, #667eea, #764ba2)' }}>
+                    <FiSmartphone size={40} />
+                  </div>
+                  <h3 className={styles.appTitle}>Student App</h3>
+                  <p className={styles.appDescription}>
+                    Access student profiles, attendance, grades, and more on mobile devices.
+                  </p>
+                  <div className={styles.appFeatures}>
+                    <span>✓ View Profile</span>
+                    <span>✓ Check Attendance</span>
+                    <span>✓ View Grades</span>
+                    <span>✓ Offline Access</span>
+                  </div>
+                  <button 
+                    className={styles.downloadBtn}
+                    onClick={() => window.location.href = '/install-student.html'}
+                    style={{ background: 'linear-gradient(135deg, #667eea, #764ba2)' }}
+                  >
+                    <FiDownload /> Install Student App
+                  </button>
+                  <div className={styles.shareButtons}>
+                    <button 
+                      className={styles.shareBtn}
+                      onClick={() => copyInstallLink('Student', `${window.location.origin}/install-student.html`)}
+                      title="Copy link"
+                    >
+                      <FiCopy /> Copy Link
+                    </button>
+                    <button 
+                      className={styles.shareBtn}
+                      onClick={() => shareOnTelegram('Student', `${window.location.origin}/install-student.html`)}
+                      title="Share on Telegram"
+                    >
+                      <FiShare2 /> Share on Telegram
+                    </button>
+                  </div>
+                  <p className={styles.installHint}>
+                    Works on Android & iPhone • No download needed
+                  </p>
+                </div>
+
+                {/* Staff App */}
+                <div className={styles.appCard}>
+                  <div className={styles.appIcon} style={{ background: 'linear-gradient(135deg, #f093fb, #f5576c)' }}>
+                    <FiSmartphone size={40} />
+                  </div>
+                  <h3 className={styles.appTitle}>Staff App</h3>
+                  <p className={styles.appDescription}>
+                    Manage attendance, grades, and communicate with students on the go.
+                  </p>
+                  <div className={styles.appFeatures}>
+                    <span>✓ Mark Attendance</span>
+                    <span>✓ Enter Grades</span>
+                    <span>✓ View Schedule</span>
+                    <span>✓ Quick Access</span>
+                  </div>
+                  <button 
+                    className={styles.downloadBtn}
+                    onClick={() => window.location.href = '/install-staff.html'}
+                    style={{ background: 'linear-gradient(135deg, #f093fb, #f5576c)' }}
+                  >
+                    <FiDownload /> Install Staff App
+                  </button>
+                  <div className={styles.shareButtons}>
+                    <button 
+                      className={styles.shareBtn}
+                      onClick={() => copyInstallLink('Staff', `${window.location.origin}/install-staff.html`)}
+                      title="Copy link"
+                    >
+                      <FiCopy /> Copy Link
+                    </button>
+                    <button 
+                      className={styles.shareBtn}
+                      onClick={() => shareOnTelegram('Staff', `${window.location.origin}/install-staff.html`)}
+                      title="Share on Telegram"
+                    >
+                      <FiShare2 /> Share on Telegram
+                    </button>
+                  </div>
+                  <p className={styles.installHint}>
+                    Works on Android & iPhone • No download needed
+                  </p>
+                </div>
+
+                {/* Guardian App */}
+                <div className={styles.appCard}>
+                  <div className={styles.appIcon} style={{ background: 'linear-gradient(135deg, #28a745, #68d391)' }}>
+                    <FiSmartphone size={40} />
+                  </div>
+                  <h3 className={styles.appTitle}>Guardian App</h3>
+                  <p className={styles.appDescription}>
+                    Monitor your ward's progress, attendance, and payments from anywhere.
+                  </p>
+                  <div className={styles.appFeatures}>
+                    <span>✓ Track Progress</span>
+                    <span>✓ View Attendance</span>
+                    <span>✓ Check Payments</span>
+                    <span>✓ Stay Updated</span>
+                  </div>
+                  <button 
+                    className={styles.downloadBtn}
+                    onClick={() => window.location.href = '/install-guardian.html'}
+                    style={{ background: 'linear-gradient(135deg, #28a745, #68d391)' }}
+                  >
+                    <FiDownload /> Install Guardian App
+                  </button>
+                  <div className={styles.shareButtons}>
+                    <button 
+                      className={styles.shareBtn}
+                      onClick={() => copyInstallLink('Guardian', `${window.location.origin}/install-guardian.html`)}
+                      title="Copy link"
+                    >
+                      <FiCopy /> Copy Link
+                    </button>
+                    <button 
+                      className={styles.shareBtn}
+                      onClick={() => shareOnTelegram('Guardian', `${window.location.origin}/install-guardian.html`)}
+                      title="Share on Telegram"
+                    >
+                      <FiShare2 /> Share on Telegram
+                    </button>
+                  </div>
+                  <p className={styles.installHint}>
+                    Works on Android & iPhone • No download needed
+                  </p>
+                </div>
+
+                {/* Admin App */}
+                <div className={styles.appCard}>
+                  <div className={styles.appIcon} style={{ background: 'linear-gradient(135deg, #ff6b35, #f7931e)' }}>
+                    <FiSmartphone size={40} />
+                  </div>
+                  <h3 className={styles.appTitle}>Admin App</h3>
+                  <p className={styles.appDescription}>
+                    Full school management system access on mobile and desktop devices.
+                  </p>
+                  <div className={styles.appFeatures}>
+                    <span>✓ Complete Dashboard</span>
+                    <span>✓ Manage All Users</span>
+                    <span>✓ Reports & Analytics</span>
+                    <span>✓ Mobile & Desktop</span>
+                  </div>
+                  
+                  {/* Two Install Buttons */}
+                  <div className={styles.dualInstallButtons}>
+                    <button 
+                      className={styles.installBtnHalf}
+                      onClick={() => handleInstallApp('Admin (Desktop)')}
+                      style={{ background: 'linear-gradient(135deg, #ff6b35, #f7931e)' }}
+                    >
+                      <FiDownload /> Install on Desktop
+                    </button>
+                    <button 
+                      className={styles.installBtnHalf}
+                      onClick={() => handleInstallApp('Admin (Mobile)')}
+                      style={{ background: 'linear-gradient(135deg, #f7931e, #ff6b35)' }}
+                    >
+                      <FiDownload /> Install on Mobile
+                    </button>
+                  </div>
+                  
+                  <div className={styles.shareButtons}>
+                    <button 
+                      className={styles.shareBtn}
+                      onClick={() => copyInstallLink('Admin', `${window.location.origin}/`)}
+                      title="Copy link"
+                    >
+                      <FiCopy /> Copy Link
+                    </button>
+                    <button 
+                      className={styles.shareBtn}
+                      onClick={() => shareOnTelegram('Admin', `${window.location.origin}/`)}
+                      title="Share on Telegram"
+                    >
+                      <FiShare2 /> Share on Telegram
+                    </button>
+                  </div>
+                  <p className={styles.installHint}>
+                    Works on Mobile, Tablet & Desktop • Full features
+                  </p>
+                </div>
+              </div>
+
+              {/* Installation Instructions */}
+              <div className={styles.instructionsSection}>
+                <h3 className={styles.instructionsTitle}>📱 💻 How to Share & Install</h3>
+                
+                <div className={styles.instructionsGrid}>
+                  <div className={styles.instructionCard}>
+                    <h4>Desktop Installation</h4>
+                    <ol>
+                      <li>Click "Install on Desktop" button</li>
+                      <li>Browser shows install prompt</li>
+                      <li>Click "Install" in the popup</li>
+                      <li>App opens in standalone window!</li>
+                      <li>Find it in Start Menu/Applications</li>
+                    </ol>
+                  </div>
+                  
+                  <div className={styles.instructionCard}>
+                    <h4>Mobile Installation</h4>
+                    <ol>
+                      <li>Click "Install on Mobile" button</li>
+                      <li>Browser shows "Add to Home Screen"</li>
+                      <li>Tap "Install" or "Add"</li>
+                      <li>App icon appears on home screen!</li>
+                      <li>Open like any other app</li>
+                    </ol>
+                  </div>
+                  
+                  <div className={styles.instructionCard}>
+                    <h4>Share with Others</h4>
+                    <ol>
+                      <li>Click "Share on Telegram" button</li>
+                      <li>Choose group or contact</li>
+                      <li>Recipients click the link</li>
+                      <li>They install on their device</li>
+                      <li>Works on mobile & desktop!</li>
+                    </ol>
+                  </div>
+                </div>
+
+                <div className={styles.qrCodeSection}>
+                  <p className={styles.qrHint}>
+                    💡 <strong>Pro Tip:</strong> Admin app works on desktop, tablet, and mobile! 
+                    Both buttons trigger the same PWA install - just labeled for clarity. 
+                    Use "Copy Link" to share via WhatsApp, Email, or SMS!
+                  </p>
+                </div>
               </div>
             </div>
           )}

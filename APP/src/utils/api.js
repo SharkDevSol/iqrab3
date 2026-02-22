@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// API base URL - can be configured via environment variable
+// API base URL - includes /api prefix for all routes
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Create axios instance with default config
@@ -33,18 +33,45 @@ api.interceptors.response.use(
     // Handle 401 Unauthorized - token expired or invalid
     if (error.response?.status === 401) {
       const errorCode = error.response?.data?.code;
+      const errorMessage = error.response?.data?.error;
+      const action = error.response?.data?.action;
       
-      // Clear auth data
+      console.error('🔒 Authentication Error:', errorMessage || 'Unauthorized');
+      
+      // Handle signature mismatch specifically
+      if (errorCode === 'SIGNATURE_MISMATCH' || action === 'LOGOUT_REQUIRED') {
+        console.error('⚠️  JWT Signature Mismatch - Token was generated with different secret');
+        
+        // Clear auth data
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('adminUser');
+        localStorage.removeItem('staffUser');
+        localStorage.removeItem('userType');
+        
+        alert('Your session is invalid. This can happen after a server update. Please log in again.');
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+      
+      // Clear auth data for other 401 errors
       localStorage.removeItem('authToken');
       localStorage.removeItem('isLoggedIn');
       localStorage.removeItem('adminUser');
       localStorage.removeItem('staffUser');
       localStorage.removeItem('userType');
       
-      // Redirect to login if token expired
-      if (errorCode === 'TOKEN_EXPIRED' || !localStorage.getItem('authToken')) {
-        window.location.href = '/login';
+      // Show user-friendly message
+      if (errorCode === 'TOKEN_EXPIRED') {
+        alert('Your session has expired. Please log in again.');
+      } else if (errorMessage === 'Access token required') {
+        alert('Authentication required. Please log in.');
+      } else {
+        alert('Authentication failed. Please log in again.');
       }
+      
+      // Redirect to login
+      window.location.href = '/login';
     }
     
     // Handle 403 Forbidden - insufficient permissions

@@ -13,75 +13,22 @@ const LoadingScreen = () => {
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <motion.div
+          <motion.img
+            src="/alkhwarizm-logo.png"
+            alt="ALKHWARIZM Logo"
             className={styles.logo}
-            animate={{
-              rotate: [0, 360],
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ 
+              opacity: 1, 
+              scale: [0.8, 1.05, 1],
             }}
             transition={{
-              duration: 2,
+              duration: 1.5,
               repeat: Infinity,
-              ease: "linear"
+              repeatType: "reverse",
+              ease: "easeInOut"
             }}
-          >
-            <svg viewBox="0 0 200 200" className={styles.logoSvg}>
-              {/* Outer Star Shape */}
-              <motion.path
-                d="M100,20 L115,70 L165,70 L125,100 L140,150 L100,120 L60,150 L75,100 L35,70 L85,70 Z"
-                fill="none"
-                stroke="url(#gradient1)"
-                strokeWidth="3"
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: 1 }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-              
-              {/* Inner Geometric Pattern */}
-              <motion.circle
-                cx="100"
-                cy="100"
-                r="40"
-                fill="none"
-                stroke="url(#gradient2)"
-                strokeWidth="2"
-                initial={{ scale: 0 }}
-                animate={{ scale: [0, 1, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-              
-              {/* Center Symbol */}
-              <motion.text
-                x="100"
-                y="110"
-                textAnchor="middle"
-                fontSize="40"
-                fill="url(#gradient3)"
-                fontWeight="bold"
-                fontFamily="Arial, sans-serif"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: [0, 1, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                A
-              </motion.text>
-
-              {/* Gradients */}
-              <defs>
-                <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#667eea" />
-                  <stop offset="100%" stopColor="#764ba2" />
-                </linearGradient>
-                <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#f093fb" />
-                  <stop offset="100%" stopColor="#f5576c" />
-                </linearGradient>
-                <linearGradient id="gradient3" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#4facfe" />
-                  <stop offset="100%" stopColor="#00f2fe" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </motion.div>
+          />
         </motion.div>
 
         {/* Brand Name */}
@@ -91,7 +38,7 @@ const LoadingScreen = () => {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.5 }}
         >
-          ALKHWARIZMI
+          ALKHWARIZM
         </motion.h1>
 
         {/* Subtitle */}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiUser, FiUsers, FiFileText, FiMessageSquare, FiPhone, FiList, FiCalendar, FiSettings, FiBook, FiSend, FiCheck, FiAlertCircle, FiPlus, FiX, FiSearch } from 'react-icons/fi';
+import { FiUser, FiUsers, FiFileText, FiMessageSquare, FiPhone, FiList, FiCalendar, FiSettings, FiBook, FiSend, FiCheck, FiAlertCircle, FiPlus, FiX, FiSearch, FiDollarSign, FiBell } from 'react-icons/fi';
 import GuardianCommunications from '../PAGE/Communication/GuardianCommunications';
 import ChatWindow from '../COMPONENTS/Chat/ChatWindow';
 import ConversationList from '../COMPONENTS/Chat/ConversationList';
@@ -44,9 +44,11 @@ const GuardianProfile = () => {
   const [selectedAttendanceWard, setSelectedAttendanceWard] = useState(null);
   const [monthlySummary, setMonthlySummary] = useState(null);
   const [attendanceTrends, setAttendanceTrends] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [attendanceView, setAttendanceView] = useState('weekly'); // 'weekly', 'monthly', 'trends'
+  const [dailyAttendance, setDailyAttendance] = useState([]); // New state for daily details
+  // Ethiopian calendar defaults (Yekatit 2018 = current)
+  const [selectedMonth, setSelectedMonth] = useState(6); // Yekatit
+  const [selectedYear, setSelectedYear] = useState(2018);
+  const [attendanceView, setAttendanceView] = useState('monthly'); // Start with monthly view
   
   // Evaluation Book state
   const [evalBookEvaluations, setEvalBookEvaluations] = useState([]);
@@ -70,12 +72,24 @@ const GuardianProfile = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const socketRef = useRef(null);
   
+  // Payment state
+  const [paymentData, setPaymentData] = useState([]);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [selectedPaymentWard, setSelectedPaymentWard] = useState(null);
+  const [unpaidCount, setUnpaidCount] = useState(0);
+  
+  // Notification state
+  const [notifications, setNotifications] = useState([]);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  
   const toast = useToast();
 
   const navItems = [
     { id: 'profile', label: 'Profile', icon: <FiUser /> },
     { id: 'marklist', label: 'Marks', icon: <FiList /> },
     { id: 'posts', label: 'Posts', icon: <FiFileText />, centered: true },
+    { id: 'payments', label: 'Payments', icon: <FiDollarSign /> },
     { id: 'evalbook', label: 'Eval Book', icon: <FiBook /> },
     { id: 'attendance', label: 'Attendance', icon: <FiCalendar /> },
     { id: 'communications', label: 'Messages', icon: <FiMessageSquare /> },
@@ -149,32 +163,44 @@ const GuardianProfile = () => {
     }
   }, [wards, fetchProfilePosts]);
 
-  // Fetch marks for a ward
-  const fetchWardMarks = useCallback(async (ward) => {
-    if (!ward?.school_id || !ward?.class) return;
+  // Fetch marks for ALL wards at once
+  const fetchAllWardsMarks = useCallback(async (guardianUsername) => {
+    if (!guardianUsername) return;
     setMarksLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/mark-list/student-marks/${ward.school_id}/${encodeURIComponent(ward.class)}`
+        `http://localhost:5000/api/mark-list/guardian-marks/${encodeURIComponent(guardianUsername)}`
       );
-      setWardMarks(prev => ({
-        ...prev,
-        [ward.school_id]: response.data.marks || []
-      }));
+      if (response.data.success) {
+        // Organize marks by student school_id for easy access
+        const marksByStudent = {};
+        response.data.data.marks.forEach(mark => {
+          const student = response.data.data.wards.find(w => w.student_name === mark.ward);
+          if (student) {
+            if (!marksByStudent[student.school_id]) {
+              marksByStudent[student.school_id] = [];
+            }
+            marksByStudent[student.school_id].push(mark);
+          }
+        });
+        setWardMarks(marksByStudent);
+      }
     } catch (err) {
-      console.error('Error fetching ward marks:', err);
+      console.error('Error fetching all wards marks:', err);
+      toast.error('Failed to load marks');
     } finally {
       setMarksLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
-    if (activeTab === 'marklist' && selectedMarkWard) {
-      if (!wardMarks[selectedMarkWard.school_id]) {
-        fetchWardMarks(selectedMarkWard);
+    if (activeTab === 'marklist' && guardianInfo?.guardian_username) {
+      // Fetch marks for ALL wards when marks tab is opened
+      if (Object.keys(wardMarks).length === 0) {
+        fetchAllWardsMarks(guardianInfo.guardian_username);
       }
     }
-  }, [activeTab, selectedMarkWard, wardMarks, fetchWardMarks]);
+  }, [activeTab, guardianInfo?.guardian_username, wardMarks, fetchAllWardsMarks]);
 
   // Helper function: Map attendance value to display indicator
   const getAttendanceIndicator = (value) => {
@@ -197,7 +223,7 @@ const GuardianProfile = () => {
     return { present, absent, late, total: 7 };
   };
 
-  // Fetch attendance tables for a ward's class
+  // Fetch attendance tables for a ward's class (Ethiopian calendar - monthly view)
   const fetchAttendanceTables = useCallback(async (ward) => {
     if (!ward?.class) {
       setAttendanceError('No class assigned');
@@ -206,23 +232,25 @@ const GuardianProfile = () => {
     setAttendanceLoading(true);
     setAttendanceError(null);
     try {
-      const className = ward.class.replace(/\s+/g, '_');
+      // Fetch current month's attendance using Ethiopian calendar
       const response = await axios.get(
-        `http://localhost:5000/api/guardian-attendance/tables/${encodeURIComponent(className)}`
+        `http://localhost:5000/api/guardian-student-attendance/student-attendance/${encodeURIComponent(ward.class)}/${ward.school_id}?year=${selectedYear}&month=${selectedMonth}`
       );
-      setAttendanceTables(response.data || []);
-      if (response.data && response.data.length > 0) {
-        setSelectedTable(response.data[0]);
-      } else {
-        setSelectedTable(null);
-      }
+      
+      // Store the attendance data
+      setWardAttendance({
+        [`${ward.school_id}_current`]: response.data.attendance || []
+      });
+      
+      // Set a dummy table name for compatibility
+      setSelectedTable('current_month');
     } catch (err) {
-      console.error('Error fetching attendance tables:', err);
-      setAttendanceError('Failed to load attendance periods');
+      console.error('Error fetching attendance:', err);
+      setAttendanceError('Failed to load attendance data');
     } finally {
       setAttendanceLoading(false);
     }
-  }, []);
+  }, [selectedYear, selectedMonth]);
 
   // Fetch attendance for a specific ward and table
   const fetchWardAttendance = useCallback(async (ward, tableName) => {
@@ -246,16 +274,22 @@ const GuardianProfile = () => {
     }
   }, []);
 
-  // Fetch monthly attendance summary
+  // Fetch monthly attendance summary (Ethiopian calendar)
   const fetchMonthlySummary = useCallback(async (ward, year, month) => {
     if (!ward?.class || !ward?.school_id) return;
     setAttendanceLoading(true);
     try {
-      const className = ward.class.replace(/\s+/g, '_');
-      const response = await axios.get(
-        `http://localhost:5000/api/guardian-attendance/monthly-summary/${encodeURIComponent(className)}/${ward.school_id}/${year}/${month}`
+      // Fetch summary
+      const summaryResponse = await axios.get(
+        `http://localhost:5000/api/guardian-student-attendance/monthly-summary/${encodeURIComponent(ward.class)}/${ward.school_id}?year=${year}&month=${month}`
       );
-      setMonthlySummary(response.data);
+      setMonthlySummary(summaryResponse.data);
+
+      // Fetch daily details
+      const dailyResponse = await axios.get(
+        `http://localhost:5000/api/guardian-student-attendance/student-attendance/${encodeURIComponent(ward.class)}/${ward.school_id}?year=${year}&month=${month}`
+      );
+      setDailyAttendance(dailyResponse.data.attendance || []);
     } catch (err) {
       console.error('Error fetching monthly summary:', err);
     } finally {
@@ -263,16 +297,15 @@ const GuardianProfile = () => {
     }
   }, []);
 
-  // Fetch attendance trends
+  // Fetch attendance trends (Ethiopian calendar)
   const fetchAttendanceTrends = useCallback(async (ward) => {
     if (!ward?.class || !ward?.school_id) return;
     setAttendanceLoading(true);
     try {
-      const className = ward.class.replace(/\s+/g, '_');
       const response = await axios.get(
-        `http://localhost:5000/api/guardian-attendance/trends/${encodeURIComponent(className)}/${ward.school_id}`
+        `http://localhost:5000/api/guardian-student-attendance/trends/${encodeURIComponent(ward.class)}/${ward.school_id}`
       );
-      setAttendanceTrends(response.data || []);
+      setAttendanceTrends(response.data.trends || []);
     } catch (err) {
       console.error('Error fetching attendance trends:', err);
     } finally {
@@ -388,6 +421,192 @@ const GuardianProfile = () => {
     }
   }, [activeTab, guardianInfo, wards, fetchEvalBookEvaluations]);
 
+  // Fetch payment data for guardian
+  const fetchPaymentData = useCallback(async (guardianUsername) => {
+    if (!guardianUsername) return;
+    setPaymentLoading(true);
+    try {
+      console.log('Fetching payments for guardian:', guardianUsername);
+      const response = await axios.get(
+        `http://localhost:5000/api/guardian-payments/${encodeURIComponent(guardianUsername)}`
+      );
+      console.log('Payments API Response:', response.data);
+      if (response.data.success) {
+        console.log('Number of wards with payments:', response.data.data.payments?.length);
+        console.log('Payment data:', response.data.data.payments);
+        setPaymentData(response.data.data.payments || []);
+        setUnpaidCount(response.data.data.unpaidCount || 0);
+        if (response.data.data.payments.length > 0) {
+          setSelectedPaymentWard(response.data.data.payments[0].ward);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching payment data:', err);
+      console.error('Error details:', err.response?.data);
+      setPaymentData([]);
+      toast.error('Failed to load payment information');
+    } finally {
+      setPaymentLoading(false);
+    }
+  }, [toast]);
+
+  // Effect: Fetch payments when tab is active
+  useEffect(() => {
+    if (activeTab === 'payments' && guardianInfo?.guardian_username) {
+      fetchPaymentData(guardianInfo.guardian_username);
+    }
+  }, [activeTab, guardianInfo?.guardian_username]); // Removed fetchPaymentData from dependencies
+
+  // Fetch notifications for guardian
+  const fetchNotifications = useCallback(async () => {
+    if (!guardianInfo?.guardian_username || !wards.length) return;
+    
+    setNotificationsLoading(true);
+    try {
+      const notificationsList = [];
+      
+      // Fetch today's attendance for all wards
+      for (const ward of wards) {
+        try {
+          const today = new Date();
+          const ethDate = gregorianToEthiopian(today);
+          const response = await axios.get(
+            `http://localhost:5000/api/guardian-student-attendance/student-attendance/${encodeURIComponent(ward.class)}/${ward.school_id}?year=${ethDate.year}&month=${ethDate.month}`
+          );
+          
+          const todayAttendance = response.data.attendance?.find(a => {
+            const attDate = a.attendance_date?.split('/');
+            return attDate && attDate[1] == ethDate.day && attDate[0] == ethDate.month;
+          });
+          
+          if (todayAttendance) {
+            notificationsList.push({
+              id: `att_${ward.school_id}_${Date.now()}`,
+              type: 'attendance',
+              title: 'Daily Attendance Report',
+              message: `${ward.student_name} was ${todayAttendance.status || 'marked'} today${todayAttendance.check_in_time ? ` at ${todayAttendance.check_in_time}` : ''}`,
+              date: new Date().toISOString(),
+              read: false,
+              ward: ward.student_name
+            });
+          }
+        } catch (err) {
+          console.error(`Error fetching attendance for ${ward.student_name}:`, err);
+        }
+      }
+      
+      // Fetch payment notifications
+      try {
+        const paymentResponse = await axios.get(
+          `http://localhost:5000/api/guardian-payments/${encodeURIComponent(guardianInfo.guardian_username)}`
+        );
+        
+        if (paymentResponse.data.success) {
+          paymentResponse.data.data.payments?.forEach(wardPayment => {
+            // Add notification for unpaid invoices
+            const unpaidInvoices = wardPayment.invoices?.filter(inv => 
+              inv.status === 'ISSUED' || inv.status === 'OVERDUE' || inv.status === 'PARTIALLY_PAID'
+            );
+            
+            if (unpaidInvoices && unpaidInvoices.length > 0) {
+              const totalUnpaid = unpaidInvoices.reduce((sum, inv) => 
+                sum + (parseFloat(inv.netAmount) - parseFloat(inv.paidAmount)), 0
+              );
+              
+              notificationsList.push({
+                id: `pay_${wardPayment.ward.schoolId}_${Date.now()}`,
+                type: 'payment',
+                title: 'Payment Reminder',
+                message: `Outstanding balance of ETB ${totalUnpaid.toFixed(2)} for ${wardPayment.ward.studentName}`,
+                date: new Date().toISOString(),
+                read: false,
+                ward: wardPayment.ward.studentName
+              });
+            }
+            
+            // Add notification for recent payments
+            const recentPayments = wardPayment.invoices?.filter(inv => {
+              const paidDate = new Date(inv.updatedAt);
+              const daysDiff = (new Date() - paidDate) / (1000 * 60 * 60 * 24);
+              return inv.status === 'PAID' && daysDiff <= 7;
+            });
+            
+            if (recentPayments && recentPayments.length > 0) {
+              recentPayments.forEach(payment => {
+                notificationsList.push({
+                  id: `pay_received_${payment.id}`,
+                  type: 'payment',
+                  title: 'Payment Received',
+                  message: `Payment of ETB ${parseFloat(payment.paidAmount).toFixed(2)} received for ${wardPayment.ward.studentName}. Thank you!`,
+                  date: payment.updatedAt,
+                  read: false,
+                  ward: wardPayment.ward.studentName
+                });
+              });
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching payment notifications:', err);
+      }
+      
+      // Sort by date (newest first)
+      notificationsList.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      setNotifications(notificationsList);
+      setUnreadNotificationCount(notificationsList.filter(n => !n.read).length);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [guardianInfo, wards]);
+
+  // Helper function to convert Gregorian to Ethiopian date
+  const gregorianToEthiopian = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+
+    let ethYear = year - 7;
+    let ethMonth = month + 4;
+    let ethDay = day + 10;
+
+    if (ethMonth > 12) {
+      ethMonth -= 12;
+      ethYear += 1;
+    }
+
+    if (ethDay > 30) {
+      ethDay -= 30;
+      ethMonth += 1;
+      if (ethMonth > 12) {
+        ethMonth = 1;
+        ethYear += 1;
+      }
+    }
+
+    return { year: ethYear, month: ethMonth, day: ethDay };
+  };
+
+  // Fetch notifications when guardian info and wards are loaded
+  useEffect(() => {
+    if (guardianInfo && wards.length > 0) {
+      fetchNotifications();
+    }
+  }, [guardianInfo, wards, fetchNotifications]);
+
+  // Refresh notifications every 5 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (guardianInfo && wards.length > 0) {
+        fetchNotifications();
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(interval);
+  }, [guardianInfo, wards, fetchNotifications]);
+
   // Open feedback form for an evaluation
   const openFeedbackForm = (evaluation) => {
     setSelectedEvaluation(evaluation);
@@ -460,6 +679,10 @@ const GuardianProfile = () => {
 
   const handleLogout = () => {
     navigate('/app/guardian-login');
+  };
+
+  const handleNotificationClick = () => {
+    setActiveTab('notifications');
   };
 
   const renderProfileTab = () => (
@@ -700,6 +923,7 @@ const GuardianProfile = () => {
             onMonthChange={setSelectedMonth}
             onYearChange={setSelectedYear}
             onDownload={() => downloadAttendanceReport(selectedAttendanceWard, selectedYear, selectedMonth)}
+            dailyAttendance={dailyAttendance}
           />
         )}
 
@@ -890,7 +1114,7 @@ const GuardianProfile = () => {
       // Add the main admin (from /communication page)
       const mainAdmin = {
         id: 'admin_1',
-        name: 'School Administration',
+        name: 'Admin',
         type: 'admin',
         role: 'Admin'
       };
@@ -1020,9 +1244,6 @@ const GuardianProfile = () => {
         <div className={styles.chatInterface}>
           <div className={styles.chatHeader}>
             <h2><FiMessageSquare /> Messages</h2>
-            <button className={styles.newChatBtn} onClick={handleNewChat}>
-              <FiPlus /> New
-            </button>
           </div>
 
           <div className={styles.chatContent}>
@@ -1331,6 +1552,258 @@ const GuardianProfile = () => {
     );
   };
 
+  const renderPaymentsTab = () => {
+    console.log('Payment Tab Data:', { paymentLoading, paymentData, unpaidCount });
+    
+    return (
+      <div className={styles.paymentsContainer}>
+        <h2 className={styles.tabTitle}>Monthly Payments</h2>
+
+        {/* Unpaid notification */}
+        {unpaidCount > 0 && (
+          <div className={styles.unpaidNotification}>
+            <FiAlertCircle className={styles.notificationIcon} />
+            <div className={styles.notificationContent}>
+              <span className={styles.notificationTitle}>Unpaid Invoices</span>
+              <span className={styles.notificationText}>
+                You have {unpaidCount} unpaid invoice{unpaidCount !== 1 ? 's' : ''} across all wards
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {paymentLoading && <SkeletonLoader type="card" count={3} />}
+
+        {/* No data state */}
+        {!paymentLoading && paymentData.length === 0 && (
+          <div className={styles.emptyState}>
+            <FiDollarSign className={styles.emptyIcon} />
+            <p>No payment information available</p>
+          </div>
+        )}
+
+        {/* Payment data */}
+        {!paymentLoading && paymentData.length > 0 && (
+          <>
+            {paymentData.map((wardPayment, index) => (
+              <div key={index}>
+                {/* Ward Header */}
+                <div className={styles.wardHeader}>
+                  <div className={styles.wardAvatar}>
+                    {wardPayment.ward.studentName?.charAt(0)}
+                  </div>
+                  <div className={styles.wardInfo}>
+                    <h3 className={styles.wardName}>{wardPayment.ward.studentName}</h3>
+                    <span className={styles.wardClass}>Class {wardPayment.ward.class}</span>
+                  </div>
+                </div>
+
+                {/* Payment Summary Card */}
+                <div className={styles.paymentSummaryCard}>
+                  <h3 className={styles.summaryTitle}>Payment Summary</h3>
+                  <div className={styles.summaryGrid}>
+                    <div className={styles.summaryItem}>
+                      <span className={styles.summaryLabel}>Total Invoices</span>
+                      <span className={styles.summaryValue}>{wardPayment.summary.totalInvoices}</span>
+                    </div>
+                    <div className={styles.summaryItem}>
+                      <span className={styles.summaryLabel}>Paid</span>
+                      <span className={`${styles.summaryValue} ${styles.summaryPaid}`}>
+                        {wardPayment.summary.paidInvoices}
+                      </span>
+                    </div>
+                    <div className={styles.summaryItem}>
+                      <span className={styles.summaryLabel}>Unpaid</span>
+                      <span className={`${styles.summaryValue} ${styles.summaryUnpaid}`}>
+                        {wardPayment.summary.unpaidInvoices}
+                      </span>
+                    </div>
+                    <div className={styles.summaryItem}>
+                      <span className={styles.summaryLabel}>Total Paid</span>
+                      <span className={styles.summaryValue}>
+                        {wardPayment.summary.totalPaid.toFixed(2)} ETB
+                      </span>
+                    </div>
+                    <div className={styles.summaryItem}>
+                      <span className={styles.summaryLabel}>Balance Due</span>
+                      <span className={`${styles.summaryValue} ${styles.summaryBalance}`}>
+                        {wardPayment.summary.totalBalance.toFixed(2)} ETB
+                      </span>
+                    </div>
+                    {wardPayment.summary.overdueInvoices > 0 && (
+                      <div className={styles.summaryItem}>
+                        <span className={styles.summaryLabel}>Overdue</span>
+                        <span className={`${styles.summaryValue} ${styles.summaryOverdue}`}>
+                          {wardPayment.summary.overdueInvoices}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Monthly Payments List */}
+                {wardPayment.monthlyPayments && wardPayment.monthlyPayments.length > 0 ? (
+                  <div className={styles.monthlyPaymentsList}>
+                    <h3 className={styles.sectionTitle}>Monthly Invoices</h3>
+                    {wardPayment.monthlyPayments.map((payment, idx) => (
+                      <div 
+                        key={payment.invoiceId || idx} 
+                        className={`${styles.paymentCard} ${payment.isOverdue ? styles.paymentOverdue : ''} ${payment.isPaid ? styles.paymentPaid : ''}`}
+                      >
+                        <div className={styles.paymentHeader}>
+                          <div className={styles.paymentMonth}>
+                            <span className={styles.monthName}>{payment.month}</span>
+                            <span className={styles.invoiceNumber}>#{payment.invoiceNumber}</span>
+                          </div>
+                          <span className={`${styles.paymentStatus} ${styles[`status${payment.status}`]}`}>
+                            {payment.isPaid ? 'PAID' : payment.isOverdue ? 'OVERDUE' : payment.status}
+                          </span>
+                        </div>
+
+                        <div className={styles.paymentDetails}>
+                          <div className={styles.paymentRow}>
+                            <span className={styles.paymentLabel}>Issue Date:</span>
+                            <span className={styles.paymentValue}>
+                              {new Date(payment.issueDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className={styles.paymentRow}>
+                            <span className={styles.paymentLabel}>Due Date:</span>
+                            <span className={styles.paymentValue}>
+                              {new Date(payment.dueDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className={styles.paymentRow}>
+                            <span className={styles.paymentLabel}>Total Amount:</span>
+                            <span className={styles.paymentValue}>{payment.totalAmount.toFixed(2)} ETB</span>
+                          </div>
+                          <div className={styles.paymentRow}>
+                            <span className={styles.paymentLabel}>Paid Amount:</span>
+                            <span className={`${styles.paymentValue} ${styles.paidAmount}`}>
+                              {payment.paidAmount.toFixed(2)} ETB
+                            </span>
+                          </div>
+                          {payment.balance > 0 && (
+                            <div className={styles.paymentRow}>
+                              <span className={styles.paymentLabel}>Balance:</span>
+                              <span className={`${styles.paymentValue} ${styles.balanceAmount}`}>
+                                {payment.balance.toFixed(2)} ETB
+                              </span>
+                            </div>
+                          )}
+                          {payment.receiptNumber && (
+                            <div className={styles.paymentRow}>
+                              <span className={styles.paymentLabel}>Receipt:</span>
+                              <span className={styles.paymentValue}>{payment.receiptNumber}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Payment Items */}
+                        {payment.items && payment.items.length > 0 && (
+                          <div className={styles.paymentItems}>
+                            <span className={styles.itemsTitle}>Items:</span>
+                            {payment.items.map((item, itemIdx) => (
+                              <div key={itemIdx} className={styles.paymentItem}>
+                                <span className={styles.itemDescription}>{item.description}</span>
+                                <span className={styles.itemAmount}>{item.amount.toFixed(2)} ETB</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Payment History */}
+                        {payment.payments && payment.payments.length > 0 && (
+                          <div className={styles.paymentHistory}>
+                            <span className={styles.historyTitle}>Payment History:</span>
+                            {payment.payments.map((pmt, pmtIdx) => (
+                              <div key={pmtIdx} className={styles.historyItem}>
+                                <FiCheck className={styles.historyIcon} />
+                                <span className={styles.historyDate}>
+                                  {new Date(pmt.paymentDate).toLocaleDateString()}
+                                </span>
+                                <span className={styles.historyAmount}>{pmt.amount.toFixed(2)} ETB</span>
+                                <span className={styles.historyMethod}>{pmt.paymentMethod}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={styles.emptyState}>
+                    <FiDollarSign className={styles.emptyIcon} />
+                    <p>No invoices have been generated for {wardPayment.ward.studentName} yet</p>
+                    <p className={styles.emptyHint}>Contact the school to generate monthly invoices</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const renderNotificationsTab = () => {
+    const formatDate = (dateString) => {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      if (diffMins < 60) return `${diffMins} minutes ago`;
+      if (diffHours < 24) return `${diffHours} hours ago`;
+      if (diffDays === 1) return 'Yesterday';
+      if (diffDays < 7) return `${diffDays} days ago`;
+      return date.toLocaleDateString();
+    };
+
+    return (
+      <div className={styles.notificationsContainer}>
+        <h2 className={styles.tabTitle}>Notifications</h2>
+        
+        {notificationsLoading ? (
+          <SkeletonLoader type="card" count={3} />
+        ) : notifications.length > 0 ? (
+          <div className={styles.notificationsList}>
+            {notifications.map((notif) => (
+              <div key={notif.id} className={`${styles.notificationCard} ${!notif.read ? styles.unread : ''}`}>
+                <div className={`${styles.notifIcon} ${styles[notif.type]}`}>
+                  {notif.type === 'attendance' ? <FiCalendar /> : <FiDollarSign />}
+                </div>
+                <div className={styles.notifContent}>
+                  <h3>{notif.title}</h3>
+                  <p>{notif.message}</p>
+                  {notif.ward && (
+                    <span className={styles.notifWard}>Ward: {notif.ward}</span>
+                  )}
+                  <span className={styles.notifTime}>
+                    {formatDate(notif.date)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className={styles.emptyState}>
+            <FiBell className={styles.emptyIcon} />
+            <p>No notifications yet</p>
+          </div>
+        )}
+        
+        <div className={styles.notifInfo}>
+          <FiBell />
+          <p>You'll receive daily attendance reports at 4:00 PM and monthly payment summaries on the 1st of each month.</p>
+        </div>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'profile':
@@ -1339,6 +1812,10 @@ const GuardianProfile = () => {
         return renderMarkListTab();
       case 'evalbook':
         return renderEvalBookTab();
+      case 'notifications':
+        return renderNotificationsTab();
+      case 'payments':
+        return renderPaymentsTab();
       case 'attendance':
         return renderAttendanceTab();
       case 'posts':
@@ -1354,7 +1831,12 @@ const GuardianProfile = () => {
 
   if (isLoading) {
     return (
-      <MobileProfileLayout title="Guardian Profile" onLogout={handleLogout}>
+      <MobileProfileLayout 
+        title="Guardian Profile" 
+        onLogout={handleLogout}
+        onNotificationClick={handleNotificationClick}
+        notificationCount={unreadNotificationCount}
+      >
         <SkeletonLoader type="profile" />
         <BottomNavigation items={navItems} activeItem={activeTab} onItemClick={setActiveTab} />
       </MobileProfileLayout>
@@ -1363,7 +1845,12 @@ const GuardianProfile = () => {
 
   if (error) {
     return (
-      <MobileProfileLayout title="Guardian Profile" onLogout={handleLogout}>
+      <MobileProfileLayout 
+        title="Guardian Profile" 
+        onLogout={handleLogout}
+        onNotificationClick={handleNotificationClick}
+        notificationCount={unreadNotificationCount}
+      >
         <div className={styles.errorContainer}>
           <p>{error}</p>
           <button onClick={fetchProfile} className={styles.retryButton}>
@@ -1377,7 +1864,12 @@ const GuardianProfile = () => {
 
   if (!guardianInfo || wards.length === 0) {
     return (
-      <MobileProfileLayout title="Guardian Profile" onLogout={handleLogout}>
+      <MobileProfileLayout 
+        title="Guardian Profile" 
+        onLogout={handleLogout}
+        onNotificationClick={handleNotificationClick}
+        notificationCount={unreadNotificationCount}
+      >
         <div className={styles.errorContainer}>
           <p>Guardian not found.</p>
         </div>
@@ -1391,6 +1883,8 @@ const GuardianProfile = () => {
       title="Guardian Profile"
       onLogout={handleLogout}
       onRefresh={handleRefresh}
+      onNotificationClick={handleNotificationClick}
+      notificationCount={unreadNotificationCount}
     >
       {renderContent()}
       <BottomNavigation items={navItems} activeItem={activeTab} onItemClick={setActiveTab} />

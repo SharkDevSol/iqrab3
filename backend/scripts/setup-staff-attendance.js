@@ -15,7 +15,11 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
+  user: process.env.DB_USER || 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME || 'school_management2',
+  password: process.env.DB_PASSWORD || '12345678',
+  port: process.env.DB_PORT || 5432,
 });
 
 async function setupAttendanceSystem() {

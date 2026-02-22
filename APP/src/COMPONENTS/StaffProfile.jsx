@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiUser, FiClipboard, FiFileText, FiMessageSquare, FiEye, FiBriefcase, FiUserCheck, FiCalendar, FiCheck, FiX, FiClock, FiSave, FiArrowLeft, FiBook, FiBarChart2, FiAlertCircle, FiEdit, FiEdit2, FiList, FiSearch, FiUsers, FiSettings, FiSend, FiStar } from 'react-icons/fi';
 import axios from 'axios';
 import TeacherCommunications from '../PAGE/Communication/TeacherCommunications';
+import StudentAttendanceSystem from '../PAGE/Academic/StudentAttendanceSystem';
 import { useApp } from '../context/AppContext';
 import {
   MobileProfileLayout,
@@ -208,45 +209,73 @@ const StaffProfile = () => {
     setIsLoading(false);
   }, [navigate]);
 
-  // Check if staff is a class teacher - NOW BASED ON SUBJECT ASSIGNMENTS
+  // Check if staff is a class teacher - BASED ON CLASS TEACHER ASSIGNMENT
   const checkClassTeacherStatus = async (globalStaffId, profileName) => {
+    console.log(`🔍 Checking class teacher status for: "${profileName}" (ID: ${globalStaffId})`);
+    
     try {
-      // Get teacher's subject assignments from mark list system
-      const response = await axios.get(`http://localhost:5000/api/mark-list/teacher-mark-lists/${encodeURIComponent(profileName)}`);
+      // First, check if teacher has a class teacher assignment
+      const url = `http://localhost:5000/api/class-teacher/teacher-assignment/${encodeURIComponent(profileName)}`;
+      console.log(`📡 Calling API: ${url}`);
       
-      if (response.data.assignments && response.data.assignments.length > 0) {
-        // Extract unique classes from subject assignments
-        const uniqueClasses = [...new Set(response.data.assignments.map(a => a.className))];
+      const assignmentResponse = await axios.get(url);
+      console.log(`📥 API Response:`, assignmentResponse.data);
+      
+      if (assignmentResponse.data && assignmentResponse.data.assignments && assignmentResponse.data.assignments.length > 0) {
+        // Teacher has class teacher assignment(s)
+        const assignments = assignmentResponse.data.assignments;
+        console.log(`📋 Assignments found:`, assignments);
         
-        // Set as class teacher if they have any subject assignments
+        const assignedClasses = assignments.map(a => a.assigned_class); // Use assigned_class field
+        console.log(`📚 Assigned classes:`, assignedClasses);
+        
         setIsClassTeacher(true);
+        setAssignedClass(assignedClasses[0]); // Use first assigned class
+        setTeacherClasses(assignedClasses);
         
-        // For now, use the first class as the primary assigned class
-        // You can modify this to show all classes
-        setAssignedClass(uniqueClasses[0]);
+        console.log(`✅ Class teacher detected: ${profileName} assigned to ${assignedClasses.join(', ')}`);
         
-        // Store all classes the teacher teaches
-        setTeacherClasses(uniqueClasses);
-        
-        // Fetch students for the first class
-        if (uniqueClasses[0]) {
-          fetchStudentsForAttendance(uniqueClasses[0]);
+        // Fetch students for the first assigned class
+        if (assignedClasses[0]) {
+          fetchStudentsForAttendance(assignedClasses[0]);
           fetchSchoolDays();
         }
         
-        // Teachers with subject assignments are also teachers - show schedule
+        // Class teachers are also teachers - show schedule
         if (!isTeacher) {
           setIsTeacher(true);
           fetchTeacherSchedule(profileName);
         }
       } else {
-        // No subject assignments - not a class teacher
-        setIsClassTeacher(false);
-        setAssignedClass(null);
-        setTeacherClasses([]);
+        console.log(`ℹ️ No class teacher assignments found for ${profileName}`);
+        
+        // No class teacher assignment - check if they have subject assignments
+        const response = await axios.get(`http://localhost:5000/api/mark-list/teacher-mark-lists/${encodeURIComponent(profileName)}`);
+        
+        if (response.data.assignments && response.data.assignments.length > 0) {
+          // Has subject assignments but not a class teacher
+          setIsClassTeacher(false);
+          setAssignedClass(null);
+          setTeacherClasses([]);
+          
+          console.log(`ℹ️ Teacher ${profileName} has subject assignments but is not a class teacher`);
+          
+          // Still show schedule for teachers with subject assignments
+          if (!isTeacher) {
+            setIsTeacher(true);
+            fetchTeacherSchedule(profileName);
+          }
+        } else {
+          // No assignments at all
+          setIsClassTeacher(false);
+          setAssignedClass(null);
+          setTeacherClasses([]);
+          console.log(`ℹ️ Teacher ${profileName} has no assignments`);
+        }
       }
     } catch (error) {
-      console.error('Error checking class teacher status:', error);
+      console.error('❌ Error checking class teacher status:', error);
+      console.error('Error details:', error.response?.data);
       setIsClassTeacher(false);
       setAssignedClass(null);
       setTeacherClasses([]);
@@ -1917,203 +1946,10 @@ const StaffProfile = () => {
     return <span className={styles.statusIconEmpty}>-</span>;
   };
 
-  const renderAttendanceTab = () => (
-    <div className={styles.attendanceContainer}>
-      {/* Header */}
-      <div className={styles.attHeader}>
-        <div className={styles.attHeaderTop}>
-          <h2><FiUserCheck /> {t('attendance')}</h2>
-          <span className={styles.classBadge}>{assignedClass}</span>
-        </div>
-        
-        {/* Mode Toggle */}
-        <div className={styles.modeToggle}>
-          <button 
-            className={`${styles.modeBtn} ${attendanceMode === 'mark' ? styles.modeBtnActive : ''}`}
-            onClick={() => setAttendanceMode('mark')}
-          >
-            <FiUserCheck /> {t('markAttendance')}
-          </button>
-          <button 
-            className={`${styles.modeBtn} ${attendanceMode === 'view' ? styles.modeBtnActive : ''}`}
-            onClick={() => setAttendanceMode('view')}
-          >
-            <FiEye /> {t('viewReport')}
-          </button>
-        </div>
-      </div>
-
-      {/* Week Selector */}
-      <div className={styles.weekRow}>
-        <div className={styles.weekLabel}>School Week</div>
-        {weeklyTables.length > 0 ? (
-          <select 
-            value={selectedWeek}
-            onChange={(e) => setSelectedWeek(e.target.value)}
-            className={styles.weekSelect}
-          >
-            {weeklyTables.map(table => {
-              const weekDate = table.replace('week_', '').replace(/_/g, '-');
-              return (
-                <option key={table} value={weekDate}>Week of {weekDate}</option>
-              );
-            })}
-          </select>
-        ) : (
-          <span className={styles.noWeeksText}>No attendance yet</span>
-        )}
-      </div>
-
-      {/* Quick Create - Hidden */}
-      {/* Removed create week buttons */}
-
-      {/* New Week Modal - Hidden */}
-      {/* Removed create week modal */}
-
-      {/* MARK MODE */}
-      {attendanceMode === 'mark' && weeklyAttendanceExists && (
-        <>
-          {/* Day Tabs */}
-          <div className={styles.dayTabs}>
-            {schoolDays.map(day => (
-              <button
-                key={day}
-                className={`${styles.dayTab} ${selectedDay === day ? styles.dayTabActive : ''}`}
-                onClick={() => setSelectedDay(day)}
-              >
-                {dayLabels[day]}
-              </button>
-            ))}
-          </div>
-
-          {/* Quick Actions */}
-          <div className={styles.quickActionsRow}>
-            <button onClick={() => markAllAs('P')} className={styles.qaBtnP}><FiCheck /></button>
-            <button onClick={() => markAllAs('A')} className={styles.qaBtnA}><FiX /></button>
-            <button onClick={() => markAllAs('L')} className={styles.qaBtnL}><FiClock /></button>
-            <button onClick={() => markAllAs('E')} className={styles.qaBtnE}>E</button>
-          </div>
-
-          {/* Stats */}
-          <div className={styles.statsRow}>
-            <div className={styles.statBox}><span className={styles.statNumP}>{attendanceStats.present}</span><small>Present</small></div>
-            <div className={styles.statBox}><span className={styles.statNumA}>{attendanceStats.absent}</span><small>Absent</small></div>
-            <div className={styles.statBox}><span className={styles.statNumL}>{attendanceStats.late}</span><small>Late</small></div>
-            <div className={styles.statBox}><span className={styles.statNumE}>{attendanceStats.permission}</span><small>Perm.</small></div>
-          </div>
-
-          {/* Student List for Marking */}
-          <div className={styles.studentList}>
-            {students.map((student, idx) => {
-              const key = `${student.school_id}-${student.class_id}`;
-              const record = attendanceRecords[key] || {};
-              const currentStatus = record[selectedDay] || '';
-              
-              return (
-                <div key={key} className={styles.studentRow}>
-                  <div className={styles.studentInfo}>
-                    <span className={styles.sNum}>{idx + 1}</span>
-                    <span className={styles.sName}>{student.student_name}</span>
-                  </div>
-                  <div className={styles.markBtns}>
-                    <button className={`${styles.mBtn} ${styles.mBtnP} ${currentStatus === 'P' ? styles.mBtnActive : ''}`} onClick={() => handleAttendanceStatusChange(key, selectedDay, 'P')}>P</button>
-                    <button className={`${styles.mBtn} ${styles.mBtnA} ${currentStatus === 'A' ? styles.mBtnActive : ''}`} onClick={() => handleAttendanceStatusChange(key, selectedDay, 'A')}>A</button>
-                    <button className={`${styles.mBtn} ${styles.mBtnL} ${currentStatus === 'L' ? styles.mBtnActive : ''}`} onClick={() => handleAttendanceStatusChange(key, selectedDay, 'L')}>L</button>
-                    <button className={`${styles.mBtn} ${styles.mBtnE} ${currentStatus === 'E' ? styles.mBtnActive : ''}`} onClick={() => handleAttendanceStatusChange(key, selectedDay, 'E')}>E</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Save Button */}
-          <div className={styles.saveSection}>
-            <button className={styles.saveBtn} onClick={saveAttendance} disabled={savingAttendance}>
-              {savingAttendance ? t('loading') : <><FiSave /> {t('saveAttendance')}</>}
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* VIEW/REPORT MODE */}
-      {attendanceMode === 'view' && weeklyAttendanceExists && (
-        <>
-          {/* Weekly Report Header */}
-          <div className={styles.reportHeader}>
-            <h3>Weekly Report - {selectedWeek}</h3>
-          </div>
-
-          {/* Report Table */}
-          <div className={styles.reportTable}>
-            <div className={styles.reportHeaderRow}>
-              <span className={styles.reportColName}>Student</span>
-              {schoolDays.map(day => (
-                <span key={day} className={styles.reportColDay}>{dayLabels[day]}</span>
-              ))}
-              <span className={styles.reportColRate}>%</span>
-            </div>
-            
-            {students.map((student, idx) => {
-              const key = `${student.school_id}-${student.class_id}`;
-              const record = attendanceRecords[key] || {};
-              const report = getStudentWeeklyReport(key);
-              
-              return (
-                <div key={key} className={styles.reportRow}>
-                  <span className={styles.reportColName}>
-                    <span className={styles.reportNum}>{idx + 1}</span>
-                    {student.student_name}
-                  </span>
-                  {schoolDays.map(day => (
-                    <span key={day} className={styles.reportColDay}>
-                      {getStatusIcon(record[day])}
-                    </span>
-                  ))}
-                  <span className={`${styles.reportColRate} ${report.attendanceRate >= 80 ? styles.rateGood : report.attendanceRate >= 60 ? styles.rateWarn : styles.rateBad}`}>
-                    {report.attendanceRate}%
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Summary */}
-          <div className={styles.reportSummary}>
-            <h4>Week Summary</h4>
-            <div className={styles.summaryGrid}>
-              <div className={styles.summaryItem}>
-                <span className={styles.summaryLabel}>Total Students</span>
-                <span className={styles.summaryValue}>{students.length}</span>
-              </div>
-              <div className={styles.summaryItem}>
-                <span className={styles.summaryLabel}>School Days</span>
-                <span className={styles.summaryValue}>{schoolDays.length}</span>
-              </div>
-              <div className={styles.summaryItem}>
-                <span className={styles.summaryLabel}>Avg. Attendance</span>
-                <span className={styles.summaryValue}>
-                  {students.length > 0 
-                    ? Math.round(students.reduce((sum, s) => sum + getStudentWeeklyReport(`${s.school_id}-${s.class_id}`).attendanceRate, 0) / students.length)
-                    : 0}%
-                </span>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Empty State */}
-      {!weeklyAttendanceExists && !attendanceLoading && (
-        <div className={styles.emptyState}>
-          <FiCalendar className={styles.emptyIcon} />
-          <p>No attendance for this week</p>
-          <small>Create a new week to start marking attendance</small>
-        </div>
-      )}
-
-      {attendanceLoading && <SkeletonLoader type="card" count={5} />}
-    </div>
-  );
+  const renderAttendanceTab = () => {
+    // Return the new Student Attendance System with pre-selected class
+    return <StudentAttendanceSystem preSelectedClass={assignedClass} />;
+  };
 
   const renderEvalBookTab = () => {
     // Show form view

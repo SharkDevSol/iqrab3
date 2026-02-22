@@ -66,6 +66,7 @@ const StaffLogin = () => {
         transition={{ duration: 0.5 }}
         className={styles.loginCard}
       >
+        <img src="/skoolific-icon.png" alt="Skoolific" className={styles.logo} />
         <h2 className={styles.title}>Staff Portal Login</h2>
         <p className={styles.subtitle}>Access your staff profile and resources</p>
         

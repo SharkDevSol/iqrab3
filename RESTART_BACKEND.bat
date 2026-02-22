@@ -1,14 +1,13 @@
 @echo off
 echo ========================================
-echo  RESTARTING BACKEND SERVER
+echo Restarting Backend Server
 echo ========================================
 echo.
-echo Stopping all Node processes...
-taskkill /F /IM node.exe 2>nul
-if %errorlevel% == 0 (
-    echo Node processes stopped.
-) else (
-    echo No Node processes were running.
+
+echo Stopping existing Node processes on port 5000...
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5000 ^| findstr LISTENING') do (
+    echo Killing process %%a
+    taskkill /F /PID %%a 2>nul
 )
 
 echo.
@@ -18,11 +17,12 @@ timeout /t 2 /nobreak >nul
 echo.
 echo Starting backend server...
 cd backend
-start cmd /k "node server.js"
+start "Backend Server" cmd /k "npm run dev"
 
 echo.
 echo ========================================
-echo  Backend server started in new window
+echo Backend server is starting...
+echo Check the new window for logs
 echo ========================================
 echo.
 pause

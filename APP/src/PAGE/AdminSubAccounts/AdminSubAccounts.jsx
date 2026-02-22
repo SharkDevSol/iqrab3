@@ -31,6 +31,26 @@ const AdminSubAccounts = () => {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
+  // Check if user is admin on component mount
+  useEffect(() => {
+    const userType = localStorage.getItem('userType');
+    const adminUser = localStorage.getItem('adminUser');
+    
+    // If user is not admin, show error and redirect
+    if (userType !== 'admin' || !adminUser) {
+      toast.error('Access denied: Only administrators can manage sub-accounts. Please login with an admin account.', {
+        autoClose: 5000
+      });
+      
+      // Redirect to home or login after 2 seconds
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 2000);
+      
+      return;
+    }
+  }, []);
+
   useEffect(() => {
     fetchAccounts();
   }, []);
@@ -44,7 +64,22 @@ const AdminSubAccounts = () => {
       }
     } catch (error) {
       console.error('Error fetching accounts:', error);
-      toast.error('Failed to load sub-accounts');
+      
+      // Show user-friendly error message
+      const errorMessage = error.response?.data?.error || 'Failed to load sub-accounts';
+      
+      if (error.response?.status === 403) {
+        toast.error('Access denied: Only administrators can manage sub-accounts. Please login with an admin account.', {
+          autoClose: 5000
+        });
+        
+        // Redirect to login after showing error
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

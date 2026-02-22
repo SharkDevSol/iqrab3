@@ -1,7 +1,4 @@
-const { Pool } = require('pg');
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
-});
+const pool = require('../config/db'); // Use the main pool configuration
 
 class AttendanceAutoMarker {
   constructor() {
@@ -271,13 +268,55 @@ class AttendanceAutoMarker {
               const tableName = tableRow.table_name;
               
               try {
-                // Get all staff from this table
-                // Note: Column is 'name' not 'full_name'
-                const staffResult = await pool.query(`
-                  SELECT machine_id, name, global_staff_id, shift_assignment
-                  FROM "${schema}"."${tableName}"
-                  WHERE is_active = TRUE OR is_active IS NULL
-                `);
+                // Check if shift_assignment column exists
+                const columnCheck = await pool.query(`
+                  SELECT column_name 
+                  FROM information_schema.columns 
+                  WHERE table_schema = $1 
+                    AND table_name = $2 
+                    AND column_name = 'shift_assignment'
+                `, [schema, tableName]);
+                
+                const hasShiftColumn = columnCheck.rows.length > 0;
+                
+                // Check if is_active column exists
+                const isActiveCheck = await pool.query(`
+                  SELECT column_name 
+                  FROM information_schema.columns 
+                  WHERE table_schema = $1 
+                    AND table_name = $2 
+                    AND column_name = 'is_active'
+                `, [schema, tableName]);
+                
+                const hasIsActiveColumn = isActiveCheck.rows.length > 0;
+                
+                // Build query based on available columns
+                let staffQuery;
+                if (hasShiftColumn && hasIsActiveColumn) {
+                  staffQuery = `
+                    SELECT machine_id, name, global_staff_id, shift_assignment
+                    FROM "${schema}"."${tableName}"
+                    WHERE is_active = TRUE OR is_active IS NULL
+                  `;
+                } else if (hasShiftColumn) {
+                  staffQuery = `
+                    SELECT machine_id, name, global_staff_id, shift_assignment
+                    FROM "${schema}"."${tableName}"
+                  `;
+                } else if (hasIsActiveColumn) {
+                  staffQuery = `
+                    SELECT machine_id, name, global_staff_id, 'shift1' as shift_assignment
+                    FROM "${schema}"."${tableName}"
+                    WHERE is_active = TRUE OR is_active IS NULL
+                  `;
+                } else {
+                  staffQuery = `
+                    SELECT machine_id, name, global_staff_id, 'shift1' as shift_assignment
+                    FROM "${schema}"."${tableName}"
+                  `;
+                }
+                
+                const staffResult = await pool.query(staffQuery);
 
                 staffResult.rows.forEach(staff => {
                   // Prefer machine_id, fallback to global_staff_id, then name
@@ -330,19 +369,22 @@ class AttendanceAutoMarker {
         const checkDate = new Date();
         checkDate.setDate(checkDate.getDate() - daysAgo);
         
-        // Skip if this is a weekend
+        // Convert to Ethiopian date FIRST
+        const checkEthDate = this.gregorianToEthiopian(checkDate);
+        
+        // IMPORTANT: Check if the GREGORIAN date is a weekend
+        // (Weekend configuration is based on Gregorian calendar days)
         if (this.isWeekend(checkDate, settings.weekend_days)) {
           if (daysAgo === 0 || daysAgo === 7 || daysAgo === 14 || daysAgo === 30) {
             const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][checkDate.getDay()];
-            console.log(`⏭️ Skipping ${dayName} (weekend day)`);
+            console.log(`⏭️ Skipping ${dayName} ${checkDate.toDateString()} (Eth: ${checkEthDate.month}/${checkEthDate.day}/${checkEthDate.year}) - weekend day`);
           }
           continue; // Skip weekend days
         }
         
-        const checkEthDate = this.gregorianToEthiopian(checkDate);
-        
         if (daysAgo === 0 || daysAgo === 7 || daysAgo === 14 || daysAgo === 30) {
-          console.log(`\n📅 Checking date: ${checkEthDate.month}/${checkEthDate.day}/${checkEthDate.year}`);
+          const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][checkDate.getDay()];
+          console.log(`\n📅 Checking date: ${checkEthDate.month}/${checkEthDate.day}/${checkEthDate.year} (${dayName} ${checkDate.toDateString()})`);
         }
         
         for (const [key, staffData] of allStaff) {
@@ -362,8 +404,8 @@ class AttendanceAutoMarker {
           if (attendanceResult.rows.length === 0) {
             await pool.query(`
               INSERT INTO hr_ethiopian_attendance
-              (staff_id, staff_name, ethiopian_year, ethiopian_month, ethiopian_day, status, check_in, check_out, shift_type)
-              VALUES ($1, $2, $3, $4, $5, 'ABSENT', NULL, NULL, $6)
+              (staff_id, staff_name, ethiopian_year, ethiopian_month, ethiopian_day, status, check_in, shift_type)
+              VALUES ($1, $2, $3, $4, $5, 'ABSENT', '00:00', $6)
               ON CONFLICT (staff_id, ethiopian_year, ethiopian_month, ethiopian_day, shift_type) 
               DO NOTHING
             `, [staffId, name, checkEthDate.year, checkEthDate.month, checkEthDate.day, shift]);
@@ -438,8 +480,8 @@ class AttendanceAutoMarker {
           // Create new record with LEAVE status
           await pool.query(`
             INSERT INTO hr_ethiopian_attendance
-            (staff_id, staff_name, ethiopian_year, ethiopian_month, ethiopian_day, status, check_in, check_out)
-            VALUES ($1, $2, $3, $4, $5, 'LEAVE', NULL, NULL)
+            (staff_id, staff_name, ethiopian_year, ethiopian_month, ethiopian_day, status, check_in)
+            VALUES ($1, $2, $3, $4, $5, 'LEAVE', '00:00')
           `, [leave.staff_id, leave.staff_name, ethDate.year, ethDate.month, ethDate.day]);
 
           console.log(`✅ Marked ${leave.staff_name} as LEAVE (approved leave)`);

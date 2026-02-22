@@ -544,38 +544,91 @@ class AI06WebSocketService {
       console.log(`Check-in: ${checkInTime || existingRecord.rows[0]?.check_in || 'null'}, Check-out: ${checkOutTime || 'null'}`);
       
       // Insert or update attendance record
-      // If check-in exists and this is check-in, update it
-      // If check-out exists and this is check-out, update it
-      const query = `
-        INSERT INTO hr_ethiopian_attendance 
-        (staff_id, staff_name, ethiopian_year, ethiopian_month, ethiopian_day, status, check_in, check_out, shift_type)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        ON CONFLICT (staff_id, ethiopian_year, ethiopian_month, ethiopian_day, shift_type)
-        DO UPDATE SET 
-          check_in = CASE 
-            WHEN EXCLUDED.check_in IS NOT NULL THEN EXCLUDED.check_in 
-            ELSE hr_ethiopian_attendance.check_in 
-          END,
-          check_out = CASE 
-            WHEN EXCLUDED.check_out IS NOT NULL THEN EXCLUDED.check_out 
-            ELSE hr_ethiopian_attendance.check_out 
-          END,
-          status = EXCLUDED.status,
-          updated_at = NOW()
-      `;
-      
-      // Use machine_id as staff_id, name from device
-      await pool.query(query, [
-        machineId.toString(),
-        name,
-        ethYear,
-        ethMonth,
-        ethDay,
-        status,
-        checkInTime,
-        checkOutTime,
-        effectiveShift
-      ]);
+      // For check-in: insert new record with check_in value
+      // For check-out: update existing record with check_out value
+      if (isCheckIn) {
+        // CHECK-IN: Insert new record
+        const query = `
+          INSERT INTO hr_ethiopian_attendance 
+          (staff_id, staff_name, ethiopian_year, ethiopian_month, ethiopian_day, status, check_in, shift_type)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          ON CONFLICT (staff_id, ethiopian_year, ethiopian_month, ethiopian_day, shift_type)
+          DO UPDATE SET 
+            check_in = EXCLUDED.check_in,
+            status = EXCLUDED.status,
+            updated_at = NOW()
+        `;
+        
+        await pool.query(query, [
+          machineId.toString(),
+          name,
+          ethYear,
+          ethMonth,
+          ethDay,
+          status,
+          checkInTime,
+          effectiveShift
+        ]);
+      } else {
+        // CHECK-OUT: Update existing record
+        // DEFENSIVE: Verify record exists before updating
+        const verifyResult = await pool.query(
+          `SELECT id, check_in FROM hr_ethiopian_attendance 
+           WHERE staff_id = $1 
+           AND ethiopian_year = $2 
+           AND ethiopian_month = $3 
+           AND ethiopian_day = $4
+           AND shift_type = $5`,
+          [machineId.toString(), ethYear, ethMonth, ethDay, effectiveShift]
+        );
+        
+        if (verifyResult.rows.length === 0 || !verifyResult.rows[0].check_in) {
+          // Record doesn't exist or has no check-in - treat this as check-in instead
+          console.log(`⚠️  CHECK-OUT attempted but no check-in record found - converting to CHECK-IN`);
+          const insertQuery = `
+            INSERT INTO hr_ethiopian_attendance 
+            (staff_id, staff_name, ethiopian_year, ethiopian_month, ethiopian_day, status, check_in, shift_type)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            ON CONFLICT (staff_id, ethiopian_year, ethiopian_month, ethiopian_day, shift_type)
+            DO UPDATE SET 
+              check_in = EXCLUDED.check_in,
+              status = EXCLUDED.status,
+              updated_at = NOW()
+          `;
+          
+          await pool.query(insertQuery, [
+            machineId.toString(),
+            name,
+            ethYear,
+            ethMonth,
+            ethDay,
+            'PRESENT',
+            timeOnly,
+            effectiveShift
+          ]);
+        } else {
+          // Record exists with check-in - proceed with check-out update
+          const updateQuery = `
+            UPDATE hr_ethiopian_attendance 
+            SET check_out = $1, status = $2, updated_at = NOW()
+            WHERE staff_id = $3 
+            AND ethiopian_year = $4 
+            AND ethiopian_month = $5 
+            AND ethiopian_day = $6
+            AND shift_type = $7
+          `;
+          
+          await pool.query(updateQuery, [
+            checkOutTime,
+            status,
+            machineId.toString(),
+            ethYear,
+            ethMonth,
+            ethDay,
+            effectiveShift
+          ]);
+        }
+      }
       
       console.log(`✅ Attendance saved to database for Ethiopian date: ${ethMonth}/${ethDay}/${ethYear}`);
       

@@ -10,6 +10,7 @@ require('dotenv').config();
 
 // Security middleware
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
+const { generateToken } = require('../middleware/jwtValidator');
 const { validate, schemas } = require('../middleware/inputValidation');
 const { fileValidator, multerFileFilter } = require('../middleware/fileValidation');
 const { uploadLimiter } = require('../middleware/rateLimiter');
@@ -177,16 +178,15 @@ router.post('/login', async (req, res) => {
         [admin.id]
       );
 
-      // Generate JWT token
-      const token = jwt.sign(
+      // Generate JWT token using centralized function
+      const token = generateToken(
         { 
           id: admin.id, 
           username: admin.username, 
           role: admin.role,
           userType: 'admin'
         },
-        process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+        process.env.JWT_EXPIRES_IN || '24h'
       );
 
       return res.json({
@@ -235,8 +235,8 @@ router.post('/login', async (req, res) => {
       [subAccount.id]
     );
 
-    // Generate JWT token for sub-account
-    const token = jwt.sign(
+    // Generate JWT token for sub-account using centralized function
+    const token = generateToken(
       { 
         id: subAccount.id, 
         username: subAccount.username, 
@@ -244,8 +244,7 @@ router.post('/login', async (req, res) => {
         userType: 'sub-account',
         permissions: subAccount.permissions || []
       },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+      process.env.JWT_EXPIRES_IN || '24h'
     );
 
     res.json({

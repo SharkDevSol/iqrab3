@@ -51,26 +51,65 @@ router.use(sanitizeInputs);
 
 // All sub-account routes require PRIMARY admin authentication (not sub-accounts)
 router.use(authenticateToken);
-router.use((req, res, next) => {
-  // Only primary admins can manage sub-accounts
-  // Check both role and userType to ensure it's a primary admin
-  if (req.user.role === 'admin' && req.user.userType === 'admin') {
-    return next();
-  }
+router.use(async (req, res, next) => {
+  console.log('\n🔐 Sub-Account Route Authorization Check');
+  console.log('User ID:', req.user?.id);
+  console.log('Role from token:', req.user?.role);
+  console.log('UserType from token:', req.user?.userType);
   
-  // Sub-accounts cannot manage other sub-accounts
-  if (req.user.role === 'sub-account' || req.user.userType === 'sub-account') {
+  try {
+    // Super admin has access
+    if (req.user.isSuperAdmin || req.user.role === 'super_admin') {
+      console.log('✅ Super admin access granted');
+      return next();
+    }
+    
+    // Check if user is staff (they should NOT have access)
+    if (req.user.userType === 'staff' || req.user.role === 'teacher' || req.user.role === 'staff') {
+      console.log('❌ Staff member trying to access admin sub-accounts management');
+      return res.status(403).json({ 
+        error: 'Access denied: Only administrators can manage sub-accounts. Please login with an admin account.' 
+      });
+    }
+    
+    // ROBUST CHECK: Verify user is a primary admin by checking the database
+    // This ensures authorization works on any device, VPS, or after data deletion
+    const adminCheck = await pool.query(
+      'SELECT id, role FROM admin_users WHERE id = $1',
+      [req.user.id]
+    );
+    
+    // If user exists in admin_users table, they are a primary admin
+    if (adminCheck.rows.length > 0) {
+      const admin = adminCheck.rows[0];
+      console.log('✅ Verified primary admin from database (id: %s, role: %s)', admin.id, admin.role);
+      return next();
+    }
+    
+    // Check if user is a sub-account (they should NOT have access)
+    const subAccountCheck = await pool.query(
+      'SELECT id FROM admin_sub_accounts WHERE id = $1',
+      [req.user.id]
+    );
+    
+    if (subAccountCheck.rows.length > 0) {
+      console.log('❌ Sub-account trying to access sub-account management');
+      return res.status(403).json({ 
+        error: 'Access denied: Only primary administrators can manage sub-accounts' 
+      });
+    }
+    
+    // User not found in either table - likely a staff member or invalid user
+    console.log('❌ User not found in admin_users or admin_sub_accounts tables');
+    console.log('   This user might be a staff member. Please login with an admin account.');
     return res.status(403).json({ 
-      error: 'Access denied: Only primary administrators can manage sub-accounts' 
+      error: 'Access denied: Only administrators can manage sub-accounts. Please login with an admin account.' 
     });
+    
+  } catch (error) {
+    console.error('Error checking admin authorization:', error);
+    return res.status(500).json({ error: 'Authorization check failed' });
   }
-  
-  // Super admin has access
-  if (req.user.isSuperAdmin || req.user.role === 'super_admin') {
-    return next();
-  }
-  
-  return res.status(403).json({ error: 'Access denied: Insufficient permissions' });
 });
 
 // GET all sub-accounts

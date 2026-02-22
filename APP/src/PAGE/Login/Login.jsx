@@ -93,7 +93,7 @@ const Login = () => {
     <div className={styles.container}>
       <div className={styles.loginCard}>
         <div className={styles.logoSection}>
-          <div className={styles.logo}>🎓</div>
+          <img src="/skoolific-icon.png" alt="Skoolific" className={styles.logo} />
           <h1 className={styles.title}>School Management System</h1>
           <p className={styles.subtitle}>Admin Login</p>
         </div>
@@ -157,7 +157,7 @@ const Login = () => {
         )}
         
         <div className={styles.footer}>
-          <p>© 2025 School Management System. All rights reserved.</p>
+          <p>© 2025 Skoolific. All rights reserved.</p>
         </div>
       </div>
     </div>

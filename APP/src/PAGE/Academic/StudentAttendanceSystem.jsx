@@ -3,8 +3,8 @@ import axios from 'axios';
 import { FiCalendar, FiUsers, FiCheckCircle, FiXCircle, FiClock, FiEdit2, FiX, FiSave } from 'react-icons/fi';
 import styles from './StudentAttendanceSystem.module.css';
 
-const StudentAttendanceSystem = () => {
-  const [selectedClass, setSelectedClass] = useState('');
+const StudentAttendanceSystem = ({ preSelectedClass = null }) => {
+  const [selectedClass, setSelectedClass] = useState(preSelectedClass || '');
   const [selectedYear, setSelectedYear] = useState(2018);
   const [selectedWeekId, setSelectedWeekId] = useState('');
   const [classes, setClasses] = useState([]);
@@ -48,6 +48,13 @@ const StudentAttendanceSystem = () => {
 
     return () => clearInterval(timer);
   }, []);
+
+  // Update selectedClass when preSelectedClass prop changes
+  useEffect(() => {
+    if (preSelectedClass) {
+      setSelectedClass(preSelectedClass);
+    }
+  }, [preSelectedClass]);
 
   // Generate school weeks when settings and date are loaded
   useEffect(() => {
@@ -148,7 +155,8 @@ const StudentAttendanceSystem = () => {
       const response = await axios.get('http://localhost:5000/api/academic/student-attendance/classes');
       if (response.data.success) {
         setClasses(response.data.data);
-        if (response.data.data.length > 0) {
+        // Only set first class if no preSelectedClass is provided
+        if (response.data.data.length > 0 && !preSelectedClass) {
           setSelectedClass(response.data.data[0]);
         }
       }
@@ -625,18 +633,27 @@ const StudentAttendanceSystem = () => {
 
       {/* Filters */}
       <div className={styles.filters}>
-        <div className={styles.filterGroup}>
-          <label>Class</label>
-          <select
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-            className={styles.select}
-          >
-            {classes.map(cls => (
-              <option key={cls} value={cls}>{cls}</option>
-            ))}
-          </select>
-        </div>
+        {preSelectedClass ? (
+          <div className={styles.filterGroup}>
+            <label>Assigned Class</label>
+            <div className={styles.assignedClassBadge}>
+              {selectedClass}
+            </div>
+          </div>
+        ) : (
+          <div className={styles.filterGroup}>
+            <label>Class</label>
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className={styles.select}
+            >
+              {classes.map(cls => (
+                <option key={cls} value={cls}>{cls}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className={styles.filterGroup}>
           <label>Year</label>

@@ -17,26 +17,11 @@ function InitialRedirect({ children }) {
     }
 
     const userType = localStorage.getItem('userType') || 'admin';
-    
-    // Check if all setup tasks are completed
-    const completedTasks = JSON.parse(localStorage.getItem('completedTasks') || '[]');
-    const allTasksCompleted = completedTasks.length >= TOTAL_TASKS;
 
     if (userType === 'admin') {
-      // If tasks are not all completed, redirect to tasks page
-      if (!allTasksCompleted) {
-        navigate('/tasks', { replace: true });
-      } else {
-        // All tasks completed, go to dashboard
-        navigate('/dashboard', { replace: true });
-      }
+      // Admin always goes to dashboard
+      navigate('/dashboard', { replace: true });
     } else if (userType === 'sub-account') {
-      // Sub-account: check tasks first, then permissions
-      if (!allTasksCompleted) {
-        navigate('/tasks', { replace: true });
-        return;
-      }
-      
       // Sub-account goes to first permitted page
       let permissions = [];
       try {

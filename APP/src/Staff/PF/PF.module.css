@@ -504,3 +504,333 @@
     gap: 1rem;
   }
 }
+
+/* Attendance Section Styles */
+.attendanceSection {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.attendanceSection h2 {
+  color: #ff7e5f;
+  font-size: 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.noClassAssigned {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #666;
+}
+
+.noClassAssigned svg {
+  color: #ddd;
+  margin-bottom: 1rem;
+}
+
+.noClassAssigned p {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0.5rem 0;
+  color: #333;
+}
+
+.noClassAssigned small {
+  color: #999;
+  font-size: 0.875rem;
+}
+
+.classInfo {
+  margin-bottom: 2rem;
+}
+
+.classInfoCard {
+  background: linear-gradient(135deg, #ff7e5f, #feb47b);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 4px 12px rgba(255, 126, 95, 0.3);
+}
+
+.classIcon {
+  font-size: 2.5rem;
+  opacity: 0.9;
+}
+
+.classInfoCard h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.875rem;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+.className {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.loadingAttendance {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-size: 1rem;
+}
+
+.summaryTitle {
+  font-size: 1rem;
+  color: #333;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.attendanceCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.attendanceCard {
+  background: white;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 2px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.attendanceCard:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.attendanceIcon {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.attendanceData h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.attendanceData p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.presentCard {
+  border-color: #28a745;
+}
+
+.presentCard .attendanceIcon {
+  color: #28a745;
+}
+
+.presentCard .attendanceData h3 {
+  color: #28a745;
+}
+
+.lateCard {
+  border-color: #ffc107;
+}
+
+.lateCard .attendanceIcon {
+  color: #ffc107;
+}
+
+.lateCard .attendanceData h3 {
+  color: #ffc107;
+}
+
+.absentCard {
+  border-color: #dc3545;
+}
+
+.absentCard .attendanceIcon {
+  color: #dc3545;
+}
+
+.absentCard .attendanceData h3 {
+  color: #dc3545;
+}
+
+.leaveCard {
+  border-color: #6f42c1;
+}
+
+.leaveCard .attendanceIcon {
+  color: #6f42c1;
+}
+
+.leaveCard .attendanceData h3 {
+  color: #6f42c1;
+}
+
+.totalCard {
+  border-color: #17a2b8;
+}
+
+.totalCard .attendanceIcon {
+  color: #17a2b8;
+}
+
+.totalCard .attendanceData h3 {
+  color: #17a2b8;
+}
+
+.attendanceNote {
+  background: #f8f9fa;
+  border-left: 4px solid #ff7e5f;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.attendanceNote p {
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+  color: #555;
+}
+
+.attendanceNote p:first-child {
+  font-weight: 600;
+  color: #333;
+}
+
+.noAttendanceData {
+  text-align: center;
+  padding: 2rem;
+  color: #999;
+  font-size: 0.9375rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .attendanceCards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  
+  .attendanceCard {
+    padding: 1rem;
+  }
+  
+  .attendanceIcon {
+    font-size: 1.5rem;
+  }
+  
+  .attendanceData h3 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .classInfoCard {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .attendanceCards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Current Date Info */
+.currentDateInfo {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9375rem;
+  color: #555;
+  border-left: 4px solid #ff7e5f;
+}
+
+.currentDateInfo svg {
+  color: #ff7e5f;
+  font-size: 1.25rem;
+}
+
+/* Go to Attendance Button */
+.goToAttendanceBtn {
+  background: #ff7e5f;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background 0.2s;
+}
+
+.goToAttendanceBtn:hover {
+  background: #e56a50;
+}
+
+.goToAttendanceBtn:active {
+  transform: scale(0.98);
+}
+
+/* No Attendance Data - Enhanced */
+.noAttendanceData {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #666;
+  background: #f8f9fa;
+  border-radius: 12px;
+  margin-top: 1rem;
+}
+
+.noAttendanceData svg {
+  color: #ddd;
+  margin-bottom: 1rem;
+}
+
+.noAttendanceData p {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0.5rem 0;
+  color: #333;
+}
+
+.noAttendanceData small {
+  color: #999;
+  font-size: 0.875rem;
+  display: block;
+  margin-top: 0.5rem;
+}
+
+/* Attendance Tab Container */
+.attendanceTabContainer {
+  background: white;
+  border-radius: 12px;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* Override attendance component styles to fit in profile */
+.attendanceTabContainer > div {
+  background: transparent;
+  padding: 0;
+}

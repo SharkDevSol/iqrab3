@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 // AI06 Device Configuration
-const DEVICE_IP = '192.168.1.201'; // Change to your device IP
+const DEVICE_IP = '192.168.1.2'; // Change to your device IP
 const DEVICE_PORT = 80;
 const CHECK_INTERVAL = 60000; // Check every 1 minute
 const MIN_EXPECTED_USERS = 10; // Alert if users drop below this

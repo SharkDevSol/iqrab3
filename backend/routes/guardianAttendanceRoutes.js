@@ -322,4 +322,134 @@ router.get('/report/:className/:schoolId/:year/:month', async (req, res) => {
   }
 });
 
+// Get all attendance for all wards of a guardian
+router.get('/guardian-attendance/:guardianUsername', async (req, res) => {
+  const { guardianUsername } = req.params;
+  const { year, month } = req.query;
+  
+  try {
+    // Get all class tables
+    const tablesResult = await pool.query(
+      'SELECT table_name FROM information_schema.tables WHERE table_schema = $1', 
+      ['classes_schema']
+    );
+    
+    const classes = tablesResult.rows.map(row => row.table_name);
+    const wards = [];
+    
+    // Find all wards for this guardian
+    for (const className of classes) {
+      try {
+        const columnsCheck = await pool.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_schema = 'classes_schema' 
+            AND table_name = $1 
+            AND column_name = 'is_active'
+        `, [className]);
+        
+        const hasIsActive = columnsCheck.rows.length > 0;
+        const whereClause = hasIsActive 
+          ? `WHERE guardian_username = $1 AND (is_active = TRUE OR is_active IS NULL)`
+          : `WHERE guardian_username = $1`;
+        
+        const result = await pool.query(`
+          SELECT 
+            student_name,
+            school_id,
+            class_id,
+            class
+          FROM classes_schema."${className}"
+          ${whereClause}
+        `, [guardianUsername]);
+        
+        wards.push(...result.rows.map(row => ({
+          ...row,
+          class: row.class || className
+        })));
+      } catch (err) {
+        console.warn(`Error fetching from ${className}:`, err.message);
+      }
+    }
+    
+    if (wards.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          wards: [],
+          attendance: [],
+          stats: { total: 0, present: 0, absent: 0, late: 0, percentage: 0 }
+        }
+      });
+    }
+    
+    // Fetch attendance for each ward
+    const attendanceData = [];
+    
+    for (const ward of wards) {
+      try {
+        let query = `
+          SELECT 
+            student_id,
+            student_name,
+            class_name,
+            date,
+            status,
+            check_in_time,
+            ethiopian_year,
+            ethiopian_month,
+            ethiopian_day,
+            day_of_week,
+            shift_number,
+            notes,
+            created_at
+          FROM academic_student_attendance
+          WHERE student_id = $1
+        `;
+        
+        const params = [String(ward.school_id)];
+        
+        if (year && month) {
+          query += ` AND ethiopian_year = $2 AND ethiopian_month = $3`;
+          params.push(parseInt(year), parseInt(month));
+        }
+        
+        query += ` ORDER BY ethiopian_year DESC, ethiopian_month DESC, ethiopian_day DESC LIMIT 100`;
+        
+        const result = await pool.query(query, params);
+        
+        attendanceData.push(...result.rows.map(row => ({
+          ...row,
+          ward: ward.student_name,
+          class: ward.class
+        })));
+      } catch (error) {
+        console.warn(`Error fetching attendance for ${ward.student_name}:`, error.message);
+      }
+    }
+    
+    // Calculate statistics
+    const stats = {
+      total: attendanceData.length,
+      present: attendanceData.filter(a => a.status === 'PRESENT').length,
+      absent: attendanceData.filter(a => a.status === 'ABSENT').length,
+      late: attendanceData.filter(a => a.status === 'LATE').length
+    };
+    
+    stats.percentage = stats.total > 0 ? ((stats.present / stats.total) * 100).toFixed(1) : 0;
+    
+    res.json({
+      success: true,
+      data: {
+        wards: wards,
+        attendance: attendanceData,
+        stats: stats
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching guardian attendance:', error);
+    res.status(500).json({ error: 'Failed to fetch guardian attendance', details: error.message });
+  }
+});
+
 module.exports = router;

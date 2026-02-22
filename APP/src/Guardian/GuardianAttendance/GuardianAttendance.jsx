@@ -1,33 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiCalendar, FiCheck, FiX, FiClock, FiUser } from 'react-icons/fi';
+import axios from 'axios';
 import styles from './GuardianAttendance.module.css';
 
 const GuardianAttendance = () => {
   const [selectedWard, setSelectedWard] = useState('all');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [wards, setWards] = useState([]);
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [stats, setStats] = useState({ total: 0, present: 0, absent: 0, late: 0, percentage: 0 });
+  const [loading, setLoading] = useState(true);
 
-  // Sample data - replace with actual API call
-  const wards = [
-    { id: 1, name: 'Ibrahim Ahmed', class: 'Grade 10-A' },
-    { id: 2, name: 'Fatima Ahmed', class: 'Grade 8-B' }
-  ];
+  useEffect(() => {
+    fetchAttendance();
+  }, [selectedMonth, selectedYear]);
 
-  const attendanceData = [
-    { date: '2026-02-15', status: 'present', ward: 'Ibrahim Ahmed' },
-    { date: '2026-02-14', status: 'present', ward: 'Ibrahim Ahmed' },
-    { date: '2026-02-13', status: 'absent', ward: 'Ibrahim Ahmed' },
-    { date: '2026-02-15', status: 'present', ward: 'Fatima Ahmed' },
-    { date: '2026-02-14', status: 'late', ward: 'Fatima Ahmed' },
-  ];
+  const fetchAttendance = async () => {
+    try {
+      const guardianInfo = JSON.parse(localStorage.getItem('guardianInfo') || '{}');
+      const response = await axios.get(
+        `http://localhost:5000/api/guardian-attendance/guardian-attendance/${guardianInfo.guardian_username}`,
+        {
+          params: {
+            year: selectedYear,
+            month: selectedMonth
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        setWards(response.data.data.wards);
+        setAttendanceData(response.data.data.attendance);
+        setStats(response.data.data.stats);
+      }
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusIcon = (status) => {
-    switch (status) {
-      case 'present':
+    switch (status?.toUpperCase()) {
+      case 'PRESENT':
         return <FiCheck className={styles.iconPresent} />;
-      case 'absent':
+      case 'ABSENT':
         return <FiX className={styles.iconAbsent} />;
-      case 'late':
+      case 'LATE':
         return <FiClock className={styles.iconLate} />;
       default:
         return null;
@@ -35,25 +56,17 @@ const GuardianAttendance = () => {
   };
 
   const getStatusClass = (status) => {
-    return styles[`status${status.charAt(0).toUpperCase() + status.slice(1)}`];
+    const statusLower = status?.toLowerCase() || '';
+    return styles[`status${statusLower.charAt(0).toUpperCase() + statusLower.slice(1)}`];
   };
 
-  const calculateStats = () => {
-    const total = attendanceData.length;
-    const present = attendanceData.filter(a => a.status === 'present').length;
-    const absent = attendanceData.filter(a => a.status === 'absent').length;
-    const late = attendanceData.filter(a => a.status === 'late').length;
-    
-    return {
-      total,
-      present,
-      absent,
-      late,
-      percentage: total > 0 ? ((present / total) * 100).toFixed(1) : 0
-    };
-  };
-
-  const stats = calculateStats();
+  if (loading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.loading}>Loading attendance...</div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
@@ -74,8 +87,8 @@ const GuardianAttendance = () => {
             className={styles.select}
           >
             <option value="all">All Wards</option>
-            {wards.map(ward => (
-              <option key={ward.id} value={ward.name}>{ward.name}</option>
+            {wards.map((ward, index) => (
+              <option key={index} value={ward.student_name}>{ward.student_name}</option>
             ))}
           </select>
 
@@ -85,8 +98,8 @@ const GuardianAttendance = () => {
             className={styles.select}
           >
             {Array.from({ length: 12 }, (_, i) => (
-              <option key={i} value={i}>
-                {new Date(2026, i).toLocaleString('default', { month: 'long' })}
+              <option key={i + 1} value={i + 1}>
+                Month {i + 1}
               </option>
             ))}
           </select>
@@ -145,28 +158,30 @@ const GuardianAttendance = () => {
             </div>
           ) : (
             <div className={styles.records}>
-              {attendanceData.map((record, index) => (
-                <motion.div
-                  key={index}
-                  className={styles.recordCard}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <div className={styles.recordDate}>
-                    <FiCalendar />
-                    <span>{new Date(record.date).toLocaleDateString()}</span>
-                  </div>
-                  <div className={styles.recordWard}>
-                    <FiUser />
-                    <span>{record.ward}</span>
-                  </div>
-                  <div className={`${styles.recordStatus} ${getStatusClass(record.status)}`}>
-                    {getStatusIcon(record.status)}
-                    <span>{record.status}</span>
-                  </div>
-                </motion.div>
-              ))}
+              {attendanceData
+                .filter(record => selectedWard === 'all' || record.ward === selectedWard)
+                .map((record, index) => (
+                  <motion.div
+                    key={index}
+                    className={styles.recordCard}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <div className={styles.recordDate}>
+                      <FiCalendar />
+                      <span>{record.date ? new Date(record.date).toLocaleDateString() : `${record.ethiopian_day}/${record.ethiopian_month}/${record.ethiopian_year}`}</span>
+                    </div>
+                    <div className={styles.recordWard}>
+                      <FiUser />
+                      <span>{record.ward}</span>
+                    </div>
+                    <div className={`${styles.recordStatus} ${getStatusClass(record.status)}`}>
+                      {getStatusIcon(record.status)}
+                      <span>{record.status}</span>
+                    </div>
+                  </motion.div>
+                ))}
             </div>
           )}
         </div>

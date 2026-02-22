@@ -18,7 +18,7 @@ const StudentLogin = () => {
     setError('');
 
     try {
-      const response = await axios.post('http://localhost:5000/api/students/login', {
+      const response = await axios.post('/api/students/login', {
         username,
         password,
       });
@@ -43,6 +43,7 @@ const StudentLogin = () => {
         transition={{ duration: 0.5 }}
         className={styles.loginCard}
       >
+        <img src="/skoolific-icon.png" alt="Skoolific" className={styles.logo} />
         <h2 className={styles.title}>Student Portal Login</h2>
         <p className={styles.subtitle}>Access your student profile</p>
         {error && <p className={styles.errorMessage}>{error}</p>}
@@ -91,8 +92,7 @@ const StudentLogin = () => {
           </motion.button>
         </form>
         <p className={styles.footerText}>
-          Need help? Contact your school administrator or{' '}
-          <a href="/app/guardian-login" className={styles.link}>try Guardian Login</a>.
+          Need help? Contact your school administrator.
         </p>
       </motion.div>
     </div>

@@ -33,14 +33,36 @@ export const MonthlySummaryView = ({
   selectedYear, 
   onMonthChange, 
   onYearChange,
-  onDownload 
+  onDownload,
+  dailyAttendance = [] // New prop for daily details
 }) => {
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+  const ethiopianMonths = [
+    'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit',
+    'Megabit', 'Miazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'
   ];
   
-  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
+  const years = [2016, 2017, 2018, 2019, 2020]; // Ethiopian years
+
+  // Helper to format time in 12-hour format
+  const formatTime = (time) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  // Helper to get status badge
+  const getStatusBadge = (status) => {
+    const badges = {
+      'PRESENT': { label: 'Present', color: '#10b981', icon: '✓' },
+      'ABSENT': { label: 'Absent', color: '#ef4444', icon: '✗' },
+      'LATE': { label: 'Late', color: '#f59e0b', icon: '⏰' },
+      'LEAVE': { label: 'Leave', color: '#8b5cf6', icon: 'L' }
+    };
+    return badges[status] || { label: status, color: '#6b7280', icon: '?' };
+  };
 
   return (
     <div className={styles.monthlySummaryView}>
@@ -50,7 +72,7 @@ export const MonthlySummaryView = ({
           onChange={(e) => onMonthChange(parseInt(e.target.value))}
           className={styles.monthSelect}
         >
-          {months.map((month, idx) => (
+          {ethiopianMonths.map((month, idx) => (
             <option key={idx} value={idx + 1}>{month}</option>
           ))}
         </select>
@@ -63,13 +85,15 @@ export const MonthlySummaryView = ({
             <option key={year} value={year}>{year}</option>
           ))}
         </select>
-        <button 
-          className={styles.downloadBtn}
-          onClick={onDownload}
-          title="Download Report"
-        >
-          <FiDownload />
-        </button>
+        {onDownload && (
+          <button 
+            className={styles.downloadBtn}
+            onClick={onDownload}
+            title="Download Report"
+          >
+            <FiDownload />
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -149,6 +173,50 @@ export const MonthlySummaryView = ({
               </p>
             </div>
           </div>
+
+          {/* Daily Attendance Details */}
+          {dailyAttendance && dailyAttendance.length > 0 && (
+            <div className={styles.dailyAttendanceSection}>
+              <h3 className={styles.dailyAttendanceTitle}>
+                <FiCalendar /> Daily Attendance Details
+              </h3>
+              <div className={styles.dailyAttendanceList}>
+                {dailyAttendance.map((record, index) => {
+                  const badge = getStatusBadge(record.status);
+                  return (
+                    <div key={index} className={styles.dailyAttendanceCard}>
+                      <div className={styles.dailyAttendanceDate}>
+                        <span className={styles.dailyAttendanceDay}>
+                          {ethiopianMonths[record.ethiopian_month - 1]} {record.ethiopian_day}
+                        </span>
+                        <span className={styles.dailyAttendanceDayOfWeek}>
+                          {record.day_of_week}
+                        </span>
+                      </div>
+                      <div className={styles.dailyAttendanceStatus}>
+                        <span 
+                          className={styles.dailyAttendanceBadge}
+                          style={{ backgroundColor: badge.color }}
+                        >
+                          {badge.icon} {badge.label}
+                        </span>
+                        {record.check_in_time && (
+                          <span className={styles.dailyAttendanceTime}>
+                            {formatTime(record.check_in_time)}
+                          </span>
+                        )}
+                      </div>
+                      {record.notes && (
+                        <div className={styles.dailyAttendanceNotes}>
+                          📝 {record.notes}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <div className={styles.emptyState}>

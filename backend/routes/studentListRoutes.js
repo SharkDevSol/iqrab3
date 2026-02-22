@@ -145,6 +145,54 @@ router.put("/student/:className/:schoolId/:classId", upload.single("image_studen
     delete fields.school_id;
     delete fields.class_id;
 
+    // Validate smachine_id uniqueness across ALL classes if being updated
+    if (fields.smachine_id) {
+      // Check global tracker table first (most reliable)
+      try {
+        const globalCheck = await pool.query(
+          'SELECT student_name, class_name, school_id, class_id FROM school_schema_points.global_machine_ids WHERE smachine_id = $1',
+          [fields.smachine_id]
+        );
+        
+        // Check if machine ID exists and belongs to a different student
+        if (globalCheck.rows.length > 0) {
+          const existing = globalCheck.rows[0];
+          // Allow if it's the same student being updated
+          if (existing.school_id != schoolId || existing.class_id != classId) {
+            return res.status(400).json({ 
+              error: `Machine ID ${fields.smachine_id} already added. This ID is used by student "${existing.student_name}" in ${existing.class_name}.`
+            });
+          }
+        }
+      } catch (err) {
+        // Tracker table might not exist, fall back to checking all classes
+      }
+      
+      // Fallback: Check all class tables
+      const allClasses = (await pool.query(
+        'SELECT table_name FROM information_schema.tables WHERE table_schema = $1',
+        ['classes_schema']
+      )).rows.map(row => row.table_name);
+      
+      for (const cls of allClasses) {
+        const existingMachineId = await pool.query(
+          `SELECT student_name, class, school_id, class_id FROM classes_schema."${cls}" WHERE smachine_id = $1`,
+          [fields.smachine_id]
+        );
+        
+        // Check if machine ID exists and belongs to a different student
+        if (existingMachineId.rows.length > 0) {
+          const existing = existingMachineId.rows[0];
+          // Allow if it's the same student being updated
+          if (existing.school_id != schoolId || existing.class_id != classId) {
+            return res.status(400).json({ 
+              error: `Machine ID ${fields.smachine_id} already added. This ID is used by student "${existing.student_name}" in ${existing.class}.`
+            });
+          }
+        }
+      }
+    }
+
     if (Object.keys(fields).length === 0) {
       return res.status(400).json({ error: "No fields provided to update" });
     }
@@ -167,6 +215,32 @@ router.put("/student/:className/:schoolId/:classId", upload.single("image_studen
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Student not found" });
+    }
+
+    // Update global machine ID tracker if smachine_id was changed
+    if (fields.smachine_id) {
+      try {
+        await pool.query(`
+          INSERT INTO school_schema_points.global_machine_ids 
+          (smachine_id, student_name, class_name, school_id, class_id)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (smachine_id) DO UPDATE 
+          SET student_name = EXCLUDED.student_name,
+              class_name = EXCLUDED.class_name,
+              school_id = EXCLUDED.school_id,
+              class_id = EXCLUDED.class_id,
+              updated_at = CURRENT_TIMESTAMP
+        `, [
+          fields.smachine_id, 
+          result.rows[0].student_name, 
+          className, 
+          schoolId, 
+          classId
+        ]);
+      } catch (err) {
+        // Tracker table might not exist yet, that's okay
+        console.log('Note: Global machine ID tracker not available:', err.message);
+      }
     }
 
     // Delete old file if a new one was uploaded

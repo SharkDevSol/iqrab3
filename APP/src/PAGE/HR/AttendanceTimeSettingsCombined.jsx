@@ -5,7 +5,7 @@ import styles from '../Finance/PaymentManagement.module.css';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const AttendanceTimeSettingsCombined = () => {
-  const [activeTab, setActiveTab] = useState('global'); // 'global', 'shifts', 'staff-assignment'
+  const [activeTab, setActiveTab] = useState('global'); // 'global', 'shifts', 'staff-assignment', 'staff-specific'
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -33,10 +33,24 @@ const AttendanceTimeSettingsCombined = () => {
   const [filterDepartment, setFilterDepartment] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Staff-specific timing state
+  const [specificTimings, setSpecificTimings] = useState([]);
+  const [selectedStaff, setSelectedStaff] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [specificFormData, setSpecificFormData] = useState({
+    shift_type: 'shift1',
+    custom_check_in: '',
+    custom_check_out: '',
+    custom_late_threshold: '',
+    anytime_check: false,
+    notes: ''
+  });
+
   useEffect(() => {
     fetchSettings();
     fetchShiftSettings();
     fetchAllStaff();
+    fetchSpecificTimings();
   }, []);
 
   // Global Settings Functions
@@ -279,12 +293,102 @@ const AttendanceTimeSettingsCombined = () => {
   };
 
   const formatTime12Hour = (time24) => {
-    if (!time24) return '';
+    if (!time24) return 'Not set';
     const [hours, minutes] = time24.split(':');
     const hour = parseInt(hours);
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const hour12 = hour % 12 || 12;
     return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  // Staff-Specific Timing Functions
+  const fetchSpecificTimings = async () => {
+    try {
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const response = await axios.get(
+        `${API_URL}/api/hr/shift-settings/staff-specific-timing`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        setSpecificTimings(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching specific timings:', error);
+    }
+  };
+
+  const handleStaffSelectForSpecific = (staffMember) => {
+    setSelectedStaff(staffMember);
+    setSpecificFormData({
+      shift_type: staffMember.shift_assignment === 'both' ? 'shift1' : staffMember.shift_assignment,
+      custom_check_in: '',
+      custom_check_out: '',
+      custom_late_threshold: '',
+      anytime_check: false,
+      notes: ''
+    });
+    setShowModal(true);
+  };
+
+  const handleSaveSpecificTiming = async () => {
+    if (!selectedStaff) return;
+
+    setSaving(true);
+    setMessage('');
+
+    try {
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      
+      const response = await axios.post(
+        `${API_URL}/api/hr/shift-settings/staff-specific-timing`,
+        {
+          staff_id: selectedStaff.id,
+          staff_name: selectedStaff.name,
+          shift_type: specificFormData.shift_type,
+          custom_check_in: specificFormData.custom_check_in || null,
+          custom_check_out: specificFormData.custom_check_out || null,
+          custom_late_threshold: specificFormData.custom_late_threshold || null,
+          anytime_check: specificFormData.anytime_check,
+          notes: specificFormData.notes
+        },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        setMessage(`✅ Specific timing saved for ${selectedStaff.name}`);
+        setShowModal(false);
+        fetchSpecificTimings();
+        setTimeout(() => setMessage(''), 3000);
+      }
+    } catch (error) {
+      console.error('Error saving specific timing:', error);
+      setMessage('❌ Failed to save specific timing');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteSpecificTiming = async (staffId, shiftType) => {
+    if (!confirm('Are you sure you want to delete this specific timing?')) return;
+
+    try {
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      
+      const response = await axios.delete(
+        `${API_URL}/api/hr/shift-settings/staff-specific-timing/${staffId}/${shiftType}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        setMessage('✅ Specific timing deleted');
+        fetchSpecificTimings();
+        setTimeout(() => setMessage(''), 3000);
+      }
+    } catch (error) {
+      console.error('Error deleting specific timing:', error);
+      setMessage('❌ Failed to delete specific timing');
+    }
   };
 
   const toggleWeekendDay = (dayNumber) => {
@@ -377,6 +481,22 @@ const AttendanceTimeSettingsCombined = () => {
           }}
         >
           👥 Staff Shift Assignment
+        </button>
+        <button
+          onClick={() => setActiveTab('staff-specific')}
+          style={{
+            padding: '12px 24px',
+            background: activeTab === 'staff-specific' ? '#2196F3' : 'transparent',
+            color: activeTab === 'staff-specific' ? 'white' : '#666',
+            border: 'none',
+            borderBottom: activeTab === 'staff-specific' ? '3px solid #2196F3' : 'none',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: 600,
+            transition: 'all 0.3s'
+          }}
+        >
+          ⏰ Staff-Specific Timing
         </button>
       </div>
 
@@ -758,6 +878,380 @@ const AttendanceTimeSettingsCombined = () => {
               </tbody>
             </table>
           </div>
+        </>
+      )}
+
+      {/* Staff-Specific Timing Tab */}
+      {activeTab === 'staff-specific' && (
+        <>
+          <div style={{ marginBottom: '20px' }}>
+            <h3>⏰ Staff-Specific Shift Timing</h3>
+            <p style={{ color: '#666', marginBottom: '20px' }}>
+              Set custom check-in/out times for individual staff members or enable "Anytime Check" for flexible attendance
+            </p>
+
+            {/* Current Specific Timings */}
+            <div style={{ marginBottom: '30px' }}>
+              <h4>Current Specific Timings ({specificTimings.length})</h4>
+              {specificTimings.length === 0 ? (
+                <p style={{ color: '#999', fontStyle: 'italic' }}>No specific timings configured yet</p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Staff Name</th>
+                        <th>Shift</th>
+                        <th>Custom Check-In</th>
+                        <th>Custom Check-Out</th>
+                        <th>Custom Late Time</th>
+                        <th>Anytime Check</th>
+                        <th>Notes</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {specificTimings.map((timing) => (
+                        <tr key={`${timing.staff_id}-${timing.shift_type}`}>
+                          <td><strong>{timing.staff_name}</strong></td>
+                          <td>
+                            <span className={timing.shift_type === 'shift1' ? styles.shiftBadge1 : styles.shiftBadge2}>
+                              {timing.shift_type === 'shift1' ? '🌅 Shift 1' : '🌆 Shift 2'}
+                            </span>
+                          </td>
+                          <td>{formatTime12Hour(timing.custom_check_in)}</td>
+                          <td>{formatTime12Hour(timing.custom_check_out)}</td>
+                          <td>{formatTime12Hour(timing.custom_late_threshold)}</td>
+                          <td>
+                            {timing.anytime_check ? (
+                              <span style={{ color: 'green', fontWeight: 'bold' }}>✓ Yes</span>
+                            ) : (
+                              <span style={{ color: '#999' }}>No</span>
+                            )}
+                          </td>
+                          <td>{timing.notes || '-'}</td>
+                          <td>
+                            <button
+                              onClick={() => handleDeleteSpecificTiming(timing.staff_id, timing.shift_type)}
+                              className={styles.deleteButton}
+                              style={{ padding: '5px 10px', fontSize: '12px' }}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Add Specific Timing */}
+            <div style={{ marginTop: '30px' }}>
+              <h4>Add Specific Timing for Staff</h4>
+              <input
+                type="text"
+                placeholder="Search staff by name or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={styles.input}
+                style={{ marginBottom: '15px', width: '100%', maxWidth: '400px' }}
+              />
+
+              <div style={{ overflowX: 'auto' }}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Department</th>
+                      <th>Current Shift</th>
+                      <th>Email</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredStaff.slice(0, 20).map((staffMember) => (
+                      <tr key={`${staffMember.id}-${staffMember.className}`}>
+                        <td><strong>{staffMember.name}</strong></td>
+                        <td>{staffMember.department}</td>
+                        <td>
+                          <span className={getShiftBadgeClass(staffMember.shift_assignment)}>
+                            {getShiftLabel(staffMember.shift_assignment)}
+                          </span>
+                        </td>
+                        <td>{staffMember.email || '-'}</td>
+                        <td>
+                          <button
+                            onClick={() => handleStaffSelectForSpecific(staffMember)}
+                            className={styles.button}
+                            style={{ padding: '5px 15px', fontSize: '13px' }}
+                          >
+                            Set Specific Time
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Modal for Setting Specific Timing */}
+          {showModal && selectedStaff && (
+            <div className={styles.modalOverlay} onClick={() => setShowModal(false)}>
+              <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
+                <div className={styles.modalHeader}>
+                  <h2>⏰ Set Specific Timing for {selectedStaff.name}</h2>
+                  <button 
+                    onClick={() => setShowModal(false)} 
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      fontSize: '24px', 
+                      cursor: 'pointer',
+                      color: '#999'
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div style={{ padding: '20px' }}>
+                  <div style={{ 
+                    background: '#f5f5f5', 
+                    padding: '12px 16px', 
+                    borderRadius: '8px', 
+                    marginBottom: '24px',
+                    borderLeft: '4px solid #2196F3'
+                  }}>
+                    <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
+                      Current Shift: <strong style={{ color: '#333' }}>{getShiftLabel(selectedStaff.shift_assignment)}</strong>
+                    </p>
+                  </div>
+
+                  <div className={styles.formGroup} style={{ marginBottom: '20px' }}>
+                    <label style={{ 
+                      display: 'block', 
+                      marginBottom: '8px', 
+                      fontWeight: 600,
+                      color: '#333',
+                      fontSize: '14px'
+                    }}>
+                      Select Shift to Configure:
+                    </label>
+                    <select
+                      value={specificFormData.shift_type}
+                      onChange={(e) => setSpecificFormData({ ...specificFormData, shift_type: e.target.value })}
+                      className={styles.input}
+                      style={{ 
+                        width: '100%',
+                        padding: '10px 12px',
+                        fontSize: '14px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px'
+                      }}
+                    >
+                      {selectedStaff.shift_assignment === 'both' ? (
+                        <>
+                          <option value="shift1">🌅 Shift 1</option>
+                          <option value="shift2">🌆 Shift 2</option>
+                        </>
+                      ) : (
+                        <option value={selectedStaff.shift_assignment}>
+                          {selectedStaff.shift_assignment === 'shift1' ? '🌅 Shift 1' : '🌆 Shift 2'}
+                        </option>
+                      )}
+                    </select>
+                  </div>
+
+                  <div style={{ 
+                    background: '#fff3cd', 
+                    border: '1px solid #ffc107',
+                    padding: '16px', 
+                    borderRadius: '8px', 
+                    marginBottom: '20px' 
+                  }}>
+                    <label style={{ 
+                      display: 'flex', 
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      margin: 0
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={specificFormData.anytime_check}
+                        onChange={(e) => setSpecificFormData({ ...specificFormData, anytime_check: e.target.checked })}
+                        style={{ 
+                          marginRight: '12px',
+                          width: '18px',
+                          height: '18px',
+                          cursor: 'pointer'
+                        }}
+                      />
+                      <div>
+                        <strong style={{ color: '#856404', fontSize: '15px' }}>Anytime Check</strong>
+                        <p style={{ margin: '4px 0 0 0', color: '#856404', fontSize: '13px' }}>
+                          Staff can come anytime without late/half-day/absent deductions
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+
+                  {!specificFormData.anytime_check && (
+                    <>
+                      <div className={styles.formGroup} style={{ marginBottom: '20px' }}>
+                        <label style={{ 
+                          display: 'block', 
+                          marginBottom: '8px', 
+                          fontWeight: 600,
+                          color: '#333',
+                          fontSize: '14px'
+                        }}>
+                          Custom Check-In Time:
+                        </label>
+                        <input
+                          type="time"
+                          value={specificFormData.custom_check_in}
+                          onChange={(e) => setSpecificFormData({ ...specificFormData, custom_check_in: e.target.value })}
+                          className={styles.input}
+                          style={{ 
+                            width: '100%',
+                            padding: '10px 12px',
+                            fontSize: '14px',
+                            border: '1px solid #ddd',
+                            borderRadius: '6px'
+                          }}
+                        />
+                      </div>
+
+                      <div className={styles.formGroup} style={{ marginBottom: '20px' }}>
+                        <label style={{ 
+                          display: 'block', 
+                          marginBottom: '8px', 
+                          fontWeight: 600,
+                          color: '#333',
+                          fontSize: '14px'
+                        }}>
+                          Custom Check-Out Time:
+                        </label>
+                        <input
+                          type="time"
+                          value={specificFormData.custom_check_out}
+                          onChange={(e) => setSpecificFormData({ ...specificFormData, custom_check_out: e.target.value })}
+                          className={styles.input}
+                          style={{ 
+                            width: '100%',
+                            padding: '10px 12px',
+                            fontSize: '14px',
+                            border: '1px solid #ddd',
+                            borderRadius: '6px'
+                          }}
+                        />
+                      </div>
+
+                      <div className={styles.formGroup} style={{ marginBottom: '20px' }}>
+                        <label style={{ 
+                          display: 'block', 
+                          marginBottom: '8px', 
+                          fontWeight: 600,
+                          color: '#333',
+                          fontSize: '14px'
+                        }}>
+                          Custom Late Threshold:
+                        </label>
+                        <input
+                          type="time"
+                          value={specificFormData.custom_late_threshold}
+                          onChange={(e) => setSpecificFormData({ ...specificFormData, custom_late_threshold: e.target.value })}
+                          className={styles.input}
+                          style={{ 
+                            width: '100%',
+                            padding: '10px 12px',
+                            fontSize: '14px',
+                            border: '1px solid #ddd',
+                            borderRadius: '6px'
+                          }}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div className={styles.formGroup} style={{ marginBottom: '24px' }}>
+                    <label style={{ 
+                      display: 'block', 
+                      marginBottom: '8px', 
+                      fontWeight: 600,
+                      color: '#333',
+                      fontSize: '14px'
+                    }}>
+                      Notes (optional):
+                    </label>
+                    <textarea
+                      value={specificFormData.notes}
+                      onChange={(e) => setSpecificFormData({ ...specificFormData, notes: e.target.value })}
+                      className={styles.input}
+                      rows="3"
+                      placeholder="Any additional notes..."
+                      style={{ 
+                        width: '100%',
+                        padding: '10px 12px',
+                        fontSize: '14px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px',
+                        resize: 'vertical',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  </div>
+
+                  <div className={styles.modalActions} style={{ 
+                    display: 'flex', 
+                    gap: '12px', 
+                    justifyContent: 'flex-end',
+                    paddingTop: '20px',
+                    borderTop: '1px solid #eee'
+                  }}>
+                    <button
+                      onClick={() => setShowModal(false)}
+                      disabled={saving}
+                      style={{
+                        padding: '10px 24px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        border: '1px solid #ddd',
+                        background: 'white',
+                        color: '#666',
+                        borderRadius: '6px',
+                        cursor: saving ? 'not-allowed' : 'pointer',
+                        opacity: saving ? 0.6 : 1
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveSpecificTiming}
+                      disabled={saving}
+                      style={{
+                        padding: '10px 24px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        border: 'none',
+                        background: saving ? '#ccc' : '#2196F3',
+                        color: 'white',
+                        borderRadius: '6px',
+                        cursor: saving ? 'not-allowed' : 'pointer',
+                        opacity: saving ? 0.6 : 1
+                      }}
+                    >
+                      {saving ? 'Saving...' : '💾 Save'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -10,6 +10,7 @@ require('dotenv').config();
 
 // Security middleware
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
+const { generateToken } = require('../middleware/jwtValidator');
 const { validate, schemas, sanitizeInputs } = require('../middleware/inputValidation');
 const { fileValidator, multerFileFilter } = require('../middleware/fileValidation');
 const { uploadLimiter } = require('../middleware/rateLimiter');
@@ -307,12 +308,13 @@ const BASE_COLUMNS = new Set([
   'phone',
 ]);
 
-const updateStaffIds = async (schemaName, className) => {
-  const { rows } = await pool.query(
+const updateStaffIds = async (schemaName, className, client = null) => {
+  const db = client || pool;
+  const { rows } = await db.query(
     `SELECT id FROM "${schemaName}"."${className}" ORDER BY LOWER(name) ASC`
   );
   for (let i = 0; i < rows.length; i++) {
-    await pool.query(
+    await db.query(
       `UPDATE "${schemaName}"."${className}" SET staff_id = $1 WHERE id = $2`,
       [i + 1, rows[i].id]
     );
@@ -1102,7 +1104,7 @@ router.post('/add-staff', upload, async (req, res) => {
       }
     }
 
-    await updateStaffIds(schema, className);
+    await updateStaffIds(schema, className, client);
     
     // ---- INITIALIZE ATTENDANCE PROFILE (NEW) ----
     let attendanceError = null;
@@ -1314,7 +1316,7 @@ router.post('/upload-excel', async (req, res) => {
       }
     }
 
-    await updateStaffIds(schema, className);
+    await updateStaffIds(schema, className, client);
     await client.query('COMMIT');
     res.json({ 
       message: 'Bulk upload successful', 
@@ -1353,8 +1355,8 @@ router.post('/login', async (req, res) => {
         ? 'teacher'
         : 'staff';
 
-    // Generate JWT token with proper secret
-    const token = jwt.sign(
+    // Generate JWT token with proper secret using centralized function
+    const token = generateToken(
       { 
         id: user.globalStaffId, 
         role, 
@@ -1363,8 +1365,7 @@ router.post('/login', async (req, res) => {
         staffType: user.staffType,
         className: user.className
       },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+      process.env.JWT_EXPIRES_IN || '24h'
     );
 
     res.json({
@@ -2402,7 +2403,7 @@ router.post('/bulk-import', async (req, res) => {
     }
     
     // Update staff IDs
-    await updateStaffIds(schema, sanitizedClassName);
+    await updateStaffIds(schema, sanitizedClassName, client);
     
     await client.query('COMMIT');
     

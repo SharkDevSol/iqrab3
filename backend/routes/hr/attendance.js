@@ -409,15 +409,70 @@ router.get('/attendance/ethiopian-month', authenticateToken, async (req, res) =>
 // Mark attendance for Ethiopian calendar
 router.post('/attendance/ethiopian', authenticateToken, async (req, res) => {
   try {
+    console.log('📥 POST /api/hr/attendance/ethiopian - Recording attendance...');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
     const { staffId, staffName, ethMonth, ethYear, ethDay, checkIn, checkOut, notes, shiftType } = req.body;
 
+    console.log('🔍 DEBUG - Staff identification:');
+    console.log('   staffId from request:', staffId);
+    console.log('   staffName from request:', staffName);
+    console.log('   shiftType from request:', shiftType);
+
     if (!staffId || !ethMonth || !ethYear || !ethDay || !checkIn) {
+      console.log('❌ Missing required fields');
       return res.status(400).json({ error: 'staffId, ethMonth, ethYear, ethDay, and checkIn are required' });
     }
 
-    // Get staff shift assignment
+    // Ensure tables exist first
+    console.log('🔧 Ensuring required tables exist...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS shift_time_settings (
+        id SERIAL PRIMARY KEY,
+        shift_name VARCHAR(20) NOT NULL UNIQUE CHECK (shift_name IN ('shift1', 'shift2')),
+        check_in_time TIME NOT NULL DEFAULT '08:00',
+        check_out_time TIME NOT NULL DEFAULT '17:00',
+        late_threshold TIME NOT NULL DEFAULT '08:15',
+        minimum_work_hours DECIMAL(4,2) NOT NULL DEFAULT 8.0,
+        half_day_threshold DECIMAL(4,2) NOT NULL DEFAULT 4.0,
+        grace_period_minutes INTEGER NOT NULL DEFAULT 15,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    await pool.query(`
+      INSERT INTO shift_time_settings (shift_name, check_in_time, check_out_time, late_threshold)
+      VALUES 
+        ('shift1', '08:00', '17:00', '08:15'),
+        ('shift2', '14:00', '22:00', '14:15')
+      ON CONFLICT (shift_name) DO NOTHING
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS hr_attendance_time_settings (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        standard_check_in TIME NOT NULL DEFAULT '08:00',
+        late_threshold TIME NOT NULL DEFAULT '08:15',
+        standard_check_out TIME NOT NULL DEFAULT '17:00',
+        minimum_work_hours DECIMAL(4, 2) NOT NULL DEFAULT 8.0,
+        half_day_threshold DECIMAL(4, 2) NOT NULL DEFAULT 4.0,
+        grace_period_minutes INTEGER NOT NULL DEFAULT 15,
+        max_checkout_hours DECIMAL(4, 2) DEFAULT 3.0,
+        absent_threshold_time TIME DEFAULT '15:00',
+        weekend_days INTEGER[] DEFAULT ARRAY[]::INTEGER[],
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    console.log('✅ Tables verified');
+
+    // Get staff shift assignment (with better error handling)
     const staffSchemas = ['staff_teachers', 'staff_administrative_staff', 'staff_supportive_staff'];
     let shiftAssignment = 'shift1'; // default
+    
+    console.log(`🔍 Looking for shift assignment for staff: ${staffId} (${staffName})`);
     
     for (const schema of staffSchemas) {
       try {
@@ -436,30 +491,103 @@ router.post('/attendance/ethiopian', authenticateToken, async (req, res) => {
             );
             
             if (columnCheck.rows.length > 0) {
-              const staffResult = await pool.query(
-                `SELECT shift_assignment FROM "${schema}"."${tableRow.table_name}" WHERE global_staff_id = $1`,
-                [staffId]
+              // Try to find by global_staff_id first, then by name
+              let staffResult = await pool.query(
+                `SELECT shift_assignment FROM "${schema}"."${tableRow.table_name}" 
+                 WHERE global_staff_id = $1 OR LOWER(full_name) = LOWER($2) OR LOWER(name) = LOWER($2)
+                 LIMIT 1`,
+                [staffId, staffName]
               );
               
               if (staffResult.rows.length > 0) {
                 shiftAssignment = staffResult.rows[0].shift_assignment || 'shift1';
+                console.log(`✅ Found shift assignment: ${shiftAssignment} in ${schema}.${tableRow.table_name}`);
                 break;
               }
             }
           } catch (err) {
-            console.log(`Could not check shift_assignment in ${schema}.${tableRow.table_name}:`, err.message);
+            console.log(`⚠️  Could not check shift_assignment in ${schema}.${tableRow.table_name}:`, err.message);
           }
         }
         if (shiftAssignment !== 'shift1') break;
       } catch (err) {
-        console.log(`Could not check schema ${schema}:`, err.message);
+        console.log(`⚠️  Could not check schema ${schema}:`, err.message);
       }
     }
 
-    console.log(`Staff ${staffName} (${staffId}) has shift assignment: ${shiftAssignment}`);
+    console.log(`📌 Staff ${staffName} (${staffId}) has shift assignment: ${shiftAssignment}`);
 
     // Determine which shift to use for validation
     let effectiveShift = shiftType || (shiftAssignment === 'both' ? 'shift1' : shiftAssignment);
+    console.log(`📌 Using effective shift: ${effectiveShift}`);
+    
+    // ============================================
+    // CHECK FOR STAFF-SPECIFIC TIMING OVERRIDE
+    // ============================================
+    let staffSpecificTiming = null;
+    let hasAnytimeCheck = false;
+    
+    try {
+      // Ensure staff_specific_shift_timing table exists
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS staff_specific_shift_timing (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          staff_id VARCHAR(255) NOT NULL,
+          staff_name VARCHAR(255) NOT NULL,
+          shift_type VARCHAR(20) NOT NULL CHECK (shift_type IN ('shift1', 'shift2')),
+          custom_check_in TIME,
+          custom_check_out TIME,
+          custom_late_threshold TIME,
+          anytime_check BOOLEAN DEFAULT false,
+          notes TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(staff_id, shift_type)
+        )
+      `);
+      
+      const specificTimingResult = await pool.query(
+        `SELECT * FROM staff_specific_shift_timing 
+         WHERE staff_id = $1 AND shift_type = $2`,
+        [staffId, effectiveShift]
+      );
+      
+      console.log('🔍 DEBUG - Staff-specific timing lookup:');
+      console.log('   Looking for staff_id:', staffId);
+      console.log('   Looking for shift_type:', effectiveShift);
+      console.log('   Found records:', specificTimingResult.rows.length);
+      
+      if (specificTimingResult.rows.length > 0) {
+        staffSpecificTiming = specificTimingResult.rows[0];
+        hasAnytimeCheck = staffSpecificTiming.anytime_check;
+        console.log(`🎯 Found staff-specific timing for ${staffName}`);
+        console.log(`   Anytime Check: ${hasAnytimeCheck}`);
+        if (!hasAnytimeCheck) {
+          console.log(`   Custom Check-In: ${staffSpecificTiming.custom_check_in || 'Not set'}`);
+          console.log(`   Custom Late Threshold: ${staffSpecificTiming.custom_late_threshold || 'Not set'}`);
+        }
+      } else {
+        console.log(`⚠️  No staff-specific timing found for staff_id: ${staffId}, shift: ${effectiveShift}`);
+        
+        // Try to find by name as fallback
+        const byNameResult = await pool.query(
+          `SELECT * FROM staff_specific_shift_timing 
+           WHERE LOWER(staff_name) = LOWER($1) AND shift_type = $2`,
+          [staffName, effectiveShift]
+        );
+        
+        if (byNameResult.rows.length > 0) {
+          console.log(`✅ Found by name! Using staff-specific timing`);
+          staffSpecificTiming = byNameResult.rows[0];
+          hasAnytimeCheck = staffSpecificTiming.anytime_check;
+          console.log(`   Staff in DB has staff_id: ${staffSpecificTiming.staff_id}`);
+          console.log(`   But request used staff_id: ${staffId}`);
+          console.log(`   ⚠️  ID MISMATCH - This is why it wasn't found initially!`);
+        }
+      }
+    } catch (err) {
+      console.log(`⚠️  Could not check staff-specific timing:`, err.message);
+    }
     
     // Get shift-specific time settings
     const shiftSettingsResult = await pool.query(
@@ -475,19 +603,49 @@ router.post('/attendance/ethiopian', authenticateToken, async (req, res) => {
         late_threshold: shiftSettings.late_threshold,
         half_day_threshold: shiftSettings.half_day_threshold
       };
+      
+      // Override with staff-specific timing if available
+      if (staffSpecificTiming && !hasAnytimeCheck) {
+        if (staffSpecificTiming.custom_late_threshold) {
+          settings.late_threshold = staffSpecificTiming.custom_late_threshold;
+          console.log(`✅ Using staff-specific late threshold: ${settings.late_threshold}`);
+        }
+      }
+      
       usedShiftSettings = true;
-      console.log(`Using ${effectiveShift} times for ${staffName}: late threshold ${settings.late_threshold}`);
+      console.log(`✅ Using ${effectiveShift} times: late threshold ${settings.late_threshold}`);
     } else {
       // Fall back to global settings
       const settingsResult = await pool.query(`SELECT * FROM hr_attendance_time_settings LIMIT 1`);
-      settings = settingsResult.rows[0] || {
-        late_threshold: '08:15',
-        half_day_threshold: 4.0
-      };
-      console.log(`Using global times for ${staffName} (no shift settings found)`);
+      if (settingsResult.rows.length > 0) {
+        settings = {
+          late_threshold: settingsResult.rows[0].late_threshold,
+          half_day_threshold: settingsResult.rows[0].half_day_threshold
+        };
+        
+        // Override with staff-specific timing if available
+        if (staffSpecificTiming && !hasAnytimeCheck) {
+          if (staffSpecificTiming.custom_late_threshold) {
+            settings.late_threshold = staffSpecificTiming.custom_late_threshold;
+            console.log(`✅ Using staff-specific late threshold: ${settings.late_threshold}`);
+          }
+        }
+      } else {
+        // Create default settings if none exist
+        await pool.query(`
+          INSERT INTO hr_attendance_time_settings 
+          (standard_check_in, late_threshold, standard_check_out, minimum_work_hours, half_day_threshold, grace_period_minutes)
+          VALUES ('08:00', '08:15', '17:00', 8.0, 4.0, 15)
+        `);
+        settings = {
+          late_threshold: '08:15',
+          half_day_threshold: 4.0
+        };
+      }
+      console.log(`✅ Using global times: late threshold ${settings.late_threshold}`);
     }
 
-    // Create table if not exists
+    // Create Ethiopian attendance table if not exists
     await pool.query(`
       CREATE TABLE IF NOT EXISTS hr_ethiopian_attendance (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -508,6 +666,7 @@ router.post('/attendance/ethiopian', authenticateToken, async (req, res) => {
         UNIQUE(staff_id, ethiopian_year, ethiopian_month, ethiopian_day, shift_type)
       )
     `);
+    console.log('✅ Ethiopian attendance table verified');
 
     // Calculate working hours if check_out is provided
     let workingHours = null;
@@ -517,38 +676,40 @@ router.post('/attendance/ethiopian', authenticateToken, async (req, res) => {
       const inMinutes = inHour * 60 + inMin;
       const outMinutes = outHour * 60 + outMin;
       workingHours = (outMinutes - inMinutes) / 60;
+      console.log(`⏱️  Working hours calculated: ${workingHours.toFixed(2)} hours`);
     }
 
     // Determine status based on check-in time and working hours using shift-specific settings
     let status = 'PRESENT';
-    const [inHour, inMin] = checkIn.split(':').map(Number);
-    const checkInMinutes = inHour * 60 + inMin;
     
-    // Get late threshold from shift settings
-    const [thresholdHour, thresholdMin] = settings.late_threshold.split(':').map(Number);
-    const lateThresholdMinutes = thresholdHour * 60 + thresholdMin;
+    // If staff has "anytime check" enabled, always mark as PRESENT
+    if (hasAnytimeCheck) {
+      status = 'PRESENT';
+      console.log(`✅ Staff has anytime check enabled - Status: PRESENT (no deductions)`);
+    } else {
+      // Normal status calculation
+      const [inHour, inMin] = checkIn.split(':').map(Number);
+      const checkInMinutes = inHour * 60 + inMin;
+      
+      // Get late threshold from shift settings
+      const [thresholdHour, thresholdMin] = settings.late_threshold.split(':').map(Number);
+      const lateThresholdMinutes = thresholdHour * 60 + thresholdMin;
 
-    const isLate = checkInMinutes > lateThresholdMinutes;
-    const isHalfDay = workingHours !== null && workingHours < parseFloat(settings.half_day_threshold);
+      const isLate = checkInMinutes > lateThresholdMinutes;
+      const isHalfDay = workingHours !== null && workingHours < parseFloat(settings.half_day_threshold);
 
-    // Determine status based on conditions
-    if (isLate && isHalfDay) {
-      status = 'LATE + HALF_DAY';
-    } else if (isLate) {
-      status = 'LATE';
-    } else if (isHalfDay) {
-      status = 'HALF_DAY';
+      // Determine status based on conditions
+      if (isLate && isHalfDay) {
+        status = 'LATE + HALF_DAY';
+      } else if (isLate) {
+        status = 'LATE';
+      } else if (isHalfDay) {
+        status = 'HALF_DAY';
+      }
+      console.log(`📊 Status determined: ${status} (Late: ${isLate}, Half Day: ${isHalfDay})`);
     }
-
     // For "both" shift staff, include shift_type in the unique constraint
-    console.log(`🔍 Looking for existing record:`, {
-      staffId,
-      staffName,
-      ethYear: parseInt(ethYear),
-      ethMonth: parseInt(ethMonth),
-      ethDay: parseInt(ethDay),
-      shiftType: effectiveShift
-    });
+    console.log(`🔍 Looking for existing record...`);
     
     const existingRecord = await pool.query(
       `SELECT * FROM hr_ethiopian_attendance 
@@ -561,12 +722,12 @@ router.post('/attendance/ethiopian', authenticateToken, async (req, res) => {
       [staffId, staffName, parseInt(ethYear), parseInt(ethMonth), parseInt(ethDay), effectiveShift]
     );
 
-    console.log(`📋 Found ${existingRecord.rows.length} existing records`);
+    console.log(`📋 Found ${existingRecord.rows.length} existing record(s)`);
 
     let result;
     if (existingRecord.rows.length > 0) {
       // Update existing record
-      console.log(`✏️ Updating existing record ID: ${existingRecord.rows[0].id}`);
+      console.log(`✏️  Updating existing record ID: ${existingRecord.rows[0].id}`);
       result = await pool.query(
         `UPDATE hr_ethiopian_attendance 
          SET check_in = $1,
@@ -580,7 +741,7 @@ router.post('/attendance/ethiopian', authenticateToken, async (req, res) => {
          RETURNING *`,
         [checkIn, checkOut, workingHours, status, effectiveShift, notes, existingRecord.rows[0].id]
       );
-      console.log(`✅ Updated record:`, result.rows[0]);
+      console.log(`✅ Updated record successfully`);
     } else {
       // Insert new record
       console.log(`➕ Inserting new record`);
@@ -591,9 +752,10 @@ router.post('/attendance/ethiopian', authenticateToken, async (req, res) => {
          RETURNING *`,
         [staffId, staffName, parseInt(ethYear), parseInt(ethMonth), parseInt(ethDay), checkIn, checkOut, workingHours, status, effectiveShift, notes]
       );
-      console.log(`✅ Inserted record:`, result.rows[0]);
+      console.log(`✅ Inserted record successfully`);
     }
 
+    console.log(`✅ Attendance marked successfully for ${staffName}`);
     res.json({
       success: true,
       data: result.rows[0],
@@ -601,7 +763,8 @@ router.post('/attendance/ethiopian', authenticateToken, async (req, res) => {
       usedShiftSettings: usedShiftSettings
     });
   } catch (error) {
-    console.error('Error marking Ethiopian attendance:', error);
+    console.error('❌ Error marking Ethiopian attendance:', error);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({ error: 'Failed to mark attendance', details: error.message });
   }
 });
@@ -760,6 +923,8 @@ router.post('/attendance/ethiopian/bulk', authenticateToken, async (req, res) =>
 // Get attendance time settings
 router.get('/attendance/time-settings', authenticateToken, async (req, res) => {
   try {
+    console.log('📥 GET /api/hr/attendance/time-settings - Fetching time settings...');
+    
     // Create table if not exists
     await pool.query(`
       CREATE TABLE IF NOT EXISTS hr_attendance_time_settings (
@@ -777,6 +942,7 @@ router.get('/attendance/time-settings', authenticateToken, async (req, res) => {
         updated_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+    console.log('✅ Table verified/created');
 
     // Get settings (there should only be one row)
     const result = await pool.query(
@@ -784,6 +950,7 @@ router.get('/attendance/time-settings', authenticateToken, async (req, res) => {
     );
 
     if (result.rows.length === 0) {
+      console.log('⚠️ No settings found, creating defaults...');
       // Create default settings
       const defaultSettings = await pool.query(`
         INSERT INTO hr_attendance_time_settings 
@@ -792,18 +959,20 @@ router.get('/attendance/time-settings', authenticateToken, async (req, res) => {
         RETURNING *
       `);
       
+      console.log('✅ Default settings created');
       return res.json({
         success: true,
         data: defaultSettings.rows[0]
       });
     }
 
+    console.log('✅ Settings fetched successfully');
     res.json({
       success: true,
       data: result.rows[0]
     });
   } catch (error) {
-    console.error('Error fetching time settings:', error);
+    console.error('❌ Error fetching time settings:', error);
     res.status(500).json({ error: 'Failed to fetch settings', details: error.message });
   }
 });
@@ -811,6 +980,9 @@ router.get('/attendance/time-settings', authenticateToken, async (req, res) => {
 // Save/Update attendance time settings
 router.post('/attendance/time-settings', authenticateToken, async (req, res) => {
   try {
+    console.log('📥 POST /api/hr/attendance/time-settings - Saving settings...');
+    console.log('Request body:', req.body);
+    
     const { 
       standardCheckIn, 
       lateThreshold, 
@@ -840,12 +1012,14 @@ router.post('/attendance/time-settings', authenticateToken, async (req, res) => 
         updated_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+    console.log('✅ Table verified/created');
 
     // Check if settings exist
     const existing = await pool.query(`SELECT id FROM hr_attendance_time_settings LIMIT 1`);
 
     let result;
     if (existing.rows.length === 0) {
+      console.log('➕ Inserting new settings...');
       // Insert new settings
       result = await pool.query(`
         INSERT INTO hr_attendance_time_settings 
@@ -854,6 +1028,7 @@ router.post('/attendance/time-settings', authenticateToken, async (req, res) => 
         RETURNING *
       `, [standardCheckIn, lateThreshold, standardCheckOut, minimumWorkHours, halfDayThreshold, gracePeriodMinutes, maxCheckoutHours, absentThresholdTime, weekendDays || []]);
     } else {
+      console.log('✏️ Updating existing settings...');
       // Update existing settings
       result = await pool.query(`
         UPDATE hr_attendance_time_settings
@@ -872,13 +1047,14 @@ router.post('/attendance/time-settings', authenticateToken, async (req, res) => 
       `, [standardCheckIn, lateThreshold, standardCheckOut, minimumWorkHours, halfDayThreshold, gracePeriodMinutes, maxCheckoutHours, absentThresholdTime, weekendDays || [], existing.rows[0].id]);
     }
 
+    console.log('✅ Settings saved successfully');
     res.json({
       success: true,
       data: result.rows[0],
       message: 'Settings saved successfully'
     });
   } catch (error) {
-    console.error('Error saving time settings:', error);
+    console.error('❌ Error saving time settings:', error);
     res.status(500).json({ error: 'Failed to save settings', details: error.message });
   }
 });

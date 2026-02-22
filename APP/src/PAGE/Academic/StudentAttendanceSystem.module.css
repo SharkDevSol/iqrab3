@@ -138,6 +138,18 @@
   font-size: 14px;
 }
 
+.assignedClassBadge {
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  letter-spacing: 0.5px;
+}
+
 .select,
 .input {
   padding: 10px 12px;

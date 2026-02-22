@@ -1308,10 +1308,21 @@ router.get('/student-marks/:schoolId/:className', async (req, res) => {
     // First, get the student's name from their school_id
     let studentName = null;
     try {
+      // Check if is_active column exists
+      const columnCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'classes_schema' 
+          AND table_name = $1 
+          AND column_name = 'is_active'
+      `, [className]);
+      
+      const hasIsActive = columnCheck.rows.length > 0;
+      const whereClause = hasIsActive ? 'AND (is_active = TRUE OR is_active IS NULL)' : '';
+      
       const studentResult = await pool.query(`
         SELECT student_name FROM classes_schema."${className}" 
-        WHERE school_id = $1
-          AND (is_active = TRUE OR is_active IS NULL)
+        WHERE school_id = $1 ${whereClause}
       `, [schoolId]);
       if (studentResult.rows.length > 0) {
         studentName = studentResult.rows[0].student_name;
@@ -1324,10 +1335,21 @@ router.get('/student-marks/:schoolId/:className', async (req, res) => {
       `);
       for (const table of tablesResult.rows) {
         try {
+          // Check if is_active column exists for this table
+          const columnCheck = await pool.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_schema = 'classes_schema' 
+              AND table_name = $1 
+              AND column_name = 'is_active'
+          `, [table.table_name]);
+          
+          const hasIsActive = columnCheck.rows.length > 0;
+          const whereClause = hasIsActive ? 'AND (is_active = TRUE OR is_active IS NULL)' : '';
+          
           const result = await pool.query(`
             SELECT student_name FROM classes_schema."${table.table_name}" 
-            WHERE school_id = $1
-              AND (is_active = TRUE OR is_active IS NULL)
+            WHERE school_id = $1 ${whereClause}
           `, [schoolId]);
           if (result.rows.length > 0) {
             studentName = result.rows[0].student_name;
@@ -1528,6 +1550,143 @@ router.post('/sync-class-students/:className', async (req, res) => {
     await client.query('ROLLBACK');
     console.error('Error syncing class students:', error);
     res.status(500).json({ error: 'Failed to sync class students', details: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Get all marks for all wards of a guardian
+router.get('/guardian-marks/:guardianUsername', async (req, res) => {
+  const { guardianUsername } = req.params;
+  
+  const client = await pool.connect();
+  try {
+    // Get all class tables
+    const tablesResult = await client.query(
+      'SELECT table_name FROM information_schema.tables WHERE table_schema = $1', 
+      ['classes_schema']
+    );
+    
+    const classes = tablesResult.rows.map(row => row.table_name);
+    const wards = [];
+    
+    // Find all wards for this guardian
+    for (const className of classes) {
+      try {
+        const columnsCheck = await client.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_schema = 'classes_schema' 
+            AND table_name = $1 
+            AND column_name = 'is_active'
+        `, [className]);
+        
+        const hasIsActive = columnsCheck.rows.length > 0;
+        const whereClause = hasIsActive 
+          ? `WHERE guardian_username = $1 AND (is_active = TRUE OR is_active IS NULL)`
+          : `WHERE guardian_username = $1`;
+        
+        const result = await client.query(`
+          SELECT 
+            student_name,
+            school_id,
+            class_id,
+            class,
+            age,
+            gender
+          FROM classes_schema."${className}"
+          ${whereClause}
+        `, [guardianUsername]);
+        
+        wards.push(...result.rows.map(row => ({
+          ...row,
+          class: row.class || className
+        })));
+      } catch (err) {
+        console.warn(`Error fetching from ${className}:`, err.message);
+      }
+    }
+    
+    if (wards.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          wards: [],
+          marks: []
+        }
+      });
+    }
+    
+    // Get all subjects
+    const subjectsResult = await client.query(
+      'SELECT subject_name FROM subjects_of_school_schema.subjects ORDER BY subject_name'
+    );
+    const subjects = subjectsResult.rows.map(r => r.subject_name);
+    
+    // Get term count
+    const configResult = await client.query(
+      'SELECT term_count FROM subjects_of_school_schema.school_config WHERE id = 1'
+    );
+    const termCount = configResult.rows[0]?.term_count || 2;
+    
+    // Fetch marks for each ward
+    const marksData = [];
+    
+    for (const ward of wards) {
+      for (const subjectName of subjects) {
+        const schemaName = `subject_${subjectName.toLowerCase().replace(/[\s\-]+/g, '_')}_schema`;
+        
+        for (let term = 1; term <= termCount; term++) {
+          const tableName = `${ward.class.toLowerCase()}_term_${term}`;
+          
+          try {
+            // Check if table exists
+            const tableExistsResult = await client.query(`
+              SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_schema = $1 AND table_name = $2
+              )
+            `, [schemaName, tableName]);
+            
+            if (tableExistsResult.rows[0].exists) {
+              // Get marks for this student
+              const marksResult = await client.query(`
+                SELECT * FROM ${schemaName}.${tableName}
+                WHERE student_name = $1
+              `, [ward.student_name]);
+              
+              if (marksResult.rows.length > 0) {
+                const mark = marksResult.rows[0];
+                marksData.push({
+                  ward: ward.student_name,
+                  class: ward.class,
+                  subject: subjectName,
+                  term: term,
+                  total: mark.total || 0,
+                  pass_status: mark.pass_status || 'Fail',
+                  details: mark
+                });
+              }
+            }
+          } catch (error) {
+            console.warn(`Error fetching marks for ${ward.student_name} in ${subjectName}:`, error.message);
+          }
+        }
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        wards: wards,
+        marks: marksData,
+        subjects: subjects,
+        termCount: termCount
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching guardian marks:', error);
+    res.status(500).json({ error: 'Failed to fetch guardian marks', details: error.message });
   } finally {
     client.release();
   }

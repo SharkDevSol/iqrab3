@@ -38,6 +38,9 @@ import ScheduleTimetable from "./PAGE/Schedule/ScheduleTimetable";
 import ClassRequirementsForm from './PAGE/Schedule/ClassRequirementsForm';
 import ClassShiftForm from './PAGE/Schedule/ClassShiftForm';
 import Setting from "./PAGE/Setting/Setting";
+import InstallStudentApp from "./PAGE/InstallApp/InstallStudentApp";
+import InstallStaffApp from "./PAGE/InstallApp/InstallStaffApp";
+import InstallGuardianApp from "./PAGE/InstallApp/InstallGuardianApp";
 import Students from "./Students/Students";
 import Staff from "./Staff/Staff";
 import PostStudents from "./Students/PostStudents/PostStudents";
@@ -63,6 +66,7 @@ import AdminChat from "./PAGE/Communication/AdminChat";
 import GuardianChat from "./PAGE/Communication/GuardianChat";
 import TeacherChat from "./PAGE/Communication/TeacherChat";
 import AdminCommunications from "./PAGE/Communication/AdminCommunications";
+import GuardianNotifications from "./PAGE/Communication/GuardianNotifications";
 import { EvaluationBookFormBuilder, TeacherAssignmentManager, TeacherClassList, DailyEvaluationForm, GuardianEvaluationInbox, GuardianFeedbackForm, EvaluationBookReports } from "./PAGE/EvaluationBook";
 import { Provider } from 'react-redux';
 import { store } from '../src/PAGE/store';
@@ -83,6 +87,7 @@ import GuardianWards from "./Guardian/GuardianWards/GuardianWards";
 import GuardianAttendance from "./Guardian/GuardianAttendance/GuardianAttendance";
 import GuardianMarks from "./Guardian/GuardianMarks/GuardianMarks";
 import GuardianMessages from "./Guardian/GuardianMessages/GuardianMessages";
+import GuardianNotificationsPage from "./Guardian/GuardianNotifications/GuardianNotifications";
 
 // Finance Module Components
 import FinanceDashboard from "./PAGE/Finance/FinanceDashboard";
@@ -100,6 +105,14 @@ import ComingSoon from "./PAGE/Finance/ComingSoon";
 import MonthlyPayments from "./PAGE/Finance/MonthlyPaymentsNew";
 import MonthlyPaymentSettings from "./PAGE/Finance/MonthlyPaymentSettings";
 
+// Report Pages
+import StudentsReport from "./PAGE/Reports/StudentsReport";
+import StaffReport from "./PAGE/Reports/StaffReport";
+import AcademicReport from "./PAGE/Reports/AcademicReport";
+import AttendanceReport from "./PAGE/Reports/AttendanceReport";
+import BehaviorReport from "./PAGE/Reports/BehaviorReport";
+import EvaluationsReport from "./PAGE/Reports/EvaluationsReport";
+
 // Inventory & Asset modules - Coming Soon
 // Using ComingSoon component for all inventory and asset pages
 
@@ -109,6 +122,7 @@ import SalaryManagement from "./PAGE/HR/SalaryManagement";
 import AttendanceSystem from "./PAGE/HR/AttendanceSystem";
 import AttendanceDeductionSettings from "./PAGE/HR/AttendanceDeductionSettings";
 import AttendanceTimeSettings from "./PAGE/HR/AttendanceTimeSettingsCombined";
+import StaffSpecificTiming from "./PAGE/HR/StaffSpecificTiming";
 import DeviceStatus from "./PAGE/HR/DeviceStatus";
 import LeaveManagement from "./PAGE/HR/LeaveManagement";
 import PayrollSystem from "./PAGE/HR/PayrollSystem";
@@ -160,6 +174,19 @@ function App() {
               <Route index element={<DashboardPage />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="dashboard-old" element={<Dashboard />} />
+              
+              {/* Tasks routes - separate from dashboard */}
+              <Route path="tasks" element={<TaskPage />} />
+              <Route path="tasks/:taskId" element={<TaskDetail />} />
+              
+              {/* Report Pages */}
+              <Route path="reports/students" element={<StudentsReport />} />
+              <Route path="reports/staff" element={<StaffReport />} />
+              <Route path="reports/academic" element={<AcademicReport />} />
+              <Route path="reports/attendance" element={<AttendanceReport />} />
+              <Route path="reports/behavior" element={<BehaviorReport />} />
+              <Route path="reports/evaluations" element={<EvaluationsReport />} />
+              
               <Route path="create-register-student" element={<CreateRegisterStudent />} />
               <Route path="Student-Form-Builder" element={<StudentFormBuilder />} />
               <Route path="Staff-Form-Builder" element={<StaffFormBuilder />} />
@@ -199,6 +226,7 @@ function App() {
               <Route path="class-teacher-assignment" element={<ClassTeacherAssignment />} />
               <Route path="live-attendance" element={<LiveAttendanceMonitor />} />
               <Route path="communication" element={<AdminChat />} />
+              <Route path="guardian-notifications" element={<GuardianNotifications />} />
               {/* Counsellor route removed */}
               <Route path="create-mark-list" element={<MarkListSystem />} />
               <Route path="Mark-List-Management" element={<MarkListManagement />} />
@@ -218,10 +246,6 @@ function App() {
 
               {/* New route for StaffForm */}
               <Route path="staff-form/:staffType/:className" element={<StaffForm />} />
-              
-              {/* Tasks routes - inside Home layout */}
-              <Route path="tasks" element={<TaskPage />} />
-              <Route path="tasks/:taskId" element={<TaskDetail />} />
               
               {/* Finance Module Routes */}
               <Route path="finance" element={<FinanceDashboard />} />
@@ -263,6 +287,7 @@ function App() {
               <Route path="hr/device-status" element={<DeviceStatus />} />
               <Route path="hr/attendance-deduction-settings" element={<AttendanceDeductionSettings />} />
               <Route path="hr/attendance-time-settings" element={<AttendanceTimeSettings />} />
+              <Route path="hr/staff-specific-timing" element={<StaffSpecificTiming />} />
               {/* Redirect old shift routes to combined time settings */}
               <Route path="hr/shift-time-settings" element={<Navigate to="/hr/attendance-time-settings" replace />} />
               <Route path="hr/staff-shift-assignment" element={<Navigate to="/hr/attendance-time-settings" replace />} />
@@ -281,14 +306,13 @@ function App() {
               <Route path="profile-students" element={<ProfileStudents />} />
             </Route>
             <Route path="/staff" element={<ProtectedRoute><Staff /></ProtectedRoute>}>
-              <Route index element={<PV />} />
+              <Route index element={<StaffProfile />} />
               <Route path="post-staff-new" element={<POSTS />} />
               {/* OLD ATTENDANCE REMOVED - Use /app/staff profile instead */}
               {/* <Route path="attendance-staff" element={<TeacherClassAttendance />} /> */}
               <Route path="mark-list-staff" element={<MRLIST />} />
               <Route path="evaluation-staff-control" element={<EVA />} />
-              {/* Redirect old profile to new profile */}
-              <Route path="profile-staff" element={<StaffProfile />} />
+              {/* OLD PROFILE ROUTE REMOVED - Use /app/staff (index) instead */}
               <Route path="communication-staff" element={<COMSTA />} />
             </Route>
             <Route path="/guardian" element={<ProtectedRoute><Guardian /></ProtectedRoute>}>
@@ -296,6 +320,7 @@ function App() {
               <Route path="wards" element={<GuardianWards />} />
               <Route path="attendance" element={<GuardianAttendance />} />
               <Route path="marks" element={<GuardianMarks />} />
+              <Route path="notifications" element={<GuardianNotificationsPage />} />
               <Route path="messages" element={<GuardianMessages />} />
               <Route path="profile" element={<GuardianProfilePage />} />
             </Route>
@@ -305,6 +330,13 @@ function App() {
             {/* These routes are independent from the main app */}
             {/* Access via: /app/student-login, /app/staff-profile, etc. */}
             {/* ============================================== */}
+            
+            {/* PWA Installation Pages - Standalone (No Header/Sidebar) */}
+            <Route path="/install/student-app" element={<InstallStudentApp />} />
+            <Route path="/install/staff-app" element={<InstallStaffApp />} />
+            <Route path="/install/guardian-app" element={<InstallGuardianApp />} />
+            
+            {/* Mobile App Login Pages */}
             <Route path="/app/student-login" element={<StudentLogin />} />
             <Route path="/app/guardian-login" element={<GuardianLogin />} />
             <Route path="/app/staff-login" element={<StaffLogin />} />

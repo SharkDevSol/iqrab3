@@ -2,13 +2,8 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-// Ensure JWT_SECRET is set
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET || JWT_SECRET.length < 32) {
-  console.error('CRITICAL: JWT_SECRET must be set in .env and be at least 32 characters!');
-  console.error('Current JWT_SECRET length:', JWT_SECRET ? JWT_SECRET.length : 0);
-  process.exit(1);
-}
+// Use centralized JWT validator
+const { JWT_SECRET, verifyTokenWithDetails } = require('./jwtValidator');
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -55,18 +50,35 @@ const authenticateToken = (req, res, next) => {
   // ============================================
   // STANDARD JWT VALIDATION
   // ============================================
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      console.log('❌ JWT verification failed:', err.message);
-      if (err.name === 'TokenExpiredError') {
-        return res.status(401).json({ error: 'Token expired', code: 'TOKEN_EXPIRED' });
-      }
-      return res.status(403).json({ error: 'Invalid token' });
+  const result = verifyTokenWithDetails(token);
+  
+  if (!result.success) {
+    console.log('❌ JWT verification failed:', result.error.message);
+    
+    if (result.error.code === 'TOKEN_EXPIRED') {
+      return res.status(401).json({ 
+        error: result.error.userMessage, 
+        code: result.error.code 
+      });
     }
-    console.log('✅ JWT verified, user:', user);
-    req.user = user; // { id, role, etc. }
-    next();
-  });
+    
+    if (result.error.code === 'SIGNATURE_MISMATCH') {
+      return res.status(401).json({ 
+        error: result.error.userMessage, 
+        code: result.error.code,
+        action: 'LOGOUT_REQUIRED'
+      });
+    }
+    
+    return res.status(403).json({ 
+      error: result.error.userMessage,
+      code: result.error.code
+    });
+  }
+  
+  console.log('✅ JWT verified, user:', result.decoded);
+  req.user = result.decoded;
+  next();
 };
 
 // Role-based authorization middleware

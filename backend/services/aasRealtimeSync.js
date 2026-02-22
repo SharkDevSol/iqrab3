@@ -1,6 +1,9 @@
 const { default: MDBReader } = require('mdb-reader');
 const pool = require('../config/db');
 const path = require('path');
+const syncCoordinator = require('./SyncCoordinator');
+const deviceUserBufferService = require('./DeviceUserBufferService');
+const deviceUserAuditService = require('./DeviceUserAuditService');
 
 class AASRealtimeSync {
   constructor() {
@@ -51,7 +54,29 @@ class AASRealtimeSync {
     const startTime = new Date();
     console.log(`\n🔄 [${startTime.toLocaleTimeString()}] Starting sync from AAS 6.0...`);
 
+    let lockId = null;
+
     try {
+      // Acquire distributed lock
+      const lockResult = await syncCoordinator.acquireLock('aasRealtimeSync', 300);
+      if (!lockResult.success) {
+        console.log('⚠️  Could not acquire sync lock, another sync is in progress');
+        return { success: false, error: 'Lock acquisition failed' };
+      }
+      lockId = lockResult.lockId;
+      console.log('🔒 Sync lock acquired');
+
+      // Log sync start
+      await deviceUserAuditService.logOperation({
+        operationType: 'sync_started',
+        deviceUserId: null,
+        deviceUserName: null,
+        performedBy: 'system',
+        serviceName: 'aasRealtimeSync',
+        details: { startTime: startTime.toISOString() }
+      });
+
+      try {
       // Read AAS database
       const buffer = require('fs').readFileSync(this.dbPath);
       const reader = new MDBReader(buffer);
@@ -190,8 +215,26 @@ class AASRealtimeSync {
         unmappedUserIds: Array.from(unmappedUserIds)
       };
 
+      } finally {
+        // Always release lock
+        if (lockId) {
+          await syncCoordinator.releaseLock(lockId);
+          console.log('🔓 Sync lock released');
+        }
+      }
+
     } catch (error) {
       console.error('❌ Sync failed:', error.message);
+      
+      // Release lock on error
+      if (lockId) {
+        try {
+          await syncCoordinator.releaseLock(lockId);
+        } catch (releaseError) {
+          console.error('Failed to release lock:', releaseError);
+        }
+      }
+      
       return {
         success: false,
         error: error.message

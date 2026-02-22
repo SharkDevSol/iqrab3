@@ -17,6 +17,13 @@
   text-align: center;
 }
 
+.logo {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+  margin: 0 auto 20px;
+}
+
 .title {
   font-size: 28px;
   font-weight: 700;

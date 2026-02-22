@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { FiRefreshCw } from 'react-icons/fi';
+import { FiRefreshCw, FiBell } from 'react-icons/fi';
 import { useApp } from '../../context/AppContext';
 import styles from './MobileProfileLayout.module.css';
 
@@ -8,7 +8,9 @@ const MobileProfileLayout = ({
   title, 
   onLogout, 
   onRefresh,
-  isLoading = false 
+  isLoading = false,
+  onNotificationClick,
+  notificationCount = 0
 }) => {
   const { theme } = useApp();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -65,9 +67,38 @@ const MobileProfileLayout = ({
       {/* App Header */}
       <header className={styles.appHeader} style={headerStyle}>
         <h1 className={styles.title}>{title}</h1>
-        <button onClick={onLogout} className={styles.logoutButton}>
-          Logout
-        </button>
+        <div className={styles.headerActions}>
+          {onRefresh && (
+            <button 
+              onClick={async () => {
+                setIsRefreshing(true);
+                try {
+                  await onRefresh();
+                } finally {
+                  setIsRefreshing(false);
+                }
+              }} 
+              className={styles.refreshButton}
+              disabled={isRefreshing}
+            >
+              <FiRefreshCw 
+                size={20} 
+                className={isRefreshing ? styles.spinning : ''}
+              />
+            </button>
+          )}
+          {onNotificationClick && (
+            <button onClick={onNotificationClick} className={styles.notificationButton}>
+              <FiBell size={20} />
+              {notificationCount > 0 && (
+                <span className={styles.notificationBadge}>{notificationCount}</span>
+              )}
+            </button>
+          )}
+          <button onClick={onLogout} className={styles.logoutButton}>
+            Logout
+          </button>
+        </div>
       </header>
 
       {/* Pull to Refresh Indicator */}

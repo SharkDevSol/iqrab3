@@ -1885,6 +1885,71 @@ const DEFAULT_THEME = {
   mode: 'light'
 };
 
+// Helper function to update favicon
+const updateFavicon = (iconUrl) => {
+  // Update standard favicon
+  let link = document.querySelector("link[rel*='icon']");
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'shortcut icon';
+    document.getElementsByTagName('head')[0].appendChild(link);
+  }
+  link.type = 'image/x-icon';
+  link.href = iconUrl;
+  
+  // Update apple touch icon
+  let appleLink = document.querySelector("link[rel='apple-touch-icon']");
+  if (!appleLink) {
+    appleLink = document.createElement('link');
+    appleLink.rel = 'apple-touch-icon';
+    document.getElementsByTagName('head')[0].appendChild(appleLink);
+  }
+  appleLink.href = iconUrl;
+};
+
+// Helper function to update manifest icons dynamically
+const updateManifestIcons = (iconUrl) => {
+  try {
+    // Get the manifest link element
+    let manifestLink = document.querySelector("link[rel='manifest']");
+    if (!manifestLink) {
+      manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      document.getElementsByTagName('head')[0].appendChild(manifestLink);
+    }
+    
+    // Create a dynamic manifest with the custom icon
+    const manifest = {
+      short_name: "Skoolific",
+      name: "Skoolific School Management",
+      icons: [
+        {
+          src: iconUrl,
+          sizes: "192x192",
+          type: "image/png"
+        },
+        {
+          src: iconUrl,
+          sizes: "512x512",
+          type: "image/png"
+        }
+      ],
+      start_url: "/",
+      display: "standalone",
+      theme_color: "#667eea",
+      background_color: "#ffffff",
+      orientation: "portrait"
+    };
+    
+    // Convert manifest to blob and create object URL
+    const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+    const manifestURL = URL.createObjectURL(manifestBlob);
+    manifestLink.href = manifestURL;
+  } catch (error) {
+    console.error('Error updating manifest:', error);
+  }
+};
+
 export const AppProvider = ({ children }) => {
   const [theme, setTheme] = useState(DEFAULT_THEME);
   
@@ -1954,15 +2019,14 @@ export const AppProvider = ({ children }) => {
           localStorage.setItem('appTheme', JSON.stringify(dbTheme));
         }
         
-        // Update favicon from database
-        if (data.website_icon) {
-          const iconUrl = `http://localhost:5000/uploads/branding/${data.website_icon}`;
-          const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
-          link.type = 'image/x-icon';
-          link.rel = 'shortcut icon';
-          link.href = iconUrl;
-          document.getElementsByTagName('head')[0].appendChild(link);
-        }
+        // Update favicon from database or use default Skoolific icon
+        const iconUrl = data.website_icon 
+          ? `http://localhost:5000/uploads/branding/${data.website_icon}`
+          : '/skoolific-icon.png';
+        
+        // Update all icon links
+        updateFavicon(iconUrl);
+        updateManifestIcons(iconUrl);
       } catch (error) {
         console.log('Could not load branding from database, using localStorage');
         // Fallback to localStorage for website name
@@ -1971,6 +2035,10 @@ export const AppProvider = ({ children }) => {
           setWebsiteName(savedWebsiteName);
           document.title = savedWebsiteName;
         }
+        
+        // Always set default Skoolific icon as fallback
+        updateFavicon('/skoolific-icon.png');
+        updateManifestIcons('/skoolific-icon.png');
       }
     };
     

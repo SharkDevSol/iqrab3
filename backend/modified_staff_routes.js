@@ -65,13 +65,14 @@ const getNextGlobalStaffId = async () => {
 };
 
 // Update staff_id values based on name order
-const updateStaffIds = async (schemaName, className) => {
+const updateStaffIds = async (schemaName, className, client = null) => {
+  const db = client || pool;
   try {
-    const staff = await pool.query(
+    const staff = await db.query(
       `SELECT id FROM "${schemaName}"."${className}" ORDER BY LOWER(name) ASC`
     );
     for (let i = 0; i < staff.rows.length; i++) {
-      await pool.query(
+      await db.query(
         `UPDATE "${schemaName}"."${className}" SET staff_id = $1 WHERE id = $2`,
         [i + 1, staff.rows[i].id]
       );
@@ -307,19 +308,32 @@ router.post("/add-staff", upload, async (req, res) => {
 
     const client = await pool.connect();
     try {
+      console.log(`[ADD-STAFF] Starting transaction for ${formData.name}`);
       await client.query("BEGIN");
       const placeholders = columns.map((_, i) => `$${i + 1}`).join(", ");
       const query = `INSERT INTO "${schemaName}"."${className}" (${columns.join(", ")}) VALUES (${placeholders})`;
+      console.log(`[ADD-STAFF] Inserting staff with global_staff_id: ${globalStaffId}, temp_staff_id: ${tempStaffId}`);
       await client.query(query, values);
+      console.log(`[ADD-STAFF] Staff inserted, now updating staff IDs...`);
 
-      await updateStaffIds(schemaName, className);
-
-      // Create user account for the new staff member
-      const userCredentials = await createStaffUser(globalStaffId, formData.name, staffType, className);
+      await updateStaffIds(schemaName, className, client);
+      console.log(`[ADD-STAFF] Staff IDs updated, committing...`);
 
       await client.query("COMMIT");
-      console.log(`Staff added successfully to ${schemaName}.${className}`);
+      console.log(`[ADD-STAFF] ✅ Transaction committed! Staff added successfully to ${schemaName}.${className}`);
       
+      // Create user account AFTER committing the staff data
+      // This way, if user creation fails, the staff is still saved
+      let userCredentials = null;
+      try {
+        console.log(`[ADD-STAFF] Creating user account for ${formData.name}...`);
+        userCredentials = await createStaffUser(globalStaffId, formData.name, staffType, className);
+        console.log(`[ADD-STAFF] ✅ User account created: ${userCredentials.username}`);
+      } catch (userError) {
+        console.error('[ADD-STAFF] ❌ Error creating user account (staff was still saved):', userError.message);
+      }
+      
+      console.log(`[ADD-STAFF] Sending success response to client`);
       // Return success message with user credentials
       res.status(200).json({ 
         message: "Staff added successfully",
@@ -330,6 +344,7 @@ router.post("/add-staff", upload, async (req, res) => {
         } : null
       });
     } catch (error) {
+      console.error('[ADD-STAFF] ❌ Error in transaction, rolling back:', error.message);
       await client.query("ROLLBACK");
       throw error;
     } finally {
@@ -418,9 +433,38 @@ router.get("/profile/:username", async (req, res) => {
 router.get("/data/:staffType/:className", async (req, res) => {
   try {
     const { staffType, className } = req.params;
-    console.log(`Fetching staff data for ${staffType}: ${className}`);
+    const { includeInactive } = req.query;
+    
+    console.log(`Fetching staff data for ${staffType}: ${className} (includeInactive: ${includeInactive})`);
     const schemaName = `staff_${staffType.replace(/\s+/g, "_").toLowerCase()}`;
-    const dataResult = await pool.query(`SELECT * FROM "${schemaName}"."${className}" ORDER BY LOWER(name) ASC`);
+    
+    // Check if is_active column exists
+    const columnCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_schema = $1 
+        AND table_name = $2 
+        AND column_name = 'is_active'
+    `, [schemaName, className]);
+    
+    const hasIsActiveColumn = columnCheck.rows.length > 0;
+    
+    // Build query based on includeInactive parameter and column existence
+    let query;
+    if (hasIsActiveColumn) {
+      if (includeInactive === 'only') {
+        // Show only inactive staff
+        query = `SELECT * FROM "${schemaName}"."${className}" WHERE is_active = FALSE ORDER BY LOWER(name) ASC`;
+      } else {
+        // Default: show only active staff (or NULL which means active by default)
+        query = `SELECT * FROM "${schemaName}"."${className}" WHERE is_active = TRUE OR is_active IS NULL ORDER BY LOWER(name) ASC`;
+      }
+    } else {
+      // If no is_active column, show all staff
+      query = `SELECT * FROM "${schemaName}"."${className}" ORDER BY LOWER(name) ASC`;
+    }
+    
+    const dataResult = await pool.query(query);
     console.log(`Fetched ${dataResult.rows.length} staff for ${schemaName}.${className}`);
     res.json({ data: dataResult.rows });
   } catch (error) {
@@ -529,7 +573,7 @@ router.post("/upload-excel", async (req, res) => {
         }
       }
 
-      await updateStaffIds(schemaName, className);
+      await updateStaffIds(schemaName, className, client);
 
       await client.query("COMMIT");
       console.log(`Excel data uploaded successfully to ${schemaName}.${className}`);

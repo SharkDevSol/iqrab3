@@ -43,8 +43,10 @@
 }
 
 .logo {
-  font-size: 60px;
-  margin-bottom: 16px;
+  width: 250px;
+  height: 250px;
+  object-fit: contain;
+  margin: 0 auto 16px;
   animation: bounce 2s ease-in-out infinite;
 }
 

@@ -4,7 +4,7 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 50%, #16213e 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -23,8 +23,8 @@
 }
 
 .logo {
-  width: 150px;
-  height: 150px;
+  width: 250px;
+  height: 250px;
   margin: 0 auto;
   filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3));
 }
@@ -116,8 +116,8 @@
   }
 
   .logo {
-    width: 120px;
-    height: 120px;
+    width: 180px;
+    height: 180px;
   }
 
   .progressBar {
@@ -135,8 +135,8 @@
   }
 
   .logo {
-    width: 100px;
-    height: 100px;
+    width: 150px;
+    height: 150px;
   }
 
   .progressBar {

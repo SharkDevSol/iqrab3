@@ -90,6 +90,18 @@ This document verifies that ALL fixes are permanent and will work even after:
 **Works after data deletion:** YES
 **Works on new device:** YES
 
+### ✅ 11. Student Profile 500 Errors
+**Files:** `backend/routes/studentRoutes.js`
+**Endpoints Fixed:**
+- `GET /api/students/profile/:username`
+- `GET /api/students/guardian-profile/:username`
+- `GET /api/students/search-guardian/:phone`
+- `GET /api/students/next-ids`
+**Fix:** Checks if `is_active` column exists before filtering in all student/guardian queries
+**Permanent:** YES - Dynamic column check on every query
+**Works after data deletion:** YES
+**Works on new device:** YES
+
 ## Auto-Setup System
 
 ### What It Does:

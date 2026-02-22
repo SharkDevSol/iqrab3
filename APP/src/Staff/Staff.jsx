@@ -31,7 +31,7 @@ const Staff = () => {
     // { path: "attendance-staff", icon: <FaUserCheck />, label: "Student Attendance" },
     { path: "mark-list-staff", icon: <FaClipboardList />, label: "Marks" },
     { path: "evaluation-staff-control", icon: <FaChartLine />, label: "Evaluation" },
-    { path: "profile-staff", icon: <FaUser />, label: "Profile" },
+    // Profile removed - use Home page instead (path: "")
   ];
 
   useEffect(() => {

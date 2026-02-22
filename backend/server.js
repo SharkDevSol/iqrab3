@@ -7,6 +7,28 @@ const { Server } = require('socket.io');
 const path = require('path');
 require('dotenv').config();
 
+/**
+ * ⚠️  CRITICAL CONFIGURATION WARNING ⚠️
+ * 
+ * AI06 BIOMETRIC DEVICE WEBSOCKET SERVICE
+ * ========================================
+ * 
+ * The AI06 WebSocket service (port 7788) is REQUIRED for biometric attendance devices.
+ * 
+ * DO NOT DISABLE OR COMMENT OUT:
+ * - Lines ~348-365: AI06 WebSocket Service initialization
+ * - Environment variable: AI06_WEBSOCKET_ENABLED must be 'true'
+ * 
+ * If disabled, devices cannot connect and attendance will not be recorded!
+ * 
+ * Configuration: backend/.env
+ * Documentation: AI06_DEVICE_SETUP_GUIDE.md
+ * Health Check: node backend/check-ai06-service.js
+ */
+
+// Database initialization
+const { initializeDatabase } = require('./config/initDatabase');
+
 // Security middleware imports
 const { securityHeaders, httpsRedirect, preventParamPollution, xssProtection, suspiciousActivityLogger } = require('./middleware/security');
 const { apiLimiter, loginLimiter } = require('./middleware/rateLimiter');
@@ -28,6 +50,7 @@ const scheduleRoutes = require('./routes/scheduleRoutes');
 const schoolSetupRoutes = require('./routes/schoolSetupRoutes');
 const task6Routes = require('./routes/task6Routes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const runAdminNameMigration = require('./migrations/fix_admin_name_in_conversations');
 const adminRoutes = require('./routes/adminRoutes');
 const guardianListRoutes = require('./routes/guardianListRoutes');
 const studentAttendanceRoutes = require('./routes/studentAttendanceRoutes');
@@ -35,7 +58,10 @@ const classTeacherRoutes = require('./routes/classTeacherRoutes');
 const adminAttendanceRoutes = require('./routes/adminAttendanceRoutes');
 const classCommunicationRoutes = require('./routes/classCommunicationRoutes');
 const guardianAttendanceRoutes = require('./routes/guardianAttendanceRoutes');
+const guardianStudentAttendanceRoutes = require('./routes/guardianStudentAttendance');
 const evaluationBookRoutes = require('./routes/evaluationBookRoutes');
+const guardianPaymentsRoutes = require('./routes/guardianPayments');
+const guardianNotificationRoutes = require('./routes/guardianNotificationRoutes');
 const subAccountRoutes = require('./routes/subAccountRoutes');
 const reportsRoutes = require('./routes/reportsRoutes');
 const financeReportsRoutes = require('./routes/finance/dashboardReports');
@@ -67,6 +93,12 @@ const settingsRoutes = require('./routes/settingsRoutes');
 const academicStudentAttendanceRoutes = require('./routes/academic/studentAttendance');
 const shiftSettingsRoutes = require('./routes/shiftSettings');
 const taskStatusRoutes = require('./routes/taskStatusRoutes');
+const deviceUserManagementRoutes = require('./routes/deviceUserManagement');
+
+// Service imports for device user persistence
+const syncCoordinator = require('./services/SyncCoordinator');
+const deviceUserMonitoringService = require('./services/DeviceUserMonitoringService');
+const backupRestoreService = require('./services/BackupRestoreService');
 
 const app = express();
 
@@ -168,7 +200,7 @@ app.use(securityHeaders);
 
 // 3. CORS configuration
 const allowedOrigins = process.env.NODE_ENV === 'production' 
-  ? [process.env.FRONTEND_URL || 'https://yourdomain.com']
+  ? [process.env.FRONTEND_URL || 'https://iqrab3.skoolific.com']  // Production domain
   : ['http://localhost:3000', 'http://localhost:5173'];
 
 app.use(cors({
@@ -177,6 +209,17 @@ app.use(cors({
     if (!origin && process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
+    
+    // In development, allow all local network IPs
+    if (process.env.NODE_ENV !== 'production') {
+      if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || 
+          origin.match(/^http:\/\/192\.168\.\d+\.\d+/) || 
+          origin.match(/^http:\/\/172\.\d+\.\d+\.\d+/) ||
+          origin.match(/^http:\/\/10\.\d+\.\d+\.\d+/)) {
+        return callback(null, true);
+      }
+    }
+    
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
@@ -272,14 +315,17 @@ app.use('/api/class-teacher', classTeacherRoutes);
 app.use('/api/admin-attendance', adminAttendanceRoutes);
 app.use('/api/class-communication', classCommunicationRoutes);
 app.use('/api/guardian-attendance', guardianAttendanceRoutes);
+app.use('/api/guardian-student-attendance', guardianStudentAttendanceRoutes);
 app.use('/api/evaluation-book', evaluationBookRoutes);
+app.use('/api/guardian-payments', guardianPaymentsRoutes);
+app.use('/api/guardian-notifications', guardianNotificationRoutes);
 app.use('/api/admin/sub-accounts', subAccountRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/reports/finance', financeReportsRoutes);
 app.use('/api/reports/inventory', inventoryReportsRoutes);
 app.use('/api/reports/hr', hrReportsRoutes);
+app.use('/api/hr/shift-settings', shiftSettingsRoutes); // Must be before /api/hr
 app.use('/api/hr', hrRoutes);
-app.use('/api/hr/shift-settings', shiftSettingsRoutes);
 app.use('/api/reports/assets', assetReportsRoutes);
 app.use('/api/finance/accounts', financeAccountRoutes);
 app.use('/api/finance/expenses', financeExpenseRoutes);
@@ -305,20 +351,33 @@ app.use('/api/usb-attendance', require('./routes/usbAttendanceImport'));
 app.use('/api/settings', settingsRoutes);
 app.use('/api/academic/student-attendance', academicStudentAttendanceRoutes);
 app.use('/api/tasks', taskStatusRoutes);
+app.use('/api/device-users', deviceUserManagementRoutes); // Device user persistence management
 
 // ===========================================
 // AI06 WEBSOCKET SERVICE
 // ===========================================
 // AI06 WEBSOCKET SERVICE
 // ===========================================
-const AI06WebSocketService = require('./services/ai06WebSocketService');
-const ai06Service = new AI06WebSocketService(7788);
+// CRITICAL: DO NOT DISABLE - Required for AI06 device connections
+// This service listens on port 7788 for biometric attendance devices
+const AI06_ENABLED = process.env.AI06_WEBSOCKET_ENABLED !== 'false';
+const AI06_PORT = process.env.AI06_WEBSOCKET_PORT || 7788;
 
-// Start AI06 service with Socket.IO for real-time updates
-ai06Service.start(io);
+if (AI06_ENABLED) {
+  const AI06WebSocketService = require('./services/ai06WebSocketService');
+  const ai06Service = new AI06WebSocketService(AI06_PORT);
 
-// Make AI06 service accessible to routes
-app.set('ai06Service', ai06Service);
+  // Start AI06 service with Socket.IO for real-time updates
+  ai06Service.start(io);
+
+  // Make AI06 service accessible to routes
+  app.set('ai06Service', ai06Service);
+  
+  console.log(`✅ AI06 WebSocket Service enabled on port ${AI06_PORT}`);
+} else {
+  console.log('⚠️  AI06 WebSocket Service is DISABLED in .env');
+  console.log('   Set AI06_WEBSOCKET_ENABLED=true to enable device connections');
+}
 
 // ===========================================
 // ATTENDANCE AUTO-MARKER SERVICES
@@ -330,6 +389,11 @@ attendanceAutoMarker.start();
 // Student Attendance Auto-Marker
 const { autoMarker: studentAttendanceAutoMarker } = require('./services/studentAttendanceAutoMarker');
 studentAttendanceAutoMarker.start();
+
+// Guardian Notification Service
+const guardianNotificationService = require('./services/guardianNotificationService');
+guardianNotificationService.start();
+console.log('✅ Guardian Notification Service started');
 
 // DATABASE MIGRATIONS - Temporarily disabled
 // ===========================================
@@ -344,6 +408,9 @@ studentAttendanceAutoMarker.start();
 // Import auto-setup utility
 const { autoSetup } = require('./utils/autoSetup');
 
+// Import attendance system initializer
+const attendanceSystemInitializer = require('./services/attendanceSystemInitializer');
+
 // Run migrations and auto-setup on startup, then start server
 (async () => {
   // try {
@@ -356,11 +423,121 @@ const { autoSetup } = require('./utils/autoSetup');
 
   // Run auto-setup (creates default accounts, checks migrations, etc.)
   await autoSetup();
+  
+  // Initialize attendance systems (runs on every server start)
+  await attendanceSystemInitializer.initialize();
+
+  // ===========================================
+  // DEVICE USER PERSISTENCE SERVICES
+  // ===========================================
+  console.log('\n🔧 Initializing Device User Persistence Services...');
+  
+  // Run finance columns migration on startup
+  try {
+    console.log('💰 Running finance columns migration for class tables...');
+    const { migrateAllClassTables } = require('./migrations/add-finance-columns-to-all-classes');
+    await migrateAllClassTables();
+    console.log('✅ Finance columns migration completed');
+  } catch (error) {
+    console.error('⚠️  Finance columns migration error:', error.message);
+    console.log('   Server will continue, but monthly payments may not work correctly');
+  }
+  
+  // Run automatic device user migration on startup
+  try {
+    console.log('📡 Running automatic device user migration...');
+    const axios = require('axios');
+    const deviceIP = process.env.AI06_DEVICE_IP || '192.168.1.2';
+    const devicePort = process.env.AI06_DEVICE_PORT || 80;
+    
+    try {
+      // Try to connect to device and migrate users
+      const deviceResponse = await axios.post(
+        `http://${deviceIP}:${devicePort}/cgi-bin/js/app/module/userManager.js`,
+        { command: 'getUserList', token: '' },
+        { timeout: 5000 }
+      );
+
+      if (deviceResponse.data && deviceResponse.data.result === 'success') {
+        const deviceUsers = deviceResponse.data.users || [];
+        console.log(`   Found ${deviceUsers.length} users on device`);
+        
+        let bufferedCount = 0;
+        for (const user of deviceUsers) {
+          // Check if user has a mapping
+          const mappingResult = await pool.query(
+            'SELECT person_id FROM user_machine_mapping WHERE machine_user_id = $1',
+            [user.id]
+          );
+
+          if (mappingResult.rows.length === 0) {
+            // User is unmapped - add to buffer
+            await deviceUserBufferService.upsertDeviceUser(user);
+            bufferedCount++;
+          }
+        }
+        
+        if (bufferedCount > 0) {
+          console.log(`   ✅ Buffered ${bufferedCount} unmapped users`);
+        } else {
+          console.log('   ✅ All users are mapped');
+        }
+      }
+    } catch (deviceError) {
+      console.log(`   ⚠️  Device not reachable at ${deviceIP}:${devicePort}`);
+      console.log('   Migration will run automatically when device comes online');
+    }
+  } catch (error) {
+    console.error('   ⚠️  Migration error:', error.message);
+  }
+  
+  // Start sync coordinator cleanup task (runs every 5 minutes)
+  setInterval(async () => {
+    try {
+      await syncCoordinator.cleanupExpiredLocks();
+    } catch (error) {
+      console.error('Failed to cleanup expired locks:', error);
+    }
+  }, 5 * 60 * 1000);
+  console.log('✅ Sync Coordinator cleanup task started');
+
+  // Start device user monitoring service (polls every 5 minutes)
+  // This will also run migration automatically when device comes online
+  deviceUserMonitoringService.startMonitoring(5);
+  console.log('✅ Device User Monitoring Service started');
+
+  // Start automatic backup service (runs every 6 hours)
+  backupRestoreService.startAutoBackup(6);
+  console.log('✅ Automatic Backup Service started (every 6 hours)');
+
+  console.log('✅ All Device User Persistence Services initialized\n');
+
+  // Initialize database tables
+  console.log('🗄️  Checking database tables...');
+  try {
+    await initializeDatabase();
+  } catch (error) {
+    console.error('⚠️  Database initialization warning:', error.message);
+    console.log('Continuing server startup...\n');
+  }
+
+  // Run database migrations
+  console.log('🔄 Running database migrations...');
+  try {
+    await runAdminNameMigration();
+    console.log('✅ Database migrations completed\n');
+  } catch (error) {
+    console.error('⚠️  Migration warning:', error.message);
+    console.log('Continuing server startup...\n');
+  }
 
   // Start server after setup complete
   const PORT = process.env.PORT || 5000;
-  server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  const HOST = '0.0.0.0'; // Listen on all network interfaces for mobile access
+  server.listen(PORT, HOST, () => {
+    console.log(`Server running on ${HOST}:${PORT}`);
+    console.log(`Local access: http://localhost:${PORT}`);
+    console.log(`Network access: http://172.21.8.159:${PORT}`);
     console.log(`Dashboard endpoints available at:`);
     console.log(`  http://localhost:${PORT}/api/dashboard/stats`);
   console.log(`  http://localhost:${PORT}/api/dashboard/recent-faults`);

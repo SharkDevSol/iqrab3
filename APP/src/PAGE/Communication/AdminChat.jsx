@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
-import { FiMessageCircle, FiSearch, FiUser } from 'react-icons/fi';
+import { FiMessageCircle, FiSearch, FiUser, FiSend } from 'react-icons/fi';
 import ChatWindow from '../../COMPONENTS/Chat/ChatWindow';
 import ConversationList from '../../COMPONENTS/Chat/ConversationList';
 import styles from './AdminChat.module.css';
@@ -14,6 +14,8 @@ const AdminChat = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const [sending, setSending] = useState(false);
   const socketRef = useRef(null);
 
   const currentUserId = 'admin_1'; // Get from localStorage in production
@@ -27,9 +29,24 @@ const AdminChat = () => {
 
     // Listen for new messages
     socketRef.current.on('new_message', (message) => {
+      console.log('New message received via socket:', message);
       setMessages(prev => [...prev, message]);
       // Update conversation list
       fetchConversations();
+    });
+
+    // Listen for send_message events (when someone sends in a conversation)
+    socketRef.current.on('send_message', (data) => {
+      console.log('Send message event received:', data);
+      if (data.message && activeConversation && data.conversationId === activeConversation.id) {
+        setMessages(prev => {
+          // Avoid duplicates
+          if (prev.find(m => m.id === data.message.id)) {
+            return prev;
+          }
+          return [...prev, data.message];
+        });
+      }
     });
 
     fetchGuardians();
@@ -41,6 +58,28 @@ const AdminChat = () => {
       }
     };
   }, []);
+
+  // Join conversation room when active conversation changes
+  useEffect(() => {
+    if (socketRef.current && activeConversation) {
+      console.log('Joining conversation room:', activeConversation.id);
+      socketRef.current.emit('join_conversation', activeConversation.id);
+      
+      // Poll for new messages every 3 seconds as fallback
+      const pollInterval = setInterval(() => {
+        if (activeConversation && activeConversation.id) {
+          fetchMessages(activeConversation.id, false); // Don't show loading spinner
+        }
+      }, 3000);
+      
+      return () => {
+        clearInterval(pollInterval);
+        if (socketRef.current && activeConversation) {
+          socketRef.current.emit('leave_conversation', activeConversation.id);
+        }
+      };
+    }
+  }, [activeConversation]);
 
   const fetchGuardians = async () => {
     try {
@@ -62,8 +101,10 @@ const AdminChat = () => {
     }
   };
 
-  const fetchMessages = async (conversationId) => {
-    setMessagesLoading(true);
+  const fetchMessages = async (conversationId, showLoading = true) => {
+    if (showLoading) {
+      setMessagesLoading(true);
+    }
     try {
       const res = await axios.get(`http://localhost:5000/api/chats/conversations/${conversationId}/messages`);
       setMessages(res.data);
@@ -78,25 +119,48 @@ const AdminChat = () => {
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
-      setMessagesLoading(false);
+      if (showLoading) {
+        setMessagesLoading(false);
+      }
     }
   };
 
   const handleSelectGuardian = async (guardian) => {
+    console.log('Guardian clicked:', guardian);
+    
+    // Format guardian ID with prefix to match guardian's format
+    const guardianUserId = `guardian_${guardian.id}`;
+    
+    // Immediately set a basic conversation so UI shows
+    const tempConversation = {
+      id: guardian.id,
+      type: 'admin_guardian',
+      participants: [
+        { user_id: currentUserId, user_type: 'admin', user_name: currentUserName },
+        { user_id: guardianUserId, user_type: 'guardian', user_name: guardian.name }
+      ]
+    };
+    
+    setActiveConversation(tempConversation);
+    setMessages([]);
+    setMessagesLoading(true);
+    
     try {
       // Create or get conversation
       const res = await axios.post('http://localhost:5000/api/chats/conversations', {
         type: 'admin_guardian',
         participants: [
           { user_id: currentUserId, user_type: 'admin', user_name: currentUserName },
-          { user_id: guardian.id, user_type: 'guardian', user_name: guardian.name }
+          { user_id: guardianUserId, user_type: 'guardian', user_name: guardian.name }
         ]
       });
 
+      console.log('Conversation response:', res.data);
       const convId = res.data.id;
       
       // Fetch full conversation details
       const convRes = await axios.get(`http://localhost:5000/api/chats/conversations/${convId}`);
+      console.log('Full conversation:', convRes.data);
       setActiveConversation(convRes.data);
       
       // Fetch messages
@@ -106,6 +170,10 @@ const AdminChat = () => {
       fetchConversations();
     } catch (error) {
       console.error('Error selecting guardian:', error);
+      console.error('Error details:', error.response?.data);
+      
+      // Keep the temp conversation so chat window still shows
+      setMessagesLoading(false);
     }
   };
 
@@ -137,6 +205,45 @@ const AdminChat = () => {
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;
+    }
+  };
+
+  const handleSendMessageDirect = async () => {
+    console.log('=== SEND MESSAGE DEBUG ===');
+    console.log('messageText:', messageText);
+    console.log('sending:', sending);
+    console.log('activeConversation:', activeConversation);
+    
+    if (!messageText.trim() || sending || !activeConversation) {
+      console.log('Send blocked - conditions not met');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const formData = new FormData();
+      formData.append('senderId', currentUserId);
+      formData.append('senderType', currentUserType);
+      formData.append('senderName', currentUserName);
+      formData.append('messageText', messageText.trim());
+
+      console.log('Sending message to conversation:', activeConversation.id);
+      console.log('FormData:', {
+        senderId: currentUserId,
+        senderType: currentUserType,
+        senderName: currentUserName,
+        messageText: messageText.trim()
+      });
+
+      await handleSendMessage(formData);
+      console.log('Message sent successfully!');
+      setMessageText('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      console.error('Error response:', error.response?.data);
+      alert('Failed to send message: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setSending(false);
     }
   };
 
@@ -175,7 +282,7 @@ const AdminChat = () => {
               filteredGuardians.map(guardian => (
                 <div
                   key={guardian.id}
-                  className={styles.guardianItem}
+                  className={`${styles.guardianItem} ${activeConversation?.participants?.find(p => p.user_id === guardian.id) ? styles.active : ''}`}
                   onClick={() => handleSelectGuardian(guardian)}
                 >
                   <div className={styles.avatar}><FiUser /></div>
@@ -196,47 +303,86 @@ const AdminChat = () => {
           </div>
         </div>
 
-        {/* Conversations List */}
-        <div className={styles.conversations}>
-          <div className={styles.conversationsHeader}>
-            <h3>Messages</h3>
-          </div>
-          <ConversationList
-            conversations={conversations}
-            activeId={activeConversation?.id}
-            onSelect={handleSelectConversation}
-            loading={false}
-          />
-        </div>
-
         {/* Chat Window */}
         <div className={styles.chat}>
           {activeConversation ? (
-            <>
+            <div className={styles.chatContainer}>
               <div className={styles.chatHeader}>
                 <div className={styles.avatar}><FiUser /></div>
                 <div>
                   <h3>
-                    {activeConversation.participants?.find(p => p.user_id !== currentUserId)?.user_name}
+                    {activeConversation.participants?.find(p => p.user_id !== currentUserId)?.user_name || 'Guardian'}
                   </h3>
                   <span>Guardian</span>
                 </div>
               </div>
-              <ChatWindow
-                conversation={activeConversation}
-                messages={messages}
-                currentUserId={currentUserId}
-                currentUserName={currentUserName}
-                currentUserType={currentUserType}
-                onSendMessage={handleSendMessage}
-                isLoading={messagesLoading}
-                socket={socketRef.current}
-              />
-            </>
+              
+              {/* Input at TOP */}
+              <div className={styles.topInputArea}>
+                <textarea
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessageDirect();
+                    }
+                  }}
+                  placeholder="Type your message here..."
+                  rows={2}
+                  disabled={sending}
+                  className={styles.topInput}
+                />
+                <button
+                  className={styles.topSendBtn}
+                  onClick={handleSendMessageDirect}
+                  disabled={sending || !messageText.trim()}
+                >
+                  {sending ? 'Sending...' : <><FiSend /> Send</>}
+                </button>
+              </div>
+
+              {/* Messages below */}
+              <div className={styles.messagesArea}>
+                {messagesLoading ? (
+                  <div className={styles.loading}>Loading messages...</div>
+                ) : messages.length === 0 ? (
+                  <div className={styles.noMessages}>
+                    <p>No messages yet. Start the conversation above!</p>
+                  </div>
+                ) : (
+                  <div className={styles.messagesList}>
+                    {messages.map((message, index) => {
+                      const isOwn = message.sender_id === currentUserId;
+                      return (
+                        <div
+                          key={message.id}
+                          className={`${styles.message} ${isOwn ? styles.own : styles.other}`}
+                        >
+                          {!isOwn && (
+                            <div className={styles.senderName}>{message.sender_name}</div>
+                          )}
+                          {message.message_text && (
+                            <div className={styles.messageText}>{message.message_text}</div>
+                          )}
+                          <div className={styles.messageTime}>
+                            {new Date(message.created_at).toLocaleTimeString('en-US', { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           ) : (
             <div className={styles.noChat}>
               <FiMessageCircle />
               <h3>Select a guardian to start chatting</h3>
+              <p>Click on a guardian from the list to begin a conversation</p>
             </div>
           )}
         </div>

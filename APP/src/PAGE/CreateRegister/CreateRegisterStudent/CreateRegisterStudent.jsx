@@ -542,7 +542,8 @@ const AddStudentS = () => {
       setFetchedGuardian(null);
       setMultiSelectValues({});
     } catch (err) {
-      setErrorMessage('Failed to add student: ' + (err.response?.data?.error || err.message));
+      const errorMsg = err.response?.data?.details || err.response?.data?.error || err.message;
+      setErrorMessage(errorMsg);
     } finally {
       setIsLoading(false);
     }

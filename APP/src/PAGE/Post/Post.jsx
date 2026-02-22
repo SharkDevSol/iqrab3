@@ -1,6 +1,6 @@
 // Post.jsx - Modern Redesigned Social Feed
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../utils/api';
 import styles from './Post.module.css';
 import { 
   FiEdit, FiImage, FiFile, FiShare2, FiMessageSquare, 
@@ -37,7 +37,7 @@ const Post = () => {
 
   const fetchPosts = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/posts/feed?role=staff');
+      const response = await api.get('/api/posts/feed?role=staff');
       setPosts(response.data);
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -95,7 +95,7 @@ const Post = () => {
 
     setUploading(true);
     try {
-      await axios.post('http://localhost:5000/api/posts', data, {
+      await api.post('/api/posts', data, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setIsCreating(false);
@@ -120,7 +120,7 @@ const Post = () => {
 
   const handleLike = async (postId) => {
     try {
-      await axios.put(`http://localhost:5000/api/posts/${postId}/like`);
+      await api.put(`/api/posts/${postId}/like`);
       setLikedPosts(prev => new Set([...prev, postId]));
       fetchPosts();
     } catch (error) {

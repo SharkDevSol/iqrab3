@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 
-// Initialize class_teachers table
+// Initialize class_teachers table with enhanced resilience
 const initializeClassTeachersTable = async () => {
   try {
+    console.log('🔧 Initializing class_teachers table...');
+    
     await pool.query('CREATE SCHEMA IF NOT EXISTS school_schema_points');
     
     await pool.query(`
@@ -15,13 +17,28 @@ const initializeClassTeachersTable = async () => {
         assigned_class VARCHAR(100) NOT NULL,
         assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         is_active BOOLEAN DEFAULT true,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(assigned_class)
       )
     `);
     
-    console.log('Class teachers table initialized');
+    // Create indexes for performance
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_class_teachers_staff_id 
+      ON school_schema_points.class_teachers(global_staff_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_class_teachers_class 
+      ON school_schema_points.class_teachers(assigned_class)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_class_teachers_active 
+      ON school_schema_points.class_teachers(is_active)
+    `);
+    
+    console.log('✅ Class teachers table initialized successfully');
   } catch (e) {
-    console.error('Class teachers table init error:', e);
+    console.error('❌ Class teachers table init error:', e.message);
   }
 };
 
@@ -30,15 +47,33 @@ initializeClassTeachersTable();
 // Get all teachers (for dropdown selection)
 router.get('/teachers', async (req, res) => {
   try {
+    console.log('📥 GET /api/class-teacher/teachers - Fetching teachers...');
+    
+    // Check if teachers table exists
+    const tableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'school_schema_points' 
+        AND table_name = 'teachers'
+      )
+    `);
+    
+    if (!tableExists.rows[0].exists) {
+      console.log('⚠️  Teachers table not found');
+      return res.json([]);
+    }
+    
     const result = await pool.query(`
       SELECT global_staff_id, teacher_name, staff_work_time, role
       FROM school_schema_points.teachers
       WHERE role = 'Teacher'
       ORDER BY teacher_name ASC
     `);
+    
+    console.log(`✅ Found ${result.rows.length} teacher(s)`);
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching teachers:', error);
+    console.error('❌ Error fetching teachers:', error);
     res.status(500).json({ error: 'Failed to fetch teachers', details: error.message });
   }
 });
@@ -46,17 +81,35 @@ router.get('/teachers', async (req, res) => {
 // Get all classes (for dropdown selection)
 router.get('/classes', async (req, res) => {
   try {
+    console.log('📥 GET /api/class-teacher/classes - Fetching classes...');
+    
+    // Check if classes table exists
+    const tableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'school_schema_points' 
+        AND table_name = 'classes'
+      )
+    `);
+    
+    if (!tableExists.rows[0].exists) {
+      console.log('⚠️  Classes table not found');
+      return res.json([]);
+    }
+    
     const result = await pool.query(`
       SELECT class_names FROM school_schema_points.classes WHERE id = 1
     `);
     
     if (result.rows.length > 0 && result.rows[0].class_names) {
+      console.log(`✅ Found ${result.rows[0].class_names.length} class(es)`);
       res.json(result.rows[0].class_names);
     } else {
+      console.log('⚠️  No classes defined yet');
       res.json([]);
     }
   } catch (error) {
-    console.error('Error fetching classes:', error);
+    console.error('❌ Error fetching classes:', error);
     res.status(500).json({ error: 'Failed to fetch classes', details: error.message });
   }
 });
@@ -64,6 +117,23 @@ router.get('/classes', async (req, res) => {
 // Get all class teacher assignments
 router.get('/assignments', async (req, res) => {
   try {
+    console.log('📥 GET /api/class-teacher/assignments - Fetching assignments...');
+    
+    // Ensure table exists
+    await pool.query('CREATE SCHEMA IF NOT EXISTS school_schema_points');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS school_schema_points.class_teachers (
+        id SERIAL PRIMARY KEY,
+        global_staff_id INTEGER NOT NULL,
+        teacher_name VARCHAR(100) NOT NULL,
+        assigned_class VARCHAR(100) NOT NULL,
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_active BOOLEAN DEFAULT true,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(assigned_class)
+      )
+    `);
+    
     const result = await pool.query(`
       SELECT ct.*, t.staff_work_time
       FROM school_schema_points.class_teachers ct
@@ -71,9 +141,11 @@ router.get('/assignments', async (req, res) => {
       WHERE ct.is_active = true
       ORDER BY ct.assigned_class ASC
     `);
+    
+    console.log(`✅ Found ${result.rows.length} active assignment(s)`);
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching assignments:', error);
+    console.error('❌ Error fetching assignments:', error);
     res.status(500).json({ error: 'Failed to fetch assignments', details: error.message });
   }
 });
@@ -82,11 +154,30 @@ router.get('/assignments', async (req, res) => {
 router.post('/assign', async (req, res) => {
   const { global_staff_id, teacher_name, assigned_class } = req.body;
 
+  console.log('📥 POST /api/class-teacher/assign - Assigning teacher...');
+  console.log(`   Teacher: ${teacher_name} (ID: ${global_staff_id})`);
+  console.log(`   Class: ${assigned_class}`);
+
   if (!global_staff_id || !teacher_name || !assigned_class) {
     return res.status(400).json({ error: 'global_staff_id, teacher_name, and assigned_class are required' });
   }
 
   try {
+    // Ensure table exists
+    await pool.query('CREATE SCHEMA IF NOT EXISTS school_schema_points');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS school_schema_points.class_teachers (
+        id SERIAL PRIMARY KEY,
+        global_staff_id INTEGER NOT NULL,
+        teacher_name VARCHAR(100) NOT NULL,
+        assigned_class VARCHAR(100) NOT NULL,
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_active BOOLEAN DEFAULT true,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(assigned_class)
+      )
+    `);
+    
     // Check if class already has a teacher assigned
     const existing = await pool.query(`
       SELECT * FROM school_schema_points.class_teachers 
@@ -94,13 +185,15 @@ router.post('/assign', async (req, res) => {
     `, [assigned_class]);
 
     if (existing.rows.length > 0) {
+      console.log(`   ✏️  Updating existing assignment (was: ${existing.rows[0].teacher_name})`);
       // Update existing assignment
       await pool.query(`
         UPDATE school_schema_points.class_teachers 
-        SET global_staff_id = $1, teacher_name = $2, assigned_at = CURRENT_TIMESTAMP
+        SET global_staff_id = $1, teacher_name = $2, assigned_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
         WHERE assigned_class = $3 AND is_active = true
       `, [global_staff_id, teacher_name, assigned_class]);
     } else {
+      console.log('   ➕ Creating new assignment');
       // Create new assignment
       await pool.query(`
         INSERT INTO school_schema_points.class_teachers 
@@ -109,9 +202,10 @@ router.post('/assign', async (req, res) => {
       `, [global_staff_id, teacher_name, assigned_class]);
     }
 
+    console.log(`✅ ${teacher_name} successfully assigned to ${assigned_class}`);
     res.json({ success: true, message: `${teacher_name} assigned to ${assigned_class}` });
   } catch (error) {
-    console.error('Error assigning teacher:', error);
+    console.error('❌ Error assigning teacher:', error);
     res.status(500).json({ error: 'Failed to assign teacher', details: error.message });
   }
 });
@@ -163,25 +257,123 @@ router.get('/check/:globalStaffId', async (req, res) => {
   }
 });
 
+// Get assignments by teacher name
+router.get('/teacher-assignment/:teacherName', async (req, res) => {
+  const { teacherName } = req.params;
+
+  try {
+    console.log(`📥 GET /api/class-teacher/teacher-assignment/${teacherName}`);
+    
+    const result = await pool.query(`
+      SELECT * FROM school_schema_points.class_teachers 
+      WHERE teacher_name = $1 AND is_active = true
+      ORDER BY assigned_class ASC
+    `, [teacherName]);
+
+    console.log(`✅ Found ${result.rows.length} assignment(s) for ${teacherName}`);
+    
+    res.json({
+      teacherName: teacherName,
+      assignments: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching teacher assignments:', error);
+    res.status(500).json({ error: 'Failed to fetch teacher assignments', details: error.message });
+  }
+});
+
 // Get students for a class (for attendance marking)
 router.get('/students/:className', async (req, res) => {
   const { className } = req.params;
   
   try {
+    console.log(`📥 GET /api/class-teacher/students/${className} - Fetching students...`);
+    
     const validTableName = /^[a-zA-Z0-9_]+$/.test(className);
     if (!validTableName) {
+      console.error(`❌ Invalid class name: ${className}`);
       return res.status(400).json({ error: 'Invalid class name provided.' });
     }
 
-    const result = await pool.query(`
-      SELECT school_id, class_id, student_name, age, gender, image_student
-      FROM classes_schema."${className}"
-      WHERE is_active = TRUE OR is_active IS NULL
-      ORDER BY LOWER(student_name) ASC
-    `);
-    res.json(result.rows);
+    // Try to query the table
+    try {
+      // First check if is_active column exists
+      const columnCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'classes_schema' 
+        AND table_name = $1 
+        AND column_name = 'is_active'
+      `, [className]);
+      
+      const hasIsActive = columnCheck.rows.length > 0;
+      
+      // Build query based on column existence
+      let query = `
+        SELECT school_id, class_id, student_name, age, gender, image_student
+        FROM classes_schema."${className}"
+      `;
+      
+      if (hasIsActive) {
+        query += ' WHERE is_active = TRUE OR is_active IS NULL';
+      }
+      
+      query += ' ORDER BY LOWER(student_name) ASC';
+      
+      const result = await pool.query(query);
+      
+      console.log(`✅ Found ${result.rows.length} students in ${className}`);
+      res.json(result.rows);
+    } catch (tableError) {
+      // Table might not exist or have different name
+      console.error(`❌ Error querying table ${className}:`, tableError.message);
+      
+      // Try to find similar table names
+      const similarTables = await pool.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'classes_schema' 
+        AND LOWER(table_name) = LOWER($1)
+      `, [className]);
+      
+      if (similarTables.rows.length > 0) {
+        const actualTableName = similarTables.rows[0].table_name;
+        console.log(`💡 Found similar table: ${actualTableName}`);
+        
+        // Check if is_active column exists in the actual table
+        const columnCheck = await pool.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_schema = 'classes_schema' 
+          AND table_name = $1 
+          AND column_name = 'is_active'
+        `, [actualTableName]);
+        
+        const hasIsActive = columnCheck.rows.length > 0;
+        
+        let query = `
+          SELECT school_id, class_id, student_name, age, gender, image_student
+          FROM classes_schema."${actualTableName}"
+        `;
+        
+        if (hasIsActive) {
+          query += ' WHERE is_active = TRUE OR is_active IS NULL';
+        }
+        
+        query += ' ORDER BY LOWER(student_name) ASC';
+        
+        const result = await pool.query(query);
+        
+        console.log(`✅ Found ${result.rows.length} students in ${actualTableName}`);
+        return res.json(result.rows);
+      }
+      
+      // If still not found, return empty array
+      console.log(`⚠️  No table found for class: ${className}`);
+      return res.json([]);
+    }
   } catch (error) {
-    console.error(`Error fetching students for ${className}:`, error);
+    console.error(`❌ Error fetching students for ${className}:`, error);
     res.status(500).json({ error: 'Failed to fetch students', details: error.message });
   }
 });

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FaUserEdit, FaQrcode, FaPhone, FaEnvelope, FaMapMarkerAlt, FaCalendarAlt, FaChalkboardTeacher, FaGraduationCap, FaCertificate, FaIdCard, FaLock } from 'react-icons/fa';
 import { FiEdit, FiClock, FiAward } from 'react-icons/fi';
+import StaffAttendanceWrapper from './StaffAttendanceWrapper';
 import styles from './PF.module.css';
 
 const PF = () => {
@@ -33,6 +34,7 @@ const PF = () => {
   const tabs = [
     { id: 'personal', label: 'Personal Info' },
     { id: 'work', label: 'Work Details' },
+    { id: 'attendance', label: 'Attendance' },
     { id: 'documents', label: 'Documents' },
     { id: 'password', label: 'Change Password' }
   ];
@@ -223,6 +225,12 @@ const PF = () => {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'attendance' && (
+          <div className={styles.attendanceTabContainer}>
+            <StaffAttendanceWrapper />
           </div>
         )}
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import styles from '../Finance/PaymentManagement.module.css';
-import { getCurrentEthiopianMonth, getEthiopianMonthName } from '../../utils/ethiopianCalendar';
+import { FiCalendar, FiUsers, FiClock, FiTrendingUp, FiX, FiTrash2 } from 'react-icons/fi';
+import styles from './AttendanceSystem.module.css';
+import { getCurrentEthiopianMonth, getEthiopianMonthName, ethiopianToGregorian } from '../../utils/ethiopianCalendar';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -17,9 +18,21 @@ const AttendanceSystem = () => {
   const currentEthMonth = getCurrentEthiopianMonth();
   const [selectedEthMonth, setSelectedEthMonth] = useState(currentEthMonth.month); // 1-13
   const [selectedEthYear, setSelectedEthYear] = useState(currentEthMonth.year);
+  const [activeTab, setActiveTab] = useState('shift1'); // Shift tab state
   const [showModal, setShowModal] = useState(false);
   const [showTimeModal, setShowTimeModal] = useState(false);
   const [selectedCell, setSelectedCell] = useState(null);
+  const [weekendDays, setWeekendDays] = useState([0, 6]); // Default: Sunday and Saturday
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update clock every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   // Convert 24-hour time to 12-hour format with AM/PM
   const formatTime12Hour = (time24) => {
@@ -44,6 +57,7 @@ const AttendanceSystem = () => {
   useEffect(() => {
     fetchAttendance();
     fetchStaff();
+    fetchWeekendSettings();
   }, [selectedEthMonth, selectedEthYear]);
 
   const fetchAttendance = async () => {
@@ -139,6 +153,25 @@ const AttendanceSystem = () => {
     }
   };
 
+  const fetchWeekendSettings = async () => {
+    try {
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const response = await axios.get(
+        `${API_URL}/api/hr/attendance/time-settings`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      if (response.data.success && response.data.data) {
+        const settings = response.data.data;
+        if (settings.weekend_days && Array.isArray(settings.weekend_days)) {
+          setWeekendDays(settings.weekend_days);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching weekend settings:', error);
+    }
+  };
+
   const markAttendance = async (staffId, staffName, ethDay, checkIn, checkOut) => {
     try {
       const token = localStorage.getItem('authToken') || localStorage.getItem('token');
@@ -207,6 +240,30 @@ const AttendanceSystem = () => {
     return Array.from({ length: 30 }, (_, i) => i + 1);
   };
 
+  // Check if an Ethiopian date is a weekend
+  const isWeekend = (ethDay) => {
+    const gregDate = ethiopianToGregorian(selectedEthYear, selectedEthMonth, ethDay);
+    return weekendDays.includes(gregDate.getDay());
+  };
+
+  // Get filtered days (excluding weekends)
+  const getFilteredDays = () => {
+    return getDaysInEthiopianMonth().filter(day => !isWeekend(day));
+  };
+
+  // Get day name (short format: Mon, Tue, etc.)
+  const getDayName = (ethDay) => {
+    const gregDate = ethiopianToGregorian(selectedEthYear, selectedEthMonth, ethDay);
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return dayNames[gregDate.getDay()];
+  };
+
+  // Filter staff by shift
+  const getFilteredStaff = (shiftType) => {
+    if (shiftType === 'all') return staff;
+    return staff.filter(s => s.shiftAssignment === shiftType || s.shiftAssignment === 'both');
+  };
+
   // Get attendance for specific staff and Ethiopian day (with optional shift type)
   const getAttendanceForDay = (staffId, ethDay, shiftType = null) => {
     // Get the staff member's machine_id or global_staff_id
@@ -243,7 +300,11 @@ const AttendanceSystem = () => {
   };
 
   // Calculate monthly statistics
-  const getMonthlyStats = () => {
+  const getMonthlyStats = (shiftType = 'all') => {
+    const filteredRecords = shiftType === 'all' 
+      ? attendanceRecords 
+      : attendanceRecords.filter(r => r.shift_type === shiftType);
+
     const stats = {
       totalPresent: 0,
       totalAbsent: 0,
@@ -254,7 +315,7 @@ const AttendanceSystem = () => {
       totalWithoutCheckout: 0
     };
 
-    attendanceRecords.forEach(record => {
+    filteredRecords.forEach(record => {
       const status = record.status;
       
       // Each record is counted ONCE in its primary category
@@ -288,8 +349,9 @@ const AttendanceSystem = () => {
     return stats;
   };
 
-  const stats = getMonthlyStats();
-  const days = getDaysInEthiopianMonth();
+  const stats = getMonthlyStats(activeTab === 'all' ? 'all' : activeTab);
+  const days = getFilteredDays();
+  const filteredStaff = getFilteredStaff(activeTab === 'all' ? 'all' : activeTab);
   const selectedMonthName = getEthiopianMonthName(selectedEthMonth);
 
   const handleCellClick = (staffMember, day, attendance, shiftType) => {
@@ -304,152 +366,190 @@ const AttendanceSystem = () => {
 
   return (
     <div className={styles.container}>
+      {/* Modern Header */}
       <div className={styles.header}>
-        <div>
-          <h1>Monthly Attendance System (Ethiopian Calendar)</h1>
-          <p>Track staff attendance using Ethiopian calendar months</p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <select
-            value={selectedEthMonth}
-            onChange={(e) => setSelectedEthMonth(parseInt(e.target.value))}
-            style={{
-              padding: '10px',
-              borderRadius: '8px',
-              border: '1px solid #e0e0e0',
-              fontSize: '14px',
-              minWidth: '150px'
-            }}
-          >
-            {ethiopianMonths.map((month, index) => (
-              <option key={index + 1} value={index + 1}>
-                {month}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            value={selectedEthYear}
-            onChange={(e) => setSelectedEthYear(parseInt(e.target.value))}
-            min="2010"
-            max="2030"
-            style={{
-              padding: '10px',
-              borderRadius: '8px',
-              border: '1px solid #e0e0e0',
-              fontSize: '14px',
-              width: '100px'
-            }}
-          />
+        <div className={styles.headerContent}>
+          <div className={styles.headerTitle}>
+            <FiUsers className={styles.headerIcon} />
+            <div>
+              <h1>Staff Attendance System</h1>
+              <p>Track and manage staff attendance with Ethiopian calendar</p>
+            </div>
+          </div>
+          <div className={styles.headerControls}>
+            {/* Live Clock */}
+            <div className={styles.clockContainer}>
+              <FiClock className={styles.clockIcon} />
+              <div className={styles.clockContent}>
+                <div className={styles.clockTime}>
+                  {currentTime.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit',
+                    hour12: true 
+                  })}
+                </div>
+                <div className={styles.clockDate}>
+                  {currentTime.toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })}
+                </div>
+              </div>
+            </div>
+            <select
+              value={selectedEthMonth}
+              onChange={(e) => setSelectedEthMonth(parseInt(e.target.value))}
+              className={styles.select}
+            >
+              {ethiopianMonths.map((month, index) => (
+                <option key={index + 1} value={index + 1}>{month}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              value={selectedEthYear}
+              onChange={(e) => setSelectedEthYear(parseInt(e.target.value))}
+              min="2010"
+              max="2030"
+              className={styles.yearInput}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Monthly Statistics */}
-      <div style={{ marginBottom: '24px', padding: '16px', background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#333' }}>
-          Monthly Summary - {selectedMonthName} {selectedEthYear}
-        </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
-          <div>
-            <div style={{ fontSize: '12px', color: '#666' }}>Present</div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: '#4CAF50' }}>{stats.totalPresent}</div>
+      {/* Stats Cards */}
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard} style={{ borderLeft: '4px solid #10b981' }}>
+          <div className={styles.statIcon} style={{ background: '#d1fae5' }}>
+            <FiTrendingUp style={{ color: '#10b981' }} />
           </div>
-          <div>
-            <div style={{ fontSize: '12px', color: '#666' }}>Absent</div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: '#F44336' }}>{stats.totalAbsent}</div>
+          <div className={styles.statContent}>
+            <div className={styles.statLabel}>Present</div>
+            <div className={styles.statValue}>{stats.totalPresent}</div>
           </div>
-          <div>
-            <div style={{ fontSize: '12px', color: '#666' }}>Late</div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: '#FF9800' }}>{stats.totalLate}</div>
+        </div>
+        <div className={styles.statCard} style={{ borderLeft: '4px solid #ef4444' }}>
+          <div className={styles.statIcon} style={{ background: '#fee2e2' }}>
+            <FiX style={{ color: '#ef4444' }} />
           </div>
-          <div>
-            <div style={{ fontSize: '12px', color: '#666' }}>Half Day</div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: '#2196F3' }}>{stats.totalHalfDay}</div>
+          <div className={styles.statContent}>
+            <div className={styles.statLabel}>Absent</div>
+            <div className={styles.statValue}>{stats.totalAbsent}</div>
           </div>
-          <div>
-            <div style={{ fontSize: '12px', color: '#666' }}>Late + Half Day</div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: '#FF5722' }}>{stats.totalLateHalfDay}</div>
+        </div>
+        <div className={styles.statCard} style={{ borderLeft: '4px solid #f59e0b' }}>
+          <div className={styles.statIcon} style={{ background: '#fef3c7' }}>
+            <FiClock style={{ color: '#f59e0b' }} />
           </div>
-          <div>
-            <div style={{ fontSize: '12px', color: '#666' }}>Without Check-Out</div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: '#FFC107' }}>{stats.totalWithoutCheckout}</div>
+          <div className={styles.statContent}>
+            <div className={styles.statLabel}>Late</div>
+            <div className={styles.statValue}>{stats.totalLate}</div>
           </div>
-          <div>
-            <div style={{ fontSize: '12px', color: '#666' }}>On Leave</div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: '#9C27B0' }}>{stats.totalLeave}</div>
+        </div>
+        <div className={styles.statCard} style={{ borderLeft: '4px solid #3b82f6' }}>
+          <div className={styles.statIcon} style={{ background: '#dbeafe' }}>
+            <FiCalendar style={{ color: '#3b82f6' }} />
           </div>
+          <div className={styles.statContent}>
+            <div className={styles.statLabel}>Half Day</div>
+            <div className={styles.statValue}>{stats.totalHalfDay}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Shift Tabs */}
+      <div className={styles.tabsContainer}>
+        <div className={styles.tabs}>
+          <button
+            className={`${styles.tab} ${activeTab === 'all' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('all')}
+          >
+            <span className={styles.tabIcon}>📊</span>
+            All Staff
+          </button>
+          <button
+            className={`${styles.tab} ${activeTab === 'shift1' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('shift1')}
+          >
+            <span className={styles.tabIcon}>🌅</span>
+            Shift 1 (Morning)
+          </button>
+          <button
+            className={`${styles.tab} ${activeTab === 'shift2' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('shift2')}
+          >
+            <span className={styles.tabIcon}>🌆</span>
+            Shift 2 (Afternoon)
+          </button>
         </div>
       </div>
 
       {/* Legend */}
-      <div style={{ marginBottom: '16px', padding: '12px', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '13px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '20px', height: '20px', background: '#4CAF50', borderRadius: '4px', display: 'inline-block' }}></span>
-            <span>P - Present</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '20px', height: '20px', background: '#F44336', borderRadius: '4px', display: 'inline-block' }}></span>
-            <span>A - Absent</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '20px', height: '20px', background: '#FF9800', borderRadius: '4px', display: 'inline-block' }}></span>
-            <span>L - Late</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '20px', height: '20px', background: '#2196F3', borderRadius: '4px', display: 'inline-block' }}></span>
-            <span>H - Half Day</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '20px', height: '20px', background: '#FF5722', borderRadius: '4px', display: 'inline-block' }}></span>
-            <span>L+H - Late + Half Day</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '20px', height: '20px', background: '#FFC107', borderRadius: '4px', display: 'inline-block' }}></span>
-            <span>NCO - No Check-Out</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '20px', height: '20px', background: '#9C27B0', borderRadius: '4px', display: 'inline-block' }}></span>
-            <span>V - Leave</span>
-          </div>
+      <div className={styles.legend}>
+        <div className={styles.legendItem}>
+          <span className={styles.legendBadge} style={{ background: '#10b981' }}>P</span>
+          <span>Present</span>
+        </div>
+        <div className={styles.legendItem}>
+          <span className={styles.legendBadge} style={{ background: '#ef4444' }}>A</span>
+          <span>Absent</span>
+        </div>
+        <div className={styles.legendItem}>
+          <span className={styles.legendBadge} style={{ background: '#f59e0b' }}>L</span>
+          <span>Late</span>
+        </div>
+        <div className={styles.legendItem}>
+          <span className={styles.legendBadge} style={{ background: '#3b82f6' }}>H</span>
+          <span>Half Day</span>
+        </div>
+        <div className={styles.legendItem}>
+          <span className={styles.legendBadge} style={{ background: '#8b5cf6' }}>V</span>
+          <span>Leave</span>
+        </div>
+        <div className={styles.legendItem}>
+          <span className={styles.legendBadge} style={{ background: '#fbbf24' }}>*</span>
+          <span>No Check-Out</span>
         </div>
       </div>
 
+      {/* Attendance Table */}
       {loading ? (
-        <div className={styles.loading}>Loading attendance...</div>
+        <div className={styles.loading}>
+          <div className={styles.spinner}></div>
+          <p>Loading attendance data...</p>
+        </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', background: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', fontSize: '13px' }}>
+        <div className={styles.tableContainer}>
+          <table className={styles.table}>
             <thead>
-              <tr style={{ background: '#f5f5f5' }}>
-                <th style={{ padding: '12px', textAlign: 'left', position: 'sticky', left: 0, background: '#f5f5f5', zIndex: 10, minWidth: '150px' }}>
-                  Staff Name
-                </th>
-                <th style={{ padding: '12px', textAlign: 'center', position: 'sticky', left: '150px', background: '#f5f5f5', zIndex: 10, minWidth: '80px' }}>
-                  Machine ID
-                </th>
-                <th style={{ padding: '12px', textAlign: 'left', position: 'sticky', left: '230px', background: '#f5f5f5', zIndex: 10, minWidth: '120px' }}>
-                  Department
-                </th>
+              <tr>
+                <th className={styles.stickyCol}>Staff Name</th>
+                <th className={styles.stickyCol2}>Machine ID</th>
+                <th className={styles.stickyCol3}>Department</th>
                 {days.map(day => (
-                  <th key={day} style={{ padding: '8px', textAlign: 'center', minWidth: '80px', fontWeight: 600 }}>
-                    {day}/{selectedEthMonth}
+                  <th key={day} className={styles.dayHeader}>
+                    <div className={styles.dayNumber}>{day}</div>
+                    <div className={styles.dayName}>{getDayName(day)}</div>
                   </th>
                 ))}
-                <th style={{ padding: '12px', textAlign: 'center', minWidth: '80px', fontWeight: 600 }}>
-                  Total P
-                </th>
+                <th className={styles.totalHeader}>Total P</th>
               </tr>
             </thead>
             <tbody>
-              {staff.length === 0 ? (
-                <tr><td colSpan={days.length + 4} className={styles.noData}>No staff found</td></tr>
+              {filteredStaff.length === 0 ? (
+                <tr>
+                  <td colSpan={days.length + 4} className={styles.noData}>
+                    No staff found for this shift
+                  </td>
+                </tr>
               ) : (
-                staff.flatMap(staffMember => {
+                filteredStaff.flatMap(staffMember => {
                   // For staff with "both" shifts, create 2 rows (one for each shift)
-                  const shifts = staffMember.shiftAssignment === 'both' 
-                    ? ['shift1', 'shift2'] 
-                    : [staffMember.shiftAssignment];
+                  const shifts = activeTab === 'all' && staffMember.shiftAssignment === 'both'
+                    ? ['shift1', 'shift2']
+                    : [activeTab === 'all' ? staffMember.shiftAssignment : activeTab];
 
                   return shifts.map((shiftType, shiftIndex) => {
                     const presentCount = days.filter(day => {
@@ -457,109 +557,71 @@ const AttendanceSystem = () => {
                       return attendance?.status === 'PRESENT';
                     }).length;
 
-                    const shiftLabel = shiftType === 'shift1' ? '🌅 S1' : '🌆 S2';
-                    const showName = shiftIndex === 0; // Only show name on first row for "both" staff
+                    const showName = shiftIndex === 0;
 
                     return (
-                      <tr key={`${staffMember.id}-${shiftType}`} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                        <td style={{ padding: '12px', fontWeight: 600, position: 'sticky', left: 0, background: 'white', zIndex: 5 }}>
+                      <tr key={`${staffMember.id}-${shiftType}`}>
+                        <td className={styles.stickyCol}>
                           {showName ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div className={styles.staffName}>
                               <span>{staffMember.name}</span>
-                              <span style={{
-                                display: 'inline-block',
-                                padding: '2px 8px',
-                                background: getShiftBadge(staffMember.shiftAssignment).bg,
-                                color: getShiftBadge(staffMember.shiftAssignment).color,
-                                borderRadius: '8px',
-                                fontSize: '11px',
-                                fontWeight: 600
-                              }}>
-                                {getShiftBadge(staffMember.shiftAssignment).icon} {getShiftBadge(staffMember.shiftAssignment).label}
-                              </span>
+                              {staffMember.shiftAssignment === 'both' && (
+                                <span className={styles.bothBadge}>Both Shifts</span>
+                              )}
                             </div>
                           ) : (
-                            <div style={{ paddingLeft: '20px', fontSize: '12px', color: '#666' }}>
-                              {shiftLabel}
+                            <div className={styles.shiftLabel}>
+                              {shiftType === 'shift1' ? '🌅 S1' : '🌆 S2'}
                             </div>
                           )}
                         </td>
-                        <td style={{ padding: '12px', textAlign: 'center', position: 'sticky', left: '150px', background: 'white', zIndex: 5 }}>
+                        <td className={styles.stickyCol2}>
                           {showName && (
-                            <span style={{
-                              display: 'inline-block',
-                              padding: '4px 12px',
-                              background: staffMember.machineId ? '#e3f2fd' : '#f5f5f5',
-                              border: `2px solid ${staffMember.machineId ? '#2196F3' : '#e0e0e0'}`,
-                              borderRadius: '12px',
-                              fontSize: '13px',
-                              fontWeight: 700,
-                              color: staffMember.machineId ? '#1976d2' : '#999'
-                            }}>
+                            <span className={`${styles.machineId} ${staffMember.machineId ? styles.machineIdActive : ''}`}>
                               {staffMember.machineId || 'N/A'}
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: '12px', color: '#666', position: 'sticky', left: '230px', background: 'white', zIndex: 5 }}>
+                        <td className={styles.stickyCol3}>
                           {showName ? staffMember.department : ''}
                         </td>
                         {days.map(day => {
                           const attendance = getAttendanceForDay(staffMember.id, day, shiftType);
                           
                           return (
-                            <td key={day} style={{ padding: '4px', textAlign: 'center' }}>
+                            <td key={day} className={styles.dayCell}>
                               <div
-                                onClick={() => handleCellClick(staffMember, day, attendance, shiftType)}
+                                className={styles.attendanceCell}
                                 style={{
-                                  minHeight: '50px',
-                                  padding: '4px',
-                                  borderRadius: '6px',
-                                  background: attendance ? getStatusColor(attendance.status) + '20' : '#f5f5f5',
-                                  border: `2px solid ${attendance ? getStatusColor(attendance.status) : '#e0e0e0'}`,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                justifyContent: 'center',
-                                alignItems: 'center'
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                            >
-                              {attendance ? (
-                                <>
-                                  <div style={{ 
-                                    fontSize: '16px', 
-                                    fontWeight: 700, 
-                                    color: getStatusColor(attendance.status),
-                                    marginBottom: '2px',
-                                    textAlign: 'center'
-                                  }}>
-                                    {getStatusBadge(attendance.status)}
-                                  </div>
-                                  {attendance.check_in && (
-                                    <div style={{ fontSize: '9px', color: '#666' }}>
-                                      {formatTime12Hour(attendance.check_in)}
+                                  background: attendance ? `${getStatusColor(attendance.status)}15` : '#f9fafb',
+                                  borderColor: attendance ? getStatusColor(attendance.status) : '#e5e7eb'
+                                }}
+                                onClick={() => handleCellClick(staffMember, day, attendance, shiftType)}
+                              >
+                                {attendance ? (
+                                  <>
+                                    <div 
+                                      className={styles.statusBadge}
+                                      style={{ color: getStatusColor(attendance.status) }}
+                                    >
+                                      {getStatusBadge(attendance.status)}
                                     </div>
-                                  )}
-                                  {attendance.check_out && (
-                                    <div style={{ fontSize: '9px', color: '#666' }}>
-                                      {formatTime12Hour(attendance.check_out)}
-                                    </div>
-                                  )}
-                                </>
-                              ) : (
-                                <div style={{ fontSize: '14px', color: '#999' }}>-</div>
-                              )}
-                            </div>
-                          </td>
-                        );
-                      })}
-                      <td style={{ padding: '12px', textAlign: 'center', fontWeight: 700, color: '#4CAF50' }}>
-                        {presentCount}
-                      </td>
-                    </tr>
-                  );
+                                    {attendance.check_in && (
+                                      <div className={styles.timeText}>
+                                        {formatTime12Hour(attendance.check_in)}
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <div className={styles.emptyCell}>-</div>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })}
+                        <td className={styles.totalCell}>{presentCount}</td>
+                      </tr>
+                    );
                   });
                 })
               )}

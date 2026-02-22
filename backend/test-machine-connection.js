@@ -6,7 +6,7 @@ console.log('🔍 ATTENDANCE MACHINE CONNECTION CHECKER\n');
 console.log('=' .repeat(60));
 
 // Configuration
-const MACHINE_IP = '192.168.1.201';
+const MACHINE_IP = '192.168.1.2';
 const WEBSOCKET_PORT = 7788;
 const TCP_PORT = 4370;
 

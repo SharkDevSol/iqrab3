@@ -14,7 +14,7 @@ import {
   FiSearch, FiAward,
   FiPieChart, FiDatabase,
   FiCheckCircle, FiDollarSign, FiTrendingUp,
-  FiShoppingCart, FiPackage, FiTool, FiClock
+  FiShoppingCart, FiPackage, FiTool, FiClock, FiBell, FiRefreshCw
 } from "react-icons/fi";
 import { FaGraduationCap, FaChalkboardTeacher, FaRegCalendarAlt } from "react-icons/fa";
 
@@ -36,6 +36,12 @@ const Home = () => {
   });
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    window.location.reload();
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -278,6 +284,11 @@ const Home = () => {
           label: '⏰ Time & Shift Settings',
         },
         {
+          path: "/hr/staff-specific-timing",
+          icon: <FiClock className={styles.navIcon} />,
+          label: '👤 Staff-Specific Timing',
+        },
+        {
           path: "/hr/attendance-deduction-settings",
           icon: <FiSettings className={styles.navIcon} />,
           label: '⚙️ Attendance Deductions',
@@ -375,6 +386,11 @@ const Home = () => {
           path: "/communication",
           icon: <FiMessageSquare className={styles.navIcon} />,
           label: t('communication'),
+        },
+        {
+          path: "/guardian-notifications",
+          icon: <FiBell className={styles.navIcon} />,
+          label: 'Guardian Notifications',
         },
         {
           path: "/class-teacher-assignment",
@@ -497,6 +513,19 @@ const Home = () => {
           </div>
 
           <div className={styles.profileControls}>
+            <motion.button
+              className={styles.refreshBtn}
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              title={t('refresh') || 'Refresh'}
+            >
+              <FiRefreshCw 
+                className={`${styles.refreshIcon} ${isRefreshing ? styles.spinning : ''}`} 
+              />
+            </motion.button>
+
             <motion.div 
               className={styles.profileDropdown}
               onClick={() => setProfileOpen(!profileOpen)}
@@ -563,22 +592,37 @@ const Home = () => {
 
           <div className={styles.logoText}>Skoolific</div>
 
-          <motion.div 
-            className={styles.profileDropdown}
-            onClick={() => setProfileOpen(!profileOpen)}
-            whileHover={{ scale: 1.02 }}
-          >
-            <div className={styles.profileAvatar}>
-              {profile.profileImage ? (
-                <img src={profile.profileImage} alt="Profile" className={styles.avatarImage} />
-              ) : (
-                <FiProfile className={styles.avatarIcon} />
-              )}
-            </div>
-            <FiChevronDown 
-              className={`${styles.dropdownArrow} ${profileOpen ? styles.rotated : ''}`} 
-            />
-          </motion.div>
+          <div className={styles.mobileHeaderControls}>
+            <motion.button
+              className={styles.refreshBtn}
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              title={t('refresh') || 'Refresh'}
+            >
+              <FiRefreshCw 
+                className={`${styles.refreshIcon} ${isRefreshing ? styles.spinning : ''}`} 
+              />
+            </motion.button>
+
+            <motion.div 
+              className={styles.profileDropdown}
+              onClick={() => setProfileOpen(!profileOpen)}
+              whileHover={{ scale: 1.02 }}
+            >
+              <div className={styles.profileAvatar}>
+                {profile.profileImage ? (
+                  <img src={profile.profileImage} alt="Profile" className={styles.avatarImage} />
+                ) : (
+                  <FiProfile className={styles.avatarIcon} />
+                )}
+              </div>
+              <FiChevronDown 
+                className={`${styles.dropdownArrow} ${profileOpen ? styles.rotated : ''}`} 
+              />
+            </motion.div>
+          </div>
         </motion.header>
       )}
 

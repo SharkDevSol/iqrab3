@@ -290,14 +290,28 @@ class StudentAttendanceAutoMarker {
 
     this.isRunning = true;
     console.log('🤖 Student attendance auto-marker started');
+    console.log('   ⏰ Will run every hour');
+    console.log('   📅 Marks students absent after 9:00 AM (Shift 1) or 2:00 PM (Shift 2)');
 
-    // Run immediately on startup
-    markAbsentStudents();
+    // Run immediately on startup (with error handling)
+    this.runSafely();
 
     // Then run every hour (3600000 ms)
     this.interval = setInterval(() => {
-      markAbsentStudents();
+      this.runSafely();
     }, 3600000); // 1 hour
+  }
+
+  // Run with error handling and recovery
+  async runSafely() {
+    try {
+      console.log('\n⏰ [Auto-Marker] Running scheduled check...');
+      await markAbsentStudents();
+    } catch (error) {
+      console.error('❌ [Auto-Marker] Error during execution:', error.message);
+      console.error('   Will retry in next cycle (1 hour)');
+      // Don't stop the interval - just log the error and continue
+    }
   }
 
   // Stop the auto-marker

@@ -39,6 +39,7 @@ const Guardian = () => {
     { path: 'wards', icon: <FiUsers size={20} />, label: 'My Wards' },
     { path: 'attendance', icon: <FiCalendar size={20} />, label: 'Attendance' },
     { path: 'marks', icon: <FiFileText size={20} />, label: 'Marks' },
+    { path: 'notifications', icon: <FiBell size={20} />, label: 'Notifications' },
     { path: 'messages', icon: <FiMessageSquare size={20} />, label: 'Messages' },
     { path: 'profile', icon: <FiUser size={20} />, label: 'Profile' }
   ];
