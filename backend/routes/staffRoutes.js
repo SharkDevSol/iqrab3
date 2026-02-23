@@ -1994,7 +1994,7 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     // Fetch all staff from staff_users table
     const usersResult = await pool.query(
-      `SELECT global_staff_id, username, staff_type, class_name
+      `SELECT global_staff_id, username, password, staff_type, class_name
        FROM staff_users
        WHERE global_staff_id IS NOT NULL
        ORDER BY username`
@@ -2032,6 +2032,7 @@ router.get('/', authenticateToken, async (req, res) => {
             id: user.global_staff_id,
             global_staff_id: user.global_staff_id,
             username: user.username,
+            password: user.password,
             name: details.name,
             firstName: details.name.split(' ')[0],
             lastName: details.name.split(' ').slice(1).join(' ') || '',
@@ -2048,6 +2049,7 @@ router.get('/', authenticateToken, async (req, res) => {
             id: user.global_staff_id,
             global_staff_id: user.global_staff_id,
             username: user.username,
+            password: user.password,
             name: user.username,
             firstName: user.username,
             lastName: '',
@@ -2063,6 +2065,7 @@ router.get('/', authenticateToken, async (req, res) => {
           id: user.global_staff_id,
           global_staff_id: user.global_staff_id,
           username: user.username,
+          password: user.password,
           name: user.username,
           firstName: user.username,
           lastName: '',
@@ -2282,8 +2285,11 @@ router.post('/bulk-import', async (req, res) => {
         currentStaffId++;
         
         // Generate credentials
-        const username = `${staffData.name.toLowerCase().replace(/\s/g, '')}_${Math.floor(Math.random() * 10000)}`;
-        const password = require('uuid').v4().slice(0, 8);
+        const nameParts = staffData.name.toLowerCase().trim().split(/\s+/);
+        const firstName = nameParts[0] || 'staff';
+        const lastName = nameParts[nameParts.length - 1] || '';
+        const username = lastName ? `${firstName}_${lastName}_${globalStaffId}` : `${firstName}_${globalStaffId}`;
+        const password = `staff${globalStaffId}2024`;
         
         // Build insert data
         const insertData = {
@@ -2334,11 +2340,29 @@ router.post('/bulk-import', async (req, res) => {
         const insertQuery = `INSERT INTO "${schema}"."${sanitizedClassName}" (${columns.join(', ')}) VALUES (${placeholders})`;
         await client.query(insertQuery, values);
         
-        // Create user account
+        // Insert into staff_users table for authentication
         try {
-          await createStaffUser(globalStaffId, staffData.name, staffType, sanitizedClassName);
+          await client.query(`
+            INSERT INTO public.staff_users 
+            (global_staff_id, name, role, staff_work_time, staff_enrollment_type, username, password, staff_type, phone, email, is_active)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            ON CONFLICT (global_staff_id) DO NOTHING
+          `, [
+            globalStaffId,
+            staffData.name,
+            staffData.role || 'Staff',
+            insertData.staff_work_time,
+            staffData.staff_enrollment_type || 'Permanent',
+            username,
+            password,
+            staffType,
+            staffData.phone || null,
+            staffData.email || null,
+            true
+          ]);
         } catch (userErr) {
           console.error(`User creation error for ${staffData.name}:`, userErr);
+          // Don't fail the whole import if user creation fails
         }
         
         // Add to teachers table if role is Teacher
