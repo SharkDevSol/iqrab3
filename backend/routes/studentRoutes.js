@@ -654,7 +654,12 @@ router.post('/add-student', upload.any(), async (req, res) => {
     const values = columns.map(key => insertData[key]);
     const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
     
+    console.log(`DEBUG: className = "${className}"`);
+    console.log(`DEBUG: columns = [${columns.join(', ')}]`);
+    console.log(`DEBUG: placeholders = ${placeholders}`);
+    
     const insertQuery = `INSERT INTO classes_schema."${className}" (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
+    console.log(`DEBUG: Full INSERT query = ${insertQuery}`);
     const result = await client.query(insertQuery, values);
     
     // Add to global machine ID tracker if smachine_id was provided
