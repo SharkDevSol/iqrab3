@@ -549,11 +549,17 @@ router.post('/add-student', upload.any(), async (req, res) => {
       console.log(`Creating new guardian: ${guardianUsername} for phone ${formData.guardian_phone}`);
     }
     
+    console.log(`DEBUG: About to get columns for className = "${className}"`);
+    console.log(`DEBUG: formData.class = "${formData.class}"`);
+    
     // Get columns with their data types
     const columnsResult = await client.query(
       'SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2',
       ['classes_schema', className]
     );
+    
+    console.log(`DEBUG: Found ${columnsResult.rows.length} columns for table ${className}`);
+    console.log(`DEBUG: Columns: ${columnsResult.rows.map(r => r.column_name).join(', ')}`);
     
     const validColumns = columnsResult.rows.map(row => row.column_name);
     
