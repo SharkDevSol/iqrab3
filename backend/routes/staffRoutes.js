@@ -2337,11 +2337,19 @@ router.post('/bulk-import', async (req, res) => {
         const values = columns.map(key => insertData[key]);
         const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(', ');
         
+        console.log(`[Row ${i + 2}] Starting insert for ${staffData.name}`);
+        console.log(`[Row ${i + 2}] global_staff_id=${globalStaffId}, staff_id=${currentStaffId}`);
+        
         const insertQuery = `INSERT INTO "${schema}"."${sanitizedClassName}" (${columns.join(', ')}) VALUES (${placeholders})`;
+        console.log(`[Row ${i + 2}] Query: ${insertQuery}`);
+        console.log(`[Row ${i + 2}] Values:`, values);
+        
         await client.query(insertQuery, values);
+        console.log(`[Row ${i + 2}] Main table insert successful`);
         
         // Insert into staff_users table for authentication
         try {
+          console.log(`[Row ${i + 2}] Inserting into staff_users for ${staffData.name}`);
           await client.query(`
             INSERT INTO public.staff_users 
             (global_staff_id, name, role, staff_work_time, staff_enrollment_type, username, password, staff_type, phone, email, is_active)
@@ -2360,8 +2368,9 @@ router.post('/bulk-import', async (req, res) => {
             staffData.email || null,
             true
           ]);
+          console.log(`[Row ${i + 2}] staff_users insert successful`);
         } catch (userErr) {
-          console.error(`User creation error for ${staffData.name}:`, userErr);
+          console.error(`[Row ${i + 2}] User creation error for ${staffData.name}:`, userErr.message);
           // Don't fail the whole import if user creation fails
         }
         
