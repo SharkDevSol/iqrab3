@@ -2267,7 +2267,12 @@ router.post('/bulk-import', async (req, res) => {
     for (let i = 0; i < staff.length; i++) {
       const staffData = staff[i];
       
+      // Start a new transaction for each staff member
+      const staffClient = await pool.connect();
+      
       try {
+        await staffClient.query('BEGIN');
+        
         // Validate required fields
         if (!staffData.name) {
           results.failedCount++;
@@ -2275,6 +2280,8 @@ router.post('/bulk-import', async (req, res) => {
             row: i + 2,
             error: 'Missing required field: name'
           });
+          await staffClient.query('ROLLBACK');
+          staffClient.release();
           continue;
         }
         
@@ -2344,13 +2351,13 @@ router.post('/bulk-import', async (req, res) => {
         console.log(`[Row ${i + 2}] Query: ${insertQuery}`);
         console.log(`[Row ${i + 2}] Values:`, values);
         
-        await client.query(insertQuery, values);
+        await staffClient.query(insertQuery, values);
         console.log(`[Row ${i + 2}] Main table insert successful`);
         
         // Insert into staff_users table for authentication
         try {
           console.log(`[Row ${i + 2}] Inserting into staff_users for ${staffData.name}`);
-          await client.query(`
+          await staffClient.query(`
             INSERT INTO public.staff_users 
             (global_staff_id, name, role, staff_work_time, staff_enrollment_type, username, password, staff_type, phone, email, is_active)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -2378,7 +2385,7 @@ router.post('/bulk-import', async (req, res) => {
         if (staffData.role === 'Teacher') {
           try {
             await addTeacherToSchoolSchemaPoints(
-              client,
+              staffClient,
               globalStaffId,
               staffData.name,
               insertData.staff_work_time || 'Full Time',
@@ -2386,7 +2393,7 @@ router.post('/bulk-import', async (req, res) => {
               staffData.staff_enrollment_type || 'Permanent'
             );
           } catch (teacherErr) {
-            console.error(`Teacher table error for ${staffData.name}:`, teacherErr);
+            console.error(`Teacher table error for ${staffData.name}:`, teacherErr.message);
           }
         }
         
@@ -2399,14 +2406,14 @@ router.post('/bulk-import', async (req, res) => {
               : { work_days: [1, 2, 3, 4, 5], preferred_shifts: ['morning', 'afternoon'], availability: [], max_hours_per_day: 8, max_hours_per_week: 40 };
             
             await addTeacherToScheduleSystem(
-              client,
+              staffClient,
               globalStaffId,
               staffData.name,
               sched,
               isPart ? 'part_time' : 'full_time'
             );
           } catch (schedErr) {
-            console.error(`Schedule error for ${staffData.name}:`, schedErr);
+            console.error(`Schedule error for ${staffData.name}:`, schedErr.message);
           }
         }
         
@@ -2417,14 +2424,18 @@ router.post('/bulk-import', async (req, res) => {
                                 role === 'Guard' ? 'guard' : 
                                 role === 'Cleaner' ? 'cleaner' : 'other';
           
-          await initializeStaffAttendanceProfile(client, globalStaffId, staffData.name, attendanceRole);
+          await initializeStaffAttendanceProfile(staffClient, globalStaffId, staffData.name, attendanceRole);
         } catch (attErr) {
-          console.error(`Attendance profile error for ${staffData.name}:`, attErr);
+          console.error(`Attendance profile error for ${staffData.name}:`, attErr.message);
         }
         
+        await staffClient.query('COMMIT');
+        staffClient.release();
         results.successCount++;
         
       } catch (err) {
+        await staffClient.query('ROLLBACK');
+        staffClient.release();
         console.error(`Error inserting staff at row ${i + 2}:`, err);
         results.failedCount++;
         results.errors.push({
@@ -2435,7 +2446,7 @@ router.post('/bulk-import', async (req, res) => {
       }
     }
     
-    // Update staff IDs
+    // Update staff IDs using the main client
     await updateStaffIds(schema, sanitizedClassName, client);
     
     await client.query('COMMIT');
