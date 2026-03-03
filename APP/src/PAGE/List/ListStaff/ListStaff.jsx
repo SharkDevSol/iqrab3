@@ -13,6 +13,7 @@ import { getFileType, getFileIcon, isFileField, getFileUrl, formatLabel, getFile
 import { useApp } from '../../../context/AppContext';
 import styles from './ListStaff.module.css';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const ListStaff = () => {
   const { t } = useApp();
   const navigate = useNavigate();
@@ -56,11 +57,11 @@ const ListStaff = () => {
       
       for (const staffType of types) {
         try {
-          const classesResponse = await axios.get(`http://localhost:5000/api/staff/classes?staffType=${encodeURIComponent(staffType)}`);
+          const classesResponse = await axios.get(`${API_BASE_URL}/staff/classes?staffType=${encodeURIComponent(staffType)}`);
           if (classesResponse.data.length > 0) foundTypes.push(staffType);
           
           for (const className of classesResponse.data) {
-            const dataResponse = await axios.get(`http://localhost:5000/api/staff/data/${staffType}/${className}${includeInactiveParam}`);
+            const dataResponse = await axios.get(`${API_BASE_URL}/staff/data/${staffType}/${className}${includeInactiveParam}`);
             const staffWithMeta = dataResponse.data.data.map((staff, idx) => ({ 
               ...staff, 
               staffType, 
@@ -117,7 +118,7 @@ const ListStaff = () => {
       
       try {
         await axios.put(
-          `http://localhost:5000/api/staff/toggle-active/${staff.global_staff_id || staff.id}`,
+          `${API_BASE_URL}/staff/toggle-active/${staff.global_staff_id || staff.id}`,
           { is_active: true }
         );
         alert('Staff activated successfully! They are now visible in all system lists.');
@@ -132,7 +133,7 @@ const ListStaff = () => {
       
       try {
         await axios.put(
-          `http://localhost:5000/api/staff/toggle-active/${staff.global_staff_id || staff.id}`,
+          `${API_BASE_URL}/staff/toggle-active/${staff.global_staff_id || staff.id}`,
           { is_active: false }
         );
         alert('Staff deactivated successfully! They are now hidden from all system lists.');
@@ -152,7 +153,7 @@ const ListStaff = () => {
     // Fetch column metadata for proper field rendering
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/staff/columns/${encodeURIComponent(staff.staffType)}/${encodeURIComponent(staff.className)}`
+        `${API_BASE_URL}/staff/columns/${encodeURIComponent(staff.staffType)}/${encodeURIComponent(staff.className)}`
       );
       setColumnMetadata(response.data || []);
     } catch (error) {
@@ -337,7 +338,7 @@ const ListStaff = () => {
       });
 
       await axios.put(
-        `http://localhost:5000/api/staff/update/${selectedStaff.global_staff_id || selectedStaff.id}`,
+        `${API_BASE_URL}/staff/update/${selectedStaff.global_staff_id || selectedStaff.id}`,
         formDataToSend,
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
