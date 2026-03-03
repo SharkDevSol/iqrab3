@@ -206,14 +206,14 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.) in development
-    if (!origin && process.env.NODE_ENV !== 'production') {
+    // Allow requests with no origin (mobile apps, curl, Postman, etc.)
+    if (!origin) {
       return callback(null, true);
     }
     
     // In development, allow all local network IPs
     if (process.env.NODE_ENV !== 'production') {
-      if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || 
+      if (origin.includes('localhost') || origin.includes('127.0.0.1') || 
           origin.match(/^http:\/\/192\.168\.\d+\.\d+/) || 
           origin.match(/^http:\/\/172\.\d+\.\d+\.\d+/) ||
           origin.match(/^http:\/\/10\.\d+\.\d+\.\d+/)) {
@@ -221,9 +221,12 @@ app.use(cors({
       }
     }
     
+    // Check if origin is in allowed list
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
+    
+    console.log('CORS blocked origin:', origin);
     callback(new Error('Not allowed by CORS'));
   },
   methods: 'GET,POST,PUT,DELETE,PATCH',
