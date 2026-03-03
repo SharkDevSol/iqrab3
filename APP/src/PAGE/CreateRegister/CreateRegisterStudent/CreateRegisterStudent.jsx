@@ -11,6 +11,9 @@ import axios from 'axios';
 import * as XLSX from 'xlsx';
 import styles from './CreateRegisterStudent.module.css';
 
+// API base URL - use environment variable or fallback to localhost
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 const AddStudentS = () => {
   const { register, handleSubmit, formState: { errors }, setValue, reset, control, clearErrors, trigger } = useForm({
     mode: 'onChange',
@@ -165,7 +168,7 @@ const AddStudentS = () => {
 
   useEffect(() => {
     setIsLoading(true);
-    axios.get('http://localhost:5000/api/students/classes', { timeout: 10000 })
+    axios.get(`${API_BASE_URL}/students/classes`, { timeout: 10000 })
       .then(response => {
         if (response.data && Array.isArray(response.data) && response.data.length > 0) {
           setAvailableClasses(response.data);
@@ -185,7 +188,7 @@ const AddStudentS = () => {
       .finally(() => setIsLoading(false));
 
     // Fetch form structure with custom field metadata
-    axios.get('http://localhost:5000/api/students/form-structure', { timeout: 10000 })
+    axios.get(`${API_BASE_URL}/students/form-structure`, { timeout: 10000 })
       .then(response => {
         // Ensure we have a valid structure with arrays
         const data = response.data || {};
@@ -232,7 +235,7 @@ const AddStudentS = () => {
     if (!className) return;
     setIsLoading(true);
     try {
-      const response = await axios.get(`http://localhost:5000/api/students/columns/${className}`, { timeout: 10000 });
+      const response = await axios.get(`${API_BASE_URL}/students/columns/${className}`, { timeout: 10000 });
       if (response.data && Array.isArray(response.data)) {
         setTableColumns(response.data.filter(col => !['username', 'password', 'guardian_username', 'guardian_password'].includes(col.column_name)));
       } else {
@@ -258,7 +261,7 @@ const AddStudentS = () => {
     
     try {
       setIsLoading(true);
-      const response = await axios.get(`http://localhost:5000/api/students/search-guardian/${encodeURIComponent(phone)}`, { timeout: 10000 });
+      const response = await axios.get(`${API_BASE_URL}/students/search-guardian/${encodeURIComponent(phone)}`, { timeout: 10000 });
       setFetchedGuardian({
         name: response.data.guardian_name,
         phone,
@@ -379,7 +382,7 @@ const AddStudentS = () => {
     if (window.confirm('Are you sure you want to delete the form structure? This will drop all class tables.')) {
       setIsLoading(true);
       try {
-        await axios.delete('http://localhost:5000/api/students/delete-form');
+        await axios.delete(`${API_BASE_URL}/students/delete-form`);
         setAvailableClasses([]);
         setTableColumns([]);
         setSelectedClass('');
@@ -442,7 +445,7 @@ const AddStudentS = () => {
           }
           
           // Send data to backend for bulk import
-          const response = await axios.post('http://localhost:5000/api/students/bulk-import', {
+          const response = await axios.post(`${API_BASE_URL}/students/bulk-import`, {
             className: selectedClass,
             students: data
           }, { timeout: 30000 });
@@ -525,7 +528,7 @@ const AddStudentS = () => {
         }
       });
 
-      const response = await axios.post('http://localhost:5000/api/students/add-student', formData, {
+      const response = await axios.post(`${API_BASE_URL}/students/add-student`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 10000
       });
