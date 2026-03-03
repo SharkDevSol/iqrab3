@@ -10,6 +10,9 @@ import styles from './CreateRegisterStaff.module.css';
 import StaffForm from './StaffForm';
 import { useApp } from '../../../context/AppContext';
 
+// API base URL - use environment variable or fallback to localhost
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 const CreateRegisterStaff = () => {
   const { t } = useApp();
   const [staffType, setStaffType] = useState('');
@@ -33,7 +36,7 @@ const CreateRegisterStaff = () => {
   const fetchClasses = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:5000/api/staff/classes?staffType=${encodeURIComponent(staffType)}`);
+      const response = await axios.get(`${API_BASE_URL}/staff/classes?staffType=${encodeURIComponent(staffType)}`);
       setClasses(response.data);
       setMessage({ type: '', text: '' });
     } catch (error) {
@@ -55,7 +58,7 @@ const CreateRegisterStaff = () => {
     
     setLoading(true);
     try {
-      await axios.delete('http://localhost:5000/api/staff/delete-form', {
+      await axios.delete(`${API_BASE_URL}/staff/delete-form`, {
         data: { staffType, className: cls }
       });
       setMessage({ type: 'success', text: 'Form deleted successfully' });
