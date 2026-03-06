@@ -14,7 +14,7 @@ import {
   FiSearch, FiAward,
   FiPieChart, FiDatabase,
   FiCheckCircle, FiDollarSign, FiTrendingUp,
-  FiShoppingCart, FiPackage, FiTool, FiClock, FiBell, FiRefreshCw
+  FiShoppingCart, FiPackage, FiTool, FiClock, FiBell, FiRefreshCw, FiAlertCircle
 } from "react-icons/fi";
 import { FaGraduationCap, FaChalkboardTeacher, FaRegCalendarAlt } from "react-icons/fa";
 
@@ -374,6 +374,11 @@ const Home = () => {
           path: "/tasks",
           icon: <FiCheckCircle className={styles.navIcon} />,
           label: t('tasks'),
+        },
+        {
+          path: "/faults",
+          icon: <FiAlertCircle className={styles.navIcon} />,
+          label: 'Student Faults',
         },
       ],
     },

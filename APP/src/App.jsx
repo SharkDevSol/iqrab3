@@ -113,6 +113,9 @@ import AttendanceReport from "./PAGE/Reports/AttendanceReport";
 import BehaviorReport from "./PAGE/Reports/BehaviorReport";
 import EvaluationsReport from "./PAGE/Reports/EvaluationsReport";
 
+// Faults Page
+import FaultsPage from "./PAGE/Faults/FaultsPage";
+
 // Inventory & Asset modules - Coming Soon
 // Using ComingSoon component for all inventory and asset pages
 
@@ -298,6 +301,7 @@ function App() {
               
               {/* Student Faults */}
               <Route path="student-faults" element={<StudentFaults />} />
+              <Route path="faults" element={<FaultsPage />} />
             </Route>
             <Route path="/students" element={<ProtectedRoute><Students /></ProtectedRoute>}>
               <Route index element={<PostStudents />} />

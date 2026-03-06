@@ -3783,3 +3783,419 @@
 :global(body.dark-mode) .evalReportNotesText {
   color: #e5e7eb;
 }
+
+
+/* ========================================
+   FAULTS TAB
+   ======================================== */
+
+.faultsContainer {
+  padding: 1rem;
+  background: #f8f9fa;
+  min-height: 100vh;
+}
+
+.faultsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.faultsTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.faultsTitle svg {
+  color: #ef4444;
+}
+
+.faultViewToggle {
+  display: flex;
+  gap: 0.5rem;
+  background: white;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.faultViewBtn {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.faultViewBtn:hover {
+  background: #f3f4f6;
+}
+
+.faultViewBtn.active {
+  background: #ef4444;
+  color: white;
+}
+
+.faultFormCard {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.faultFormTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.faultForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.faultFormGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.faultFormLabel {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.faultFormLabel svg {
+  color: #6b7280;
+}
+
+.required {
+  color: #ef4444;
+}
+
+.faultSelect {
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #1f2937;
+  background: white;
+  transition: all 0.2s;
+}
+
+.faultSelect:focus {
+  outline: none;
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.faultSelect:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.faultTextarea {
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #1f2937;
+  font-family: inherit;
+  resize: vertical;
+  transition: all 0.2s;
+}
+
+.faultTextarea:focus {
+  outline: none;
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.faultFormActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.faultSubmitBtn {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px rgba(239, 68, 68, 0.2);
+}
+
+.faultSubmitBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(239, 68, 68, 0.3);
+}
+
+.faultSubmitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Fault History */
+.faultHistoryCard {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.faultsLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+}
+
+.faultsLoadingSpinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f4f6;
+  border-top-color: #ef4444;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.faultsEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+.faultsEmptyState svg {
+  font-size: 4rem;
+  color: #d1d5db;
+  margin-bottom: 1rem;
+}
+
+.faultsEmptyState h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.faultsEmptyState p {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.faultsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.studentFaultGroup {
+  background: #f9fafb;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.studentGroupHeader {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.studentInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.groupStudentName {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.totalOffenses {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.offenseCount {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.offenseLabel {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+.studentFaultsList {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.faultItem {
+  background: white;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  border-left: 4px solid #ef4444;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.faultItemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.offenseNumber {
+  font-weight: 600;
+  color: #ef4444;
+  font-size: 0.875rem;
+}
+
+.faultDate {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.faultType {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.faultType svg {
+  color: #ef4444;
+}
+
+.faultLevel {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.levelMinor {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.levelMajor {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.levelSevere {
+  background: #fecaca;
+  color: #7f1d1d;
+}
+
+.faultDescription {
+  color: #4b5563;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin-bottom: 0.75rem;
+}
+
+.faultItemFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.reportedBy {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .faultsHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .faultViewToggle {
+    width: 100%;
+  }
+
+  .faultViewBtn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .studentGroupHeader {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .totalOffenses {
+    align-items: flex-start;
+  }
+}

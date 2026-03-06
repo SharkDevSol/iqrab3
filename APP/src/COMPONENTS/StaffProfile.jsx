@@ -132,6 +132,20 @@ const StaffProfile = () => {
   const [evalReportsLoading, setEvalReportsLoading] = useState(false);
   const [selectedEvalReport, setSelectedEvalReport] = useState(null);
 
+  // Faults system state
+  const [faultClasses, setFaultClasses] = useState([]);
+  const [selectedFaultClass, setSelectedFaultClass] = useState('');
+  const [faultStudents, setFaultStudents] = useState([]);
+  const [faultForm, setFaultForm] = useState({
+    student_name: '',
+    fault_type: 'Late Arrival',
+    description: ''
+  });
+  const [faultView, setFaultView] = useState('form'); // 'form' or 'list'
+  const [faultHistory, setFaultHistory] = useState([]);
+  const [faultsLoading, setFaultsLoading] = useState(false);
+  const [submittingFault, setSubmittingFault] = useState(false);
+
   // Dynamic nav items based on role (class teacher and teacher)
   const getNavItems = () => {
     const items = [
@@ -164,6 +178,11 @@ const StaffProfile = () => {
     // Add Evaluation Book tab for all teachers
     if (isTeacher || isClassTeacher) {
       items.push({ id: 'evalbook', label: t('evalBook') || 'Eval Book', icon: <FiBook /> });
+    }
+    
+    // Add Faults tab for all teachers
+    if (isTeacher || isClassTeacher) {
+      items.push({ id: 'faults', label: t('faults') || 'Faults', icon: <FiAlertCircle /> });
     }
     
     items.push(
@@ -202,6 +221,9 @@ const StaffProfile = () => {
       
       // Check evaluation book assignments for this teacher
       fetchEvalBookAssignments(profileData.global_staff_id);
+      
+      // Fetch classes for faults system
+      fetchFaultClasses();
     } catch (error) {
       navigate('/app/staff-login');
       return;
@@ -1013,6 +1035,111 @@ const StaffProfile = () => {
     localStorage.removeItem('staffUser');
     localStorage.removeItem('staffProfile');
     navigate('/app/staff-login');
+  };
+
+  // Faults System Functions
+  const getAuthConfig = () => {
+    const token = localStorage.getItem('authToken');
+    return {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    };
+  };
+
+  const fetchFaultClasses = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/faults/classes', getAuthConfig());
+      setFaultClasses(response.data);
+      if (response.data.length > 0) {
+        setSelectedFaultClass(response.data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching fault classes:', error);
+      toast.error('Failed to load classes');
+    }
+  };
+
+  const fetchFaultStudents = async (className) => {
+    if (!className) return;
+    try {
+      setFaultsLoading(true);
+      const response = await axios.get(`http://localhost:5000/api/faults/students/${className}`, getAuthConfig());
+      setFaultStudents(response.data);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      toast.error('Failed to load students');
+    } finally {
+      setFaultsLoading(false);
+    }
+  };
+
+  const fetchFaultHistory = async (className) => {
+    if (!className) return;
+    try {
+      setFaultsLoading(true);
+      const response = await axios.get(`http://localhost:5000/api/faults/faults/${className}`, getAuthConfig());
+      setFaultHistory(response.data);
+    } catch (error) {
+      console.error('Error fetching fault history:', error);
+      toast.error('Failed to load fault history');
+    } finally {
+      setFaultsLoading(false);
+    }
+  };
+
+  const handleFaultClassChange = (className) => {
+    setSelectedFaultClass(className);
+    fetchFaultStudents(className);
+    if (faultView === 'list') {
+      fetchFaultHistory(className);
+    }
+  };
+
+  const handleSubmitFault = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedFaultClass) {
+      toast.error('Please select a class');
+      return;
+    }
+    
+    if (!faultForm.student_name || !faultForm.fault_type || !faultForm.description) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    try {
+      setSubmittingFault(true);
+      const formData = new FormData();
+      formData.append('className', selectedFaultClass);
+      formData.append('student_name', faultForm.student_name);
+      formData.append('fault_type', faultForm.fault_type);
+      formData.append('fault_level', 'Minor'); // Default level
+      formData.append('date', new Date().toISOString().split('T')[0]); // Auto date
+      formData.append('description', faultForm.description);
+      formData.append('reported_by', profile?.name || 'Staff');
+
+      const config = getAuthConfig();
+      await axios.post('http://localhost:5000/api/faults/add-fault', formData, config);
+      
+      toast.success('Fault reported successfully');
+      setFaultForm({
+        student_name: '',
+        fault_type: 'Late Arrival',
+        description: ''
+      });
+      
+      // Refresh fault history if in list view
+      if (faultView === 'list') {
+        fetchFaultHistory(selectedFaultClass);
+      }
+    } catch (error) {
+      console.error('Error submitting fault:', error);
+      toast.error(error.response?.data?.error || 'Failed to report fault');
+    } finally {
+      setSubmittingFault(false);
+    }
   };
 
   const formatFieldName = (fieldName) => {
@@ -2287,6 +2414,278 @@ const StaffProfile = () => {
     );
   };
 
+  const renderFaultsTab = () => {
+    const faultTypes = [
+      // Attendance Issues
+      'Late Arrival', 'Absence Without Notice', 'Truancy', 'Leaving Class Without Permission',
+      'Leaving School Without Permission', 'Skipping Class',
+      // Academic Infractions
+      'Incomplete Homework', 'Late Homework Submission', 'No Homework', 'Cheating',
+      'Plagiarism', 'Copying from Others', 'Unprepared for Class', 'Not Bringing Required Materials',
+      'Sleeping in Class', 'Not Participating in Class',
+      // Behavioral Issues
+      'Disruptive Behavior', 'Talking During Class', 'Making Noise', 'Disturbing Others',
+      'Disrespect to Teacher', 'Disrespect to Staff', 'Disrespect to Students', 'Insubordination',
+      'Defiance', 'Arguing with Teacher', 'Refusing to Follow Instructions',
+      // Bullying & Harassment
+      'Bullying', 'Verbal Bullying', 'Physical Bullying', 'Cyberbullying',
+      'Harassment', 'Intimidation', 'Threatening Others',
+      // Physical Altercations
+      'Fighting', 'Physical Aggression', 'Pushing/Shoving', 'Hitting', 'Kicking', 'Horseplay',
+      // Language & Communication
+      'Profanity', 'Inappropriate Language', 'Vulgar Gestures', 'Name Calling',
+      'Gossiping', 'Spreading Rumors',
+      // Dress Code & Appearance
+      'Uniform Violation', 'Improper Uniform', 'Missing Uniform Items',
+      'Inappropriate Clothing', 'Dress Code Violation', 'Improper Grooming',
+      // Technology Misuse
+      'Phone Use in Class', 'Unauthorized Device Use', 'Inappropriate Internet Use',
+      'Social Media Misuse', 'Taking Unauthorized Photos/Videos', 'Gaming During Class',
+      // Property & Vandalism
+      'Vandalism', 'Damaging School Property', 'Graffiti', 'Littering',
+      'Theft', 'Stealing', 'Misusing School Property',
+      // Safety Violations
+      'Running in Hallways', 'Unsafe Behavior', 'Not Following Safety Rules',
+      'Reckless Behavior', 'Dangerous Play',
+      // Food & Cafeteria
+      'Eating in Class', 'Food Fight', 'Cafeteria Misconduct', 'Not Cleaning Up After Eating',
+      // Substance Related
+      'Smoking', 'Possession of Prohibited Items', 'Substance Abuse',
+      // Dishonesty
+      'Lying', 'Forgery', 'Falsifying Documents', 'Providing False Information',
+      // Other
+      'Public Display of Affection', 'Inappropriate Behavior', 'Violation of School Rules', 'Other'
+    ];
+
+    return (
+      <div className={styles.faultsContainer}>
+        {/* Header with Title and View Toggle */}
+        <div className={styles.faultsHeader}>
+          <h2 className={styles.faultsTitle}>
+            <FiAlertCircle /> Student Faults
+          </h2>
+          <div className={styles.faultViewToggle}>
+            <button
+              className={`${styles.faultViewBtn} ${faultView === 'form' ? styles.active : ''}`}
+              onClick={() => setFaultView('form')}
+            >
+              <FiEdit2 /> Report Fault
+            </button>
+            <button
+              className={`${styles.faultViewBtn} ${faultView === 'list' ? styles.active : ''}`}
+              onClick={() => {
+                setFaultView('list');
+                if (selectedFaultClass) {
+                  fetchFaultHistory(selectedFaultClass);
+                }
+              }}
+            >
+              <FiList /> View History
+            </button>
+          </div>
+        </div>
+
+        {/* Class Selector */}
+        <div className={styles.faultFormCard}>
+          <div className={styles.faultFormGroup}>
+            <label className={styles.faultFormLabel}>
+              <FiUsers /> Select Class
+            </label>
+            <select
+              className={styles.faultSelect}
+              value={selectedFaultClass}
+              onChange={(e) => handleFaultClassChange(e.target.value)}
+            >
+              <option value="">Choose a class...</option>
+              {faultClasses.map((className) => (
+                <option key={className} value={className}>
+                  {className}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Form View */}
+        {faultView === 'form' && (
+          <div className={styles.faultFormCard}>
+            <h3 className={styles.faultFormTitle}>
+              <FiEdit2 /> Report New Fault
+            </h3>
+            <form onSubmit={handleSubmitFault} className={styles.faultForm}>
+              <div className={styles.faultFormGroup}>
+                <label className={styles.faultFormLabel}>
+                  <FiUser /> Student Name <span className={styles.required}>*</span>
+                </label>
+                <select
+                  className={styles.faultSelect}
+                  value={faultForm.student_name}
+                  onChange={(e) => setFaultForm({ ...faultForm, student_name: e.target.value })}
+                  required
+                  disabled={!selectedFaultClass || faultsLoading}
+                >
+                  <option value="">Select student...</option>
+                  {faultStudents.map((student) => (
+                    <option key={student.student_name} value={student.student_name}>
+                      {student.student_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.faultFormGroup}>
+                <label className={styles.faultFormLabel}>
+                  <FiAlertCircle /> Fault Type <span className={styles.required}>*</span>
+                </label>
+                <select
+                  className={styles.faultSelect}
+                  value={faultForm.fault_type}
+                  onChange={(e) => setFaultForm({ ...faultForm, fault_type: e.target.value })}
+                  required
+                >
+                  {faultTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.faultFormGroup}>
+                <label className={styles.faultFormLabel}>
+                  <FiFileText /> Description <span className={styles.required}>*</span>
+                </label>
+                <textarea
+                  className={styles.faultTextarea}
+                  value={faultForm.description}
+                  onChange={(e) => setFaultForm({ ...faultForm, description: e.target.value })}
+                  placeholder="Describe the incident..."
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div className={styles.faultFormActions}>
+                <button
+                  type="submit"
+                  className={styles.faultSubmitBtn}
+                  disabled={submittingFault || !selectedFaultClass}
+                >
+                  {submittingFault ? (
+                    <>
+                      <FiClock className={styles.spinning} /> Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <FiSend /> Report Fault
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* List View */}
+        {faultView === 'list' && (
+          <div className={styles.faultHistoryCard}>
+            {faultsLoading ? (
+              <div className={styles.faultsLoading}>
+                <div className={styles.faultsLoadingSpinner}></div>
+                <p>Loading fault history...</p>
+              </div>
+            ) : faultHistory.length === 0 ? (
+              <div className={styles.faultsEmptyState}>
+                <FiAlertCircle />
+                <h3>No Faults Reported</h3>
+                <p>No faults have been reported for this class yet</p>
+              </div>
+            ) : (() => {
+              // Group faults by student
+              const groupedFaults = {};
+              faultHistory.forEach(fault => {
+                if (!groupedFaults[fault.student_name]) {
+                  groupedFaults[fault.student_name] = [];
+                }
+                groupedFaults[fault.student_name].push(fault);
+              });
+
+              // Sort faults within each group by date
+              Object.values(groupedFaults).forEach(faults => {
+                faults.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
+              });
+
+              const getOrdinalSuffix = (num) => {
+                const j = num % 10;
+                const k = num % 100;
+                if (j === 1 && k !== 11) return num + 'st';
+                if (j === 2 && k !== 12) return num + 'nd';
+                if (j === 3 && k !== 13) return num + 'rd';
+                return num + 'th';
+              };
+
+              return (
+                <div className={styles.faultsList}>
+                  {Object.entries(groupedFaults).map(([studentName, studentFaults]) => (
+                    <div key={studentName} className={styles.studentFaultGroup}>
+                      {/* Student Header */}
+                      <div className={styles.studentGroupHeader}>
+                        <div className={styles.studentInfo}>
+                          <FiUser size={24} />
+                          <h3 className={styles.groupStudentName}>{studentName}</h3>
+                        </div>
+                        <div className={styles.totalOffenses}>
+                          <span className={styles.offenseCount}>{studentFaults.length}</span>
+                          <span className={styles.offenseLabel}>Total Offenses</span>
+                        </div>
+                      </div>
+
+                      {/* All Faults for this Student */}
+                      <div className={styles.studentFaultsList}>
+                        {studentFaults.map((fault, faultIndex) => {
+                          const offenseNumber = faultIndex + 1;
+                          const offenseLabel = getOrdinalSuffix(offenseNumber);
+                          return (
+                            <div key={fault.id || faultIndex} className={styles.faultItem}>
+                              <div className={styles.faultItemHeader}>
+                                <span className={styles.offenseNumber}>{offenseLabel} Offense</span>
+                                <span className={styles.faultDate}>
+                                  <FiCalendar />
+                                  {new Date(fault.date || fault.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <div className={styles.faultType}>
+                                <FiAlertCircle />
+                                <span>{fault.type || fault.fault_type}</span>
+                                {fault.level && (
+                                  <span className={`${styles.faultLevel} ${styles[`level${fault.level}`]}`}>
+                                    {fault.level}
+                                  </span>
+                                )}
+                              </div>
+                              <p className={styles.faultDescription}>{fault.description}</p>
+                              {fault.reported_by && (
+                                <div className={styles.faultItemFooter}>
+                                  <span className={styles.reportedBy}>
+                                    Reported by: {fault.reported_by}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderSettingsTab = () => (
     <SettingsTab userId={user?.username} userType="staff" appType="staff" appName="Staff App" />
   );
@@ -2306,6 +2705,7 @@ const StaffProfile = () => {
       ) : renderProfileTab();
       case 'attendance': return isClassTeacher ? renderAttendanceTab() : renderProfileTab();
       case 'evalbook': return renderEvalBookTab();
+      case 'faults': return renderFaultsTab();
       case 'evaluations': return renderEvaluationsTab();
       case 'posts': return renderPostsTab();
       case 'communications': return renderCommunicationsTab();
