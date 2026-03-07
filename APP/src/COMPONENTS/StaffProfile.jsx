@@ -2173,7 +2173,7 @@ const StaffProfile = () => {
         <div className={styles.attendanceActions}>
           <button 
             className={styles.primaryActionBtn}
-            onClick={() => navigate('/app/academic/student-attendance')}
+            onClick={() => navigate('/app/student-attendance-system')}
           >
             <FiEdit2 size={18} />
             <span>Manage Attendance</span>
