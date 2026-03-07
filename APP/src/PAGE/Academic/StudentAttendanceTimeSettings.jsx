@@ -3,6 +3,8 @@ import axios from 'axios';
 import { FiClock, FiSave, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 import styles from './StudentAttendanceTimeSettings.module.css';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 const StudentAttendanceTimeSettings = () => {
   const [settings, setSettings] = useState({
     check_in_start_time: '07:00:00',
@@ -44,7 +46,7 @@ const StudentAttendanceTimeSettings = () => {
   const fetchSettings = async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get('http://localhost:5000/api/academic/student-attendance/settings');
+      const response = await axios.get(`${API_BASE_URL}/academic/student-attendance/settings`);
       if (response.data.success) {
         // Merge fetched data with default values to prevent undefined errors
         setSettings(prev => ({
@@ -67,7 +69,7 @@ const StudentAttendanceTimeSettings = () => {
 
   const fetchClasses = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/academic/student-attendance/classes');
+      const response = await axios.get(`${API_BASE_URL}/academic/student-attendance/classes`);
       if (response.data.success) {
         setClasses(response.data.data);
       }
@@ -78,7 +80,7 @@ const StudentAttendanceTimeSettings = () => {
 
   const fetchClassShiftAssignments = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/academic/student-attendance/class-shifts');
+      const response = await axios.get(`${API_BASE_URL}/academic/student-attendance/class-shifts`);
       if (response.data.success) {
         const assignments = {};
         response.data.data.forEach(item => {
@@ -120,10 +122,10 @@ const StudentAttendanceTimeSettings = () => {
       setMessage({ type: '', text: '' });
 
       // Save time settings
-      const settingsResponse = await axios.put('http://localhost:5000/api/academic/student-attendance/settings', settings);
+      const settingsResponse = await axios.put(`${API_BASE_URL}/academic/student-attendance/settings`, settings);
       
       // Save class shift assignments
-      const assignmentsResponse = await axios.put('http://localhost:5000/api/academic/student-attendance/class-shifts', {
+      const assignmentsResponse = await axios.put(`${API_BASE_URL}/academic/student-attendance/class-shifts`, {
         assignments: classShiftAssignments
       });
       
