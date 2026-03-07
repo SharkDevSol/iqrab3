@@ -6,6 +6,9 @@ import MessageForm from './MessageForm';
 import { useToast } from './Toast';
 import styles from './ClassCommunicationTab.module.css';
 
+// API base URL - use environment variable or fallback to localhost
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 const ClassCommunicationTab = ({
   userType = 'teacher', // 'teacher' or 'student'
   userId,
@@ -26,7 +29,7 @@ const ClassCommunicationTab = ({
     
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/class-communication/teacher-classes/${encodeURIComponent(userName)}`
+        `${API_BASE_URL}/class-communication/teacher-classes/${encodeURIComponent(userName)}`
       );
       setClasses(response.data.classes || []);
     } catch (error) {
@@ -44,10 +47,10 @@ const ClassCommunicationTab = ({
     setMessagesLoading(true);
     try {
       const endpoint = userType === 'teacher' 
-        ? `/api/class-communication/messages/${encodeURIComponent(className)}`
-        : `/api/class-communication/student-messages/${encodeURIComponent(className)}`;
+        ? `/class-communication/messages/${encodeURIComponent(className)}`
+        : `/class-communication/student-messages/${encodeURIComponent(className)}`;
       
-      const response = await axios.get(`http://localhost:5000${endpoint}`);
+      const response = await axios.get(`${API_BASE_URL}${endpoint}`);
       setMessages(response.data.messages || []);
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -87,7 +90,7 @@ const ClassCommunicationTab = ({
     });
 
     const response = await axios.post(
-      'http://localhost:5000/api/class-communication/messages',
+      `${API_BASE_URL}/class-communication/messages`,
       formData,
       { headers: { 'Content-Type': 'multipart/form-data' } }
     );
