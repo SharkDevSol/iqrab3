@@ -2,7 +2,7 @@
   "name": "Skoolific Student App",
   "short_name": "Student",
   "description": "Access student profiles, attendance, grades, and more",
-  "start_url": "/app/student-login",
+  "start_url": ".",
   "scope": "/",
   "display": "standalone",
   "background_color": "#667eea",
