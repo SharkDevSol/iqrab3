@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiClipboard, FiFileText, FiMessageSquare, FiEye, FiBriefcase, FiUserCheck, FiCalendar, FiCheck, FiX, FiClock, FiSave, FiArrowLeft, FiBook, FiBarChart2, FiAlertCircle, FiEdit, FiEdit2, FiList, FiSearch, FiUsers, FiSettings, FiSend, FiStar } from 'react-icons/fi';
+import { FiUser, FiClipboard, FiFileText, FiMessageSquare, FiEye, FiBriefcase, FiUserCheck, FiCalendar, FiCheck, FiX, FiClock, FiSave, FiArrowLeft, FiBook, FiBarChart2, FiAlertCircle, FiEdit, FiEdit2, FiList, FiSearch, FiUsers, FiSettings, FiSend, FiStar, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import axios from 'axios';
 import TeacherCommunications from '../PAGE/Communication/TeacherCommunications';
 import StudentAttendanceSystem from '../PAGE/Academic/StudentAttendanceSystem';
@@ -17,6 +17,9 @@ import {
   SettingsTab
 } from './mobile';
 import styles from './StaffProfile.module.css';
+
+// API base URL - use environment variable or fallback to localhost
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const StaffProfile = () => {
   const [user, setUser] = useState(null);
@@ -132,6 +135,16 @@ const StaffProfile = () => {
   const [evalReportsLoading, setEvalReportsLoading] = useState(false);
   const [selectedEvalReport, setSelectedEvalReport] = useState(null);
 
+  // Faults system state
+  const [faultClasses, setFaultClasses] = useState([]);
+  const [selectedFaultClass, setSelectedFaultClass] = useState('');
+  const [faultStudents, setFaultStudents] = useState([]);
+  const [faultForm, setFaultForm] = useState({ student_name: '', fault_type: 'Late Arrival', description: '' });
+  const [faultView, setFaultView] = useState('form'); // 'form' or 'list'
+  const [faultHistory, setFaultHistory] = useState([]);
+  const [faultsLoading, setFaultsLoading] = useState(false);
+  const [submittingFault, setSubmittingFault] = useState(false);
+
   // Dynamic nav items based on role (class teacher and teacher)
   const getNavItems = () => {
     const items = [
@@ -164,6 +177,11 @@ const StaffProfile = () => {
     // Add Evaluation Book tab for all teachers
     if (isTeacher || isClassTeacher) {
       items.push({ id: 'evalbook', label: t('evalBook') || 'Eval Book', icon: <FiBook /> });
+    }
+
+    // Add Faults tab for all teachers
+    if (isTeacher || isClassTeacher) {
+      items.push({ id: 'faults', label: t('faults') || 'Faults', icon: <FiAlertCircle /> });
     }
     
     items.push(
@@ -202,6 +220,8 @@ const StaffProfile = () => {
       
       // Check evaluation book assignments for this teacher
       fetchEvalBookAssignments(profileData.global_staff_id);
+      // Fetch classes for faults system
+      fetchFaultClassesForTeacher(profileData.name);
     } catch (error) {
       navigate('/app/staff-login');
       return;
@@ -215,7 +235,7 @@ const StaffProfile = () => {
     
     try {
       // First, check if teacher has a class teacher assignment
-      const url = `http://localhost:5000/api/class-teacher/teacher-assignment/${encodeURIComponent(profileName)}`;
+      const url = `${API_BASE_URL}/class-teacher/teacher-assignment/${encodeURIComponent(profileName)}`;
       console.log(`📡 Calling API: ${url}`);
       
       const assignmentResponse = await axios.get(url);
@@ -246,11 +266,14 @@ const StaffProfile = () => {
           setIsTeacher(true);
           fetchTeacherSchedule(profileName);
         }
+        
+        // Refresh fault classes now that we know assigned classes
+        fetchFaultClasses(profileName, assignedClasses);
       } else {
         console.log(`ℹ️ No class teacher assignments found for ${profileName}`);
         
         // No class teacher assignment - check if they have subject assignments
-        const response = await axios.get(`http://localhost:5000/api/mark-list/teacher-mark-lists/${encodeURIComponent(profileName)}`);
+        const response = await axios.get(`${API_BASE_URL}/mark-list/teacher-mark-lists/${encodeURIComponent(profileName)}`);
         
         if (response.data.assignments && response.data.assignments.length > 0) {
           // Has subject assignments but not a class teacher
@@ -287,7 +310,7 @@ const StaffProfile = () => {
     if (!teacherName) return;
     setScheduleLoading(true);
     try {
-      const response = await axios.get('http://localhost:5000/api/schedule/schedule-by-teacher');
+      const response = await axios.get(`${API_BASE_URL}/schedule/schedule-by-teacher`);
       const allSchedules = response.data;
       
       // Find this teacher's schedule
@@ -317,7 +340,7 @@ const StaffProfile = () => {
     
     setMarkListLoading(true);
     try {
-      const url = `http://localhost:5000/api/mark-list/teacher-mark-lists/${encodeURIComponent(teacherName)}`;
+      const url = `${API_BASE_URL}/mark-list/teacher-mark-lists/${encodeURIComponent(teacherName)}`;
       console.log(`API URL: ${url}`);
       
       const response = await axios.get(url);
@@ -341,7 +364,7 @@ const StaffProfile = () => {
     if (!globalStaffId) return;
     setEvalBookLoading(true);
     try {
-      const response = await axios.get(`http://localhost:5000/api/evaluation-book/assignments/teacher/${globalStaffId}`);
+      const response = await axios.get(`${API_BASE_URL}/evaluation-book/assignments/teacher/${globalStaffId}`);
       const assignments = response.data || [];
       setEvalBookAssignments(assignments);
       setHasEvalBookAccess(assignments.length > 0);
@@ -366,14 +389,14 @@ const StaffProfile = () => {
     try {
       // Fetch class data with students and template
       const response = await axios.get(
-        `http://localhost:5000/api/evaluation-book/teacher/${profile.global_staff_id}/class/${encodeURIComponent(className)}`
+        `${API_BASE_URL}/evaluation-book/teacher/${profile.global_staff_id}/class/${encodeURIComponent(className)}`
       );
       const data = response.data;
       setEvalStudents(data.students || []);
       
       if (data.template) {
         // Fetch full template with fields
-        const templateRes = await axios.get(`http://localhost:5000/api/evaluation-book/templates/${data.template.id}`);
+        const templateRes = await axios.get(`${API_BASE_URL}/evaluation-book/templates/${data.template.id}`);
         setEvalTemplate(templateRes.data);
       }
       
@@ -419,7 +442,7 @@ const StaffProfile = () => {
         field_values: evalEntries[student.student_name]?.field_values || {}
       }));
       
-      const response = await axios.post('http://localhost:5000/api/evaluation-book/daily', {
+      const response = await axios.post(`${API_BASE_URL}/evaluation-book/daily`, {
         template_id: evalTemplate.id,
         teacher_global_id: profile.global_staff_id,
         class_name: selectedEvalClass,
@@ -429,7 +452,7 @@ const StaffProfile = () => {
       
       if (sendToGuardians && response.data?.length > 0) {
         const evalIds = response.data.map(e => e.id);
-        await axios.post('http://localhost:5000/api/evaluation-book/daily/send', {
+        await axios.post(`${API_BASE_URL}/evaluation-book/daily/send`, {
           evaluation_ids: evalIds
         });
         setEvalFormSuccess('Evaluations saved and sent to guardians!');
@@ -464,7 +487,7 @@ const StaffProfile = () => {
     setEvalReportsLoading(true);
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/evaluation-book/reports/teacher/${profile.global_staff_id}`
+        `${API_BASE_URL}/evaluation-book/reports/teacher/${profile.global_staff_id}`
       );
       setEvalReports(response.data?.entries || []);
     } catch (error) {
@@ -479,6 +502,111 @@ const StaffProfile = () => {
   const showEvalReports = () => {
     setEvalBookView('reports');
     fetchEvalReports();
+  };
+
+  // Faults System Functions
+  const getAuthConfig = () => {
+    const token = localStorage.getItem('authToken');
+    return { headers: { Authorization: `Bearer ${token}` } };
+  };
+
+  const fetchFaultClasses = async (teacherName, extraClasses = []) => {
+    try {
+      if (!teacherName) return;
+      const response = await axios.get(`${API_BASE_URL}/class-communication/teacher-classes/${encodeURIComponent(teacherName)}`);
+      const subjectClasses = Array.isArray(response.data.classes) ? response.data.classes : [];
+
+      // Merge with assigned classes (class teacher assignment)
+      const merged = [...new Set([...extraClasses, ...subjectClasses])].sort();
+
+      if (merged.length > 0) {
+        setFaultClasses(merged);
+      } else {
+        // Fallback: load all classes from the school class list
+        const allRes = await axios.get(`${API_BASE_URL}/faults/classes`, getAuthConfig());
+        const allClasses = Array.isArray(allRes.data) ? allRes.data : [];
+        setFaultClasses(allClasses);
+      }
+    } catch (error) {
+      console.error('Error fetching fault classes:', error);
+      setFaultClasses(extraClasses.length > 0 ? extraClasses : []);
+    }
+  };
+
+  const fetchFaultClassesForTeacher = (teacherName, extraClasses = []) => {
+    fetchFaultClasses(teacherName, extraClasses);
+  };
+
+  const fetchFaultStudents = async (className) => {
+    if (!className) return;
+    try {
+      setFaultsLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/faults/students/${className}`, getAuthConfig());
+      setFaultStudents(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      setFaultStudents([]);
+      toast.error('Failed to load students');
+    } finally {
+      setFaultsLoading(false);
+    }
+  };
+
+  const fetchFaultHistory = async (className) => {
+    if (!className) return;
+    try {
+      setFaultsLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/faults/faults/${className}`, getAuthConfig());
+      setFaultHistory(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Error fetching fault history:', error);
+      setFaultHistory([]);
+      toast.error('Failed to load fault history');
+    } finally {
+      setFaultsLoading(false);
+    }
+  };
+
+  const handleFaultClassChange = (className) => {
+    setSelectedFaultClass(className);
+    if (className) {
+      fetchFaultStudents(className);
+      if (faultView === 'list') fetchFaultHistory(className);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedFaultClass && faultView === 'form') {
+      fetchFaultStudents(selectedFaultClass);
+    }
+  }, [selectedFaultClass, faultView]);
+
+  const handleSubmitFault = async (e) => {
+    e.preventDefault();
+    if (!selectedFaultClass) { toast.error('Please select a class'); return; }
+    if (!faultForm.student_name || !faultForm.fault_type || !faultForm.description) {
+      toast.error('Please fill in all fields'); return;
+    }
+    try {
+      setSubmittingFault(true);
+      const formData = new FormData();
+      formData.append('className', selectedFaultClass);
+      formData.append('student_name', faultForm.student_name);
+      formData.append('fault_type', faultForm.fault_type);
+      formData.append('fault_level', 'Minor');
+      formData.append('date', new Date().toISOString().split('T')[0]);
+      formData.append('description', faultForm.description);
+      formData.append('reported_by', profile?.name || 'Staff');
+      await axios.post(`${API_BASE_URL}/faults/add-fault`, formData, getAuthConfig());
+      toast.success('Fault reported successfully');
+      setFaultForm({ student_name: '', fault_type: 'Late Arrival', description: '' });
+      if (faultView === 'list') fetchFaultHistory(selectedFaultClass);
+    } catch (error) {
+      console.error('Error submitting fault:', error);
+      toast.error(error.response?.data?.error || 'Failed to report fault');
+    } finally {
+      setSubmittingFault(false);
+    }
   };
 
   // Get unique subjects from assignments
@@ -514,7 +642,7 @@ const StaffProfile = () => {
     setMarkListMessage('');
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/mark-list/mark-list/${encodeURIComponent(selectedMarkListSubject)}/${encodeURIComponent(selectedMarkListClass)}/${selectedMarkListTerm}`
+        `${API_BASE_URL}/mark-list/mark-list/${encodeURIComponent(selectedMarkListSubject)}/${encodeURIComponent(selectedMarkListClass)}/${selectedMarkListTerm}`
       );
       setMarkListData(response.data.markList || []);
       setMarkListConfig(response.data.config || null);
@@ -551,7 +679,7 @@ const StaffProfile = () => {
         marks[componentKey] = student[componentKey] || 0;
       });
 
-      const response = await axios.put('http://localhost:5000/api/mark-list/update-marks', {
+      const response = await axios.put(`${API_BASE_URL}/mark-list/update-marks`, {
         subjectName: selectedMarkListSubject,
         className: selectedMarkListClass,
         termNumber: selectedMarkListTerm,
@@ -591,7 +719,7 @@ const StaffProfile = () => {
   // Fetch school days from schedule config
   const fetchSchoolDays = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/class-teacher/school-days');
+      const response = await axios.get(`${API_BASE_URL}/class-teacher/school-days`);
       if (response.data.schoolDays && response.data.schoolDays.length > 0) {
         setSchoolDays(response.data.schoolDays);
         setSelectedDay(response.data.schoolDays[0]); // Set first school day as default
@@ -607,7 +735,7 @@ const StaffProfile = () => {
   const fetchStudentsForAttendance = async (className) => {
     setAttendanceLoading(true);
     try {
-      const response = await axios.get(`http://localhost:5000/api/class-teacher/students/${className}`);
+      const response = await axios.get(`${API_BASE_URL}/class-teacher/students/${className}`);
       setStudents(response.data);
       
       // Fetch weekly tables
@@ -622,7 +750,7 @@ const StaffProfile = () => {
   // Fetch weekly attendance tables
   const fetchWeeklyTables = async (className) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/class-teacher/weekly-tables/${className}`);
+      const response = await axios.get(`${API_BASE_URL}/class-teacher/weekly-tables/${className}`);
       setWeeklyTables(response.data);
       
       // Auto-select current week if exists, otherwise latest
@@ -644,7 +772,7 @@ const StaffProfile = () => {
   const fetchWeeklyAttendance = async (className, weekStart) => {
     if (!className || !weekStart) return;
     try {
-      const response = await axios.get(`http://localhost:5000/api/class-teacher/weekly-attendance/${className}/${weekStart}`);
+      const response = await axios.get(`${API_BASE_URL}/class-teacher/weekly-attendance/${className}/${weekStart}`);
       setWeeklyAttendanceExists(response.data.exists);
       
       if (response.data.exists && response.data.data.length > 0) {
@@ -727,7 +855,7 @@ const StaffProfile = () => {
     
     setCreatingAttendance(true);
     try {
-      await axios.post('http://localhost:5000/api/class-teacher/create-weekly-attendance', {
+      await axios.post(`${API_BASE_URL}/class-teacher/create-weekly-attendance`, {
         className: assignedClass,
         weekStart: mondayOfWeek,
         globalStaffId: profile.global_staff_id
@@ -774,7 +902,7 @@ const StaffProfile = () => {
           };
         });
       
-      await axios.put(`http://localhost:5000/api/class-teacher/weekly-attendance/${assignedClass}/${selectedWeek}`, {
+      await axios.put(`${API_BASE_URL}/class-teacher/weekly-attendance/${assignedClass}/${selectedWeek}`, {
         records,
         globalStaffId: profile.global_staff_id
       });
@@ -795,7 +923,7 @@ const StaffProfile = () => {
     if (!staffId) return;
     setEvaluationsLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/evaluations/staff-evaluations/${staffId}`);
+      const response = await fetch(`${API_BASE_URL}/evaluations/staff-evaluations/${staffId}`);
       if (response.ok) {
         const data = await response.json();
         setEvaluations(data);
@@ -813,7 +941,7 @@ const StaffProfile = () => {
     setFormLoading(true);
     setFormError('');
     try {
-      const response = await fetch(`http://localhost:5000/api/evaluations/${evaluationId}/form`);
+      const response = await fetch(`${API_BASE_URL}/evaluations/${evaluationId}/form`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to fetch evaluation form');
@@ -855,7 +983,7 @@ const StaffProfile = () => {
     setReportError('');
     setEvaluationView('report'); // Set view immediately so back button is visible
     try {
-      const response = await fetch(`http://localhost:5000/api/evaluations/${evaluationId}/form`);
+      const response = await fetch(`${API_BASE_URL}/evaluations/${evaluationId}/form`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to fetch evaluation report');
@@ -931,7 +1059,7 @@ const StaffProfile = () => {
     });
     
     try {
-      const response = await fetch(`http://localhost:5000/api/evaluations/${selectedEvaluationId}/responses`, {
+      const response = await fetch(`${API_BASE_URL}/evaluations/${selectedEvaluationId}/responses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ responses: responsesPayload })
@@ -974,7 +1102,7 @@ const StaffProfile = () => {
 
   const fetchProfilePosts = async (staffId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/posts/profile/staff/${staffId}`);
+      const response = await axios.get(`${API_BASE_URL}/posts/profile/staff/${staffId}`);
       setProfilePosts(response.data.map(post => ({ ...post, localLikes: post.likes || 0 })));
     } catch (error) {
       console.error('Error fetching profile posts:', error);
@@ -997,7 +1125,7 @@ const StaffProfile = () => {
 
   const handleLike = async (postId) => {
     try {
-      await axios.put(`http://localhost:5000/api/posts/${postId}/like`);
+      await axios.put(`${API_BASE_URL}/posts/${postId}/like`);
       setProfilePosts(prev =>
         prev.map(post =>
           post.id === postId ? { ...post, localLikes: (post.localLikes || 0) + 1 } : post
@@ -2287,6 +2415,169 @@ const StaffProfile = () => {
     );
   };
 
+  const renderFaultsTab = () => {
+    const faultTypes = [
+      'Late Arrival', 'Absence Without Notice', 'Truancy', 'Leaving Class Without Permission',
+      'Leaving School Without Permission', 'Skipping Class',
+      'Incomplete Homework', 'Late Homework Submission', 'No Homework', 'Cheating',
+      'Plagiarism', 'Copying from Others', 'Unprepared for Class', 'Not Bringing Required Materials',
+      'Sleeping in Class', 'Not Participating in Class',
+      'Disruptive Behavior', 'Talking During Class', 'Making Noise', 'Disturbing Others',
+      'Disrespect to Teacher', 'Disrespect to Staff', 'Disrespect to Students', 'Insubordination',
+      'Defiance', 'Arguing with Teacher', 'Refusing to Follow Instructions',
+      'Bullying', 'Verbal Bullying', 'Physical Bullying', 'Cyberbullying',
+      'Harassment', 'Intimidation', 'Threatening Others',
+      'Fighting', 'Physical Aggression', 'Pushing/Shoving', 'Hitting', 'Kicking', 'Horseplay',
+      'Profanity', 'Inappropriate Language', 'Vulgar Gestures', 'Name Calling',
+      'Gossiping', 'Spreading Rumors',
+      'Uniform Violation', 'Improper Uniform', 'Missing Uniform Items',
+      'Inappropriate Clothing', 'Dress Code Violation', 'Improper Grooming',
+      'Phone Use in Class', 'Unauthorized Device Use', 'Inappropriate Internet Use',
+      'Social Media Misuse', 'Taking Unauthorized Photos/Videos', 'Gaming During Class',
+      'Vandalism', 'Damaging School Property', 'Graffiti', 'Littering',
+      'Theft', 'Stealing', 'Misusing School Property',
+      'Running in Hallways', 'Unsafe Behavior', 'Not Following Safety Rules',
+      'Reckless Behavior', 'Dangerous Play',
+      'Eating in Class', 'Food Fight', 'Cafeteria Misconduct', 'Not Cleaning Up After Eating',
+      'Smoking', 'Possession of Prohibited Items', 'Substance Abuse',
+      'Lying', 'Forgery', 'Falsifying Documents', 'Providing False Information',
+      'Public Display of Affection', 'Inappropriate Behavior', 'Violation of School Rules', 'Other'
+    ];
+
+    const getOrdinalSuffix = (num) => {
+      const j = num % 10, k = num % 100;
+      if (j === 1 && k !== 11) return num + 'st';
+      if (j === 2 && k !== 12) return num + 'nd';
+      if (j === 3 && k !== 13) return num + 'rd';
+      return num + 'th';
+    };
+
+    return (
+      <div className={styles.faultsContainer}>
+        {/* Header */}
+        <div className={styles.faultsHeader}>
+          <h2 className={styles.faultsTitle}><FiAlertCircle /> Student Faults</h2>
+          <div className={styles.faultViewToggle}>
+            <button className={`${styles.faultViewBtn} ${faultView === 'form' ? styles.active : ''}`} onClick={() => setFaultView('form')}>
+              <FiEdit2 /> Report Fault
+            </button>
+            <button className={`${styles.faultViewBtn} ${faultView === 'list' ? styles.active : ''}`} onClick={() => { setFaultView('list'); if (selectedFaultClass) fetchFaultHistory(selectedFaultClass); }}>
+              <FiList /> View History
+            </button>
+          </div>
+        </div>
+
+        {/* Class Selector */}
+        <div className={styles.faultFormCard}>
+          <div className={styles.faultFormGroup}>
+            <label className={styles.faultFormLabel}><FiUsers /> Select Class</label>
+            <select className={styles.faultSelect} value={selectedFaultClass} onChange={(e) => handleFaultClassChange(e.target.value)}>
+              <option value="">Choose a class...</option>
+              {faultClasses.map((className) => (<option key={className} value={className}>{className}</option>))}
+            </select>
+          </div>
+        </div>
+
+        {/* Form View */}
+        {faultView === 'form' && (
+          <div className={styles.faultFormCard}>
+            <h3 className={styles.faultFormTitle}><FiEdit2 /> Report New Fault</h3>
+            <form onSubmit={handleSubmitFault} className={styles.faultForm}>
+              <div className={styles.faultFormGroup}>
+                <label className={styles.faultFormLabel}><FiUser /> Student Name <span className={styles.required}>*</span></label>
+                <select className={styles.faultSelect} value={faultForm.student_name} onChange={(e) => setFaultForm({ ...faultForm, student_name: e.target.value })} required disabled={!selectedFaultClass || faultsLoading}>
+                  <option value="">Select student...</option>
+                  {faultStudents.map((student) => (<option key={student.student_name} value={student.student_name}>{student.student_name}</option>))}
+                </select>
+              </div>
+              <div className={styles.faultFormGroup}>
+                <label className={styles.faultFormLabel}><FiAlertCircle /> Fault Type <span className={styles.required}>*</span></label>
+                <select className={styles.faultSelect} value={faultForm.fault_type} onChange={(e) => setFaultForm({ ...faultForm, fault_type: e.target.value })} required>
+                  {faultTypes.map((type) => (<option key={type} value={type}>{type}</option>))}
+                </select>
+              </div>
+              <div className={styles.faultFormGroup}>
+                <label className={styles.faultFormLabel}><FiFileText /> Description <span className={styles.required}>*</span></label>
+                <textarea className={styles.faultTextarea} value={faultForm.description} onChange={(e) => setFaultForm({ ...faultForm, description: e.target.value })} placeholder="Describe the incident..." rows={4} required />
+              </div>
+              <div className={styles.faultFormActions}>
+                <button type="submit" className={styles.faultSubmitBtn} disabled={submittingFault || !selectedFaultClass}>
+                  {submittingFault ? (<><FiClock className={styles.spinning} /> Submitting...</>) : (<><FiSend /> Report Fault</>)}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* List View */}
+        {faultView === 'list' && (
+          <div className={styles.faultHistoryCard}>
+            {faultsLoading ? (
+              <div className={styles.faultsLoading}>
+                <div className={styles.faultsLoadingSpinner}></div>
+                <p>Loading fault history...</p>
+              </div>
+            ) : faultHistory.length === 0 ? (
+              <div className={styles.faultsEmptyState}>
+                <FiAlertCircle />
+                <h3>No Faults Reported</h3>
+                <p>No faults have been reported for this class yet</p>
+              </div>
+            ) : (() => {
+              const groupedFaults = {};
+              faultHistory.forEach(fault => {
+                if (!groupedFaults[fault.student_name]) groupedFaults[fault.student_name] = [];
+                groupedFaults[fault.student_name].push(fault);
+              });
+              Object.values(groupedFaults).forEach(faults => {
+                faults.sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at));
+              });
+              return (
+                <div className={styles.faultsList}>
+                  {Object.entries(groupedFaults).map(([studentName, studentFaults]) => (
+                    <div key={studentName} className={styles.studentFaultGroup}>
+                      <div className={styles.studentGroupHeader}>
+                        <div className={styles.studentInfo}>
+                          <FiUser size={24} />
+                          <h3 className={styles.groupStudentName}>{studentName}</h3>
+                        </div>
+                        <div className={styles.totalOffenses}>
+                          <span className={styles.offenseCount}>{studentFaults.length}</span>
+                          <span className={styles.offenseLabel}>Total Offenses</span>
+                        </div>
+                      </div>
+                      <div className={styles.studentFaultsList}>
+                        {studentFaults.map((fault, faultIndex) => (
+                          <div key={fault.id || faultIndex} className={styles.faultItem}>
+                            <div className={styles.faultItemHeader}>
+                              <span className={styles.offenseNumber}>{getOrdinalSuffix(faultIndex + 1)} Offense</span>
+                              <span className={styles.faultDate}><FiCalendar />{new Date(fault.date || fault.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <div className={styles.faultType}>
+                              <FiAlertCircle />
+                              <span>{fault.type || fault.fault_type}</span>
+                              {fault.level && (<span className={`${styles.faultLevel} ${styles[`level${fault.level}`]}`}>{fault.level}</span>)}
+                            </div>
+                            <p className={styles.faultDescription}>{fault.description}</p>
+                            {fault.reported_by && (
+                              <div className={styles.faultItemFooter}>
+                                <span className={styles.reportedBy}>Reported by: {fault.reported_by}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderSettingsTab = () => (
     <SettingsTab userId={user?.username} userType="staff" appType="staff" appName="Staff App" />
   );
@@ -2306,6 +2597,7 @@ const StaffProfile = () => {
       ) : renderProfileTab();
       case 'attendance': return isClassTeacher ? renderAttendanceTab() : renderProfileTab();
       case 'evalbook': return renderEvalBookTab();
+      case 'faults': return renderFaultsTab();
       case 'evaluations': return renderEvaluationsTab();
       case 'posts': return renderPostsTab();
       case 'communications': return renderCommunicationsTab();

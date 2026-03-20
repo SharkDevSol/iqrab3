@@ -351,6 +351,11 @@ const Home = () => {
           label: '⏰ Student Attendance Settings',
         },
         {
+          path: "/student-faults",
+          icon: <FiFileText className={styles.navIcon} />,
+          label: '⚠️ Student Faults',
+        },
+        {
           path: "/create-mark-list",
           icon: <FiFilePlus className={styles.navIcon} />,
           label: t('createMarklist'),

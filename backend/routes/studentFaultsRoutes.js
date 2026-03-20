@@ -72,17 +72,29 @@ initializeFaultsSchema();
 // Get all classes
 router.get('/classes', async (req, res) => {
   try {
-    console.log('Fetching all class names from public schema');
+    // Primary: get from school_schema_points.classes (the canonical class list)
+    const schemaCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'school_schema_points' AND table_name = 'classes'
+      )
+    `);
+
+    if (schemaCheck.rows[0].exists) {
+      const result = await pool.query(`SELECT class_names FROM school_schema_points.classes WHERE id = 1`);
+      if (result.rows.length > 0 && result.rows[0].class_names) {
+        return res.json(result.rows[0].class_names);
+      }
+    }
+
+    // Fallback: derive from classes_schema tables
     const result = await pool.query(`
       SELECT table_name
       FROM information_schema.tables
-      WHERE table_schema = 'public'
-      AND table_name NOT IN ('users', 'school_student_count')
+      WHERE table_schema = 'classes_schema'
       ORDER BY table_name
     `);
-    const classes = result.rows.map(row => row.table_name);
-    console.log('Fetched classes:', classes);
-    res.json(classes);
+    res.json(result.rows.map(r => r.table_name));
   } catch (error) {
     console.error('Error fetching classes:', error);
     res.status(500).json({ error: 'Failed to fetch classes', details: error.message });
@@ -92,18 +104,32 @@ router.get('/classes', async (req, res) => {
 // Get students for a class
 router.get('/students/:className', async (req, res) => {
   const { className } = req.params;
-  if (!/^[a-zA-Z0-9_]+$/.test(className)) {
-    console.error('Validation failed: Invalid className', { className });
+  if (!/^[a-zA-Z0-9_ ]+$/.test(className)) {
     return res.status(400).json({ error: 'Invalid class name' });
   }
   try {
-    console.log(`Fetching students for class: ${className}`);
+    // Try classes_schema first (primary student storage)
+    const schemaCheck = await pool.query(`
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'classes_schema' AND table_name = $1
+    `, [className]);
+
+    if (schemaCheck.rows.length > 0) {
+      const result = await pool.query(`
+        SELECT school_id, class_id, student_name
+        FROM classes_schema."${className}"
+        WHERE is_active = TRUE OR is_active IS NULL
+        ORDER BY LOWER(student_name) ASC
+      `);
+      return res.json(result.rows);
+    }
+
+    // Fallback: public schema
     const result = await pool.query(`
       SELECT school_id, class_id, student_name
       FROM public."${className}"
       ORDER BY LOWER(student_name) ASC
     `);
-    console.log(`Fetched ${result.rows.length} students for ${className}`);
     res.json(result.rows);
   } catch (error) {
     console.error(`Error fetching students for ${className}:`, error);

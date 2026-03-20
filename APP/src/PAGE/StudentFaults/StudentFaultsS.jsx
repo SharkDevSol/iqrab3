@@ -30,11 +30,14 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 import styles from './StudentFaultsS.module.css';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 const { Option } = Select;
 const { TextArea } = Input;
 const { TabPane } = Tabs;
 
 const StudentFaultsS = () => {
+  const getAuth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('authToken') || localStorage.getItem('token')}` } });
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -55,27 +58,55 @@ const StudentFaultsS = () => {
     type: null,
     dateRange: null,
   });
+  const getAdminName = () => {
+    try { return JSON.parse(localStorage.getItem('adminUser'))?.username || 'Admin'; } catch { return 'Admin'; }
+  };
+
   const [formData, setFormData] = useState({
     student_name: '',
     fault_type: '',
-    fault_level: '',
-    date: null,
+    date: new Date().toISOString().split('T')[0],
     description: '',
-    reported_by: '',
+    reported_by: getAdminName(),
     attachment: null,
   });
   const [editFormData, setEditFormData] = useState({
     fault_type: '',
-    fault_level: '',
-    date: null,
+    date: new Date().toISOString().split('T')[0],
     description: '',
-    reported_by: '',
+    reported_by: getAdminName(),
     action_taken: '',
     attachment: null,
   });
   const [isLoading, setIsLoading] = useState(false);
 
-  const faultTypes = ['Late', 'Fight', 'Disrespect', 'Absence', 'Skipped Class', 'Uniform Violation'];
+  const faultTypes = [
+    'Late Arrival', 'Absence Without Notice', 'Truancy', 'Leaving Class Without Permission',
+    'Leaving School Without Permission', 'Skipping Class',
+    'Incomplete Homework', 'Late Homework Submission', 'No Homework', 'Cheating',
+    'Plagiarism', 'Copying from Others', 'Unprepared for Class', 'Not Bringing Required Materials',
+    'Sleeping in Class', 'Not Participating in Class',
+    'Disruptive Behavior', 'Talking During Class', 'Making Noise', 'Disturbing Others',
+    'Disrespect to Teacher', 'Disrespect to Staff', 'Disrespect to Students', 'Insubordination',
+    'Defiance', 'Arguing with Teacher', 'Refusing to Follow Instructions',
+    'Bullying', 'Verbal Bullying', 'Physical Bullying', 'Cyberbullying',
+    'Harassment', 'Intimidation', 'Threatening Others',
+    'Fighting', 'Physical Aggression', 'Pushing/Shoving', 'Hitting', 'Kicking', 'Horseplay',
+    'Profanity', 'Inappropriate Language', 'Vulgar Gestures', 'Name Calling',
+    'Gossiping', 'Spreading Rumors',
+    'Uniform Violation', 'Improper Uniform', 'Missing Uniform Items',
+    'Inappropriate Clothing', 'Dress Code Violation', 'Improper Grooming',
+    'Phone Use in Class', 'Unauthorized Device Use', 'Inappropriate Internet Use',
+    'Social Media Misuse', 'Taking Unauthorized Photos/Videos', 'Gaming During Class',
+    'Vandalism', 'Damaging School Property', 'Graffiti', 'Littering',
+    'Theft', 'Stealing', 'Misusing School Property',
+    'Running in Hallways', 'Unsafe Behavior', 'Not Following Safety Rules',
+    'Reckless Behavior', 'Dangerous Play',
+    'Eating in Class', 'Food Fight', 'Cafeteria Misconduct', 'Not Cleaning Up After Eating',
+    'Smoking', 'Possession of Prohibited Items', 'Substance Abuse',
+    'Lying', 'Forgery', 'Falsifying Documents', 'Providing False Information',
+    'Public Display of Affection', 'Inappropriate Behavior', 'Violation of School Rules', 'Other'
+  ];
   const faultLevels = [
     { value: 'Minor', color: 'green' },
     { value: 'Moderate', color: 'orange' },
@@ -87,7 +118,7 @@ const StudentFaultsS = () => {
       setIsLoading(true);
       try {
         console.log('Fetching classes from /api/faults/classes');
-        const response = await axios.get('http://localhost:5000/api/faults/classes');
+        const response = await axios.get(`${API_BASE_URL}/faults/classes`, getAuth());
         console.log('Classes fetched:', response.data);
         setClasses(response.data);
       } catch (error) {
@@ -102,7 +133,7 @@ const StudentFaultsS = () => {
       setIsLoading(true);
       try {
         console.log('Fetching reports from /api/faults/reports');
-        const response = await axios.get('http://localhost:5000/api/faults/reports');
+        const response = await axios.get(`${API_BASE_URL}/faults/reports`, getAuth());
         console.log('Reports fetched:', response.data);
         setReports(response.data);
       } catch (error) {
@@ -125,12 +156,12 @@ const StudentFaultsS = () => {
     setIsLoading(true);
     try {
       console.log(`Fetching students for class: ${className}`);
-      const studentsResponse = await axios.get(`http://localhost:5000/api/faults/students/${className}`);
+      const studentsResponse = await axios.get(`${API_BASE_URL}/faults/students/${className}`, getAuth());
       console.log(`Students fetched for ${className}:`, studentsResponse.data);
       setStudents(studentsResponse.data);
 
       console.log(`Fetching faults for class: ${className}`);
-      const faultsResponse = await axios.get(`http://localhost:5000/api/faults/faults/${className}`);
+      const faultsResponse = await axios.get(`${API_BASE_URL}/faults/faults/${className}`, getAuth());
       console.log(`Faults fetched for ${className}:`, faultsResponse.data);
       setFaults(faultsResponse.data);
     } catch (error) {
@@ -147,10 +178,9 @@ const StudentFaultsS = () => {
     setFormData({
       student_name: '',
       fault_type: '',
-      fault_level: '',
-      date: null,
+      date: new Date().toISOString().split('T')[0],
       description: '',
-      reported_by: '',
+      reported_by: getAdminName(),
       attachment: null,
     });
   };
@@ -177,7 +207,7 @@ const StudentFaultsS = () => {
   };
 
   const handleAddSubmit = async () => {
-    if (!formData.student_name || !formData.fault_type || !formData.fault_level || !formData.date || !formData.description || !formData.reported_by) {
+    if (!formData.student_name || !formData.fault_type || !formData.description || !formData.reported_by) {
       message.error('All fields except attachment are required');
       return;
     }
@@ -187,8 +217,8 @@ const StudentFaultsS = () => {
       formDataToSend.append('className', selectedClass);
       formDataToSend.append('student_name', formData.student_name);
       formDataToSend.append('fault_type', formData.fault_type);
-      formDataToSend.append('fault_level', formData.fault_level);
-      formDataToSend.append('date', formData.date.format('YYYY-MM-DD'));
+      formDataToSend.append('fault_level', 'Minor');
+      formDataToSend.append('date', formData.date);
       formDataToSend.append('description', formData.description);
       formDataToSend.append('reported_by', formData.reported_by);
       if (formData.attachment) {
@@ -196,8 +226,8 @@ const StudentFaultsS = () => {
       }
 
       console.log(`Submitting fault for ${formData.student_name} in class ${selectedClass}`);
-      const response = await axios.post('http://localhost:5000/api/faults/add-fault', formDataToSend, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const response = await axios.post(`${API_BASE_URL}/faults/add-fault`, formDataToSend, {
+        headers: { ...getAuth().headers, 'Content-Type': 'multipart/form-data' },
       });
       console.log('Fault added:', response.data);
       message.success('Fault added successfully');
@@ -206,14 +236,13 @@ const StudentFaultsS = () => {
       setFormData({
         student_name: '',
         fault_type: '',
-        fault_level: '',
-        date: null,
+        date: new Date().toISOString().split('T')[0],
         description: '',
-        reported_by: '',
+        reported_by: getAdminName(),
         attachment: null,
       });
       // Refresh reports
-      const reportsResponse = await axios.get('http://localhost:5000/api/faults/reports');
+      const reportsResponse = await axios.get(`${API_BASE_URL}/faults/reports`, getAuth());
       setReports(reportsResponse.data);
     } catch (error) {
       console.error('Error adding fault:', error);
@@ -227,8 +256,7 @@ const StudentFaultsS = () => {
     setSelectedFault(fault);
     setEditFormData({
       fault_type: fault.type,
-      fault_level: fault.level,
-      date: dayjs(fault.date),
+      date: fault.date ? fault.date.split('T')[0] : new Date().toISOString().split('T')[0],
       description: fault.description,
       reported_by: fault.reported_by,
       action_taken: fault.action_taken || '',
@@ -238,7 +266,7 @@ const StudentFaultsS = () => {
   };
 
   const handleEditSubmit = async () => {
-    if (!editFormData.fault_type || !editFormData.fault_level || !editFormData.date || !editFormData.description || !editFormData.reported_by) {
+    if (!editFormData.fault_type || !editFormData.description || !editFormData.reported_by) {
       message.error('All fields except attachment and action_taken are required');
       return;
     }
@@ -246,8 +274,8 @@ const StudentFaultsS = () => {
     try {
       const formDataToSend = new FormData();
       formDataToSend.append('fault_type', editFormData.fault_type);
-      formDataToSend.append('fault_level', editFormData.fault_level);
-      formDataToSend.append('date', editFormData.date.format('YYYY-MM-DD'));
+      formDataToSend.append('fault_level', 'Minor');
+      formDataToSend.append('date', editFormData.date);
       formDataToSend.append('description', editFormData.description);
       formDataToSend.append('reported_by', editFormData.reported_by);
       formDataToSend.append('action_taken', editFormData.action_taken);
@@ -257,16 +285,16 @@ const StudentFaultsS = () => {
 
       console.log(`Updating fault ID ${selectedFault.id} in class ${selectedClass}`);
       const response = await axios.put(
-        `http://localhost:5000/api/faults/edit-fault/${selectedClass}/${selectedFault.id}`,
+        `${API_BASE_URL}/faults/edit-fault/${selectedClass}/${selectedFault.id}`,
         formDataToSend,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
+        { headers: { ...getAuth().headers, 'Content-Type': 'multipart/form-data' } }
       );
       console.log('Fault updated:', response.data);
       message.success('Fault updated successfully');
       setIsEditModalVisible(false);
       handleClassSelect(selectedClass); // Refresh faults
       // Refresh reports
-      const reportsResponse = await axios.get('http://localhost:5000/api/faults/reports');
+      const reportsResponse = await axios.get(`${API_BASE_URL}/faults/reports`, getAuth());
       setReports(reportsResponse.data);
     } catch (error) {
       console.error('Error updating fault:', error);
@@ -280,12 +308,12 @@ const StudentFaultsS = () => {
     setIsLoading(true);
     try {
       console.log(`Deleting fault ID ${faultId} in class ${selectedClass}`);
-      const response = await axios.delete(`http://localhost:5000/api/faults/delete-fault/${selectedClass}/${faultId}`);
+      const response = await axios.delete(`${API_BASE_URL}/faults/delete-fault/${selectedClass}/${faultId}`, getAuth());
       console.log('Fault deleted:', response.data);
       message.success('Fault deleted successfully');
       handleClassSelect(selectedClass); // Refresh faults
       // Refresh reports
-      const reportsResponse = await axios.get('http://localhost:5000/api/faults/reports');
+      const reportsResponse = await axios.get(`${API_BASE_URL}/faults/reports`, getAuth());
       setReports(reportsResponse.data);
     } catch (error) {
       console.error('Error deleting fault:', error);
@@ -301,10 +329,9 @@ const StudentFaultsS = () => {
     setFormData({
       student_name: selectedFault.student_name,
       fault_type: '',
-      fault_level: '',
-      date: null,
+      date: new Date().toISOString().split('T')[0],
       description: '',
-      reported_by: '',
+      reported_by: getAdminName(),
       attachment: null,
     });
   };
@@ -514,14 +541,6 @@ const StudentFaultsS = () => {
                       ))}
                     </Select>
                   </div>
-                  <div className={styles.formGroup}>
-                    <label>Date</label>
-                    <DatePicker
-                      value={formData.date}
-                      onChange={date => handleFormChange('date', date)}
-                      className={styles.fullWidth}
-                    />
-                  </div>
                 </div>
                 <div className={styles.formRow}>
                   <div className={styles.formGroup}>
@@ -538,32 +557,6 @@ const StudentFaultsS = () => {
                         </Option>
                       ))}
                     </Select>
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Fault Level</label>
-                    <Select
-                      placeholder="Select severity level"
-                      value={formData.fault_level}
-                      onChange={value => handleFormChange('fault_level', value)}
-                      className={styles.largeInput}
-                    >
-                      {faultLevels.map(level => (
-                        <Option key={level.value} value={level.value}>
-                          <Badge color={level.color} text={level.value} />
-                        </Option>
-                      ))}
-                    </Select>
-                  </div>
-                </div>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Reported By</label>
-                    <Input
-                      value={formData.reported_by}
-                      onChange={e => handleFormChange('reported_by', e.target.value)}
-                      placeholder="Enter reporter's name"
-                      className={styles.largeInput}
-                    />
                   </div>
                 </div>
                 <div className={styles.formGroup}>
@@ -847,32 +840,6 @@ const StudentFaultsS = () => {
             </Select>
           </div>
         </div>
-        <div className={styles.formRow}>
-          <div className={styles.formGroup}>
-            <label>Fault Level</label>
-            <Select
-              placeholder="Select severity level"
-              value={formData.fault_level}
-              onChange={value => handleFormChange('fault_level', value)}
-              className={styles.largeInput}
-            >
-              {faultLevels.map(level => (
-                <Option key={level.value} value={level.value}>
-                  <Badge color={level.color} text={level.value} />
-                </Option>
-              ))}
-            </Select>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Reported By</label>
-            <Input
-              value={formData.reported_by}
-              onChange={e => handleFormChange('reported_by', e.target.value)}
-              placeholder="Enter reporter's name"
-              className={styles.largeInput}
-            />
-          </div>
-        </div>
         <div className={styles.formGroup}>
           <label>Description</label>
           <TextArea
@@ -911,14 +878,6 @@ const StudentFaultsS = () => {
       >
         <div className={styles.formRow}>
           <div className={styles.formGroup}>
-            <label>Date</label>
-            <DatePicker
-              value={editFormData.date}
-              onChange={date => handleEditFormChange('date', date)}
-              className={styles.fullWidth}
-            />
-          </div>
-          <div className={styles.formGroup}>
             <label>Fault Type</label>
             <Select
               placeholder="Select fault type"
@@ -932,32 +891,6 @@ const StudentFaultsS = () => {
                 </Option>
               ))}
             </Select>
-          </div>
-        </div>
-        <div className={styles.formRow}>
-          <div className={styles.formGroup}>
-            <label>Fault Level</label>
-            <Select
-              placeholder="Select severity level"
-              value={editFormData.fault_level}
-              onChange={value => handleEditFormChange('fault_level', value)}
-              className={styles.largeInput}
-            >
-              {faultLevels.map(level => (
-                <Option key={level.value} value={level.value}>
-                  <Badge color={level.color} text={level.value} />
-                </Option>
-              ))}
-            </Select>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Reported By</label>
-            <Input
-              value={editFormData.reported_by}
-              onChange={e => handleEditFormChange('reported_by', e.target.value)}
-              placeholder="Enter reporter's name"
-              className={styles.largeInput}
-            />
           </div>
         </div>
         <div className={styles.formGroup}>
