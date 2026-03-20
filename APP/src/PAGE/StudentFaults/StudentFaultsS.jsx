@@ -34,7 +34,6 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 const { Option } = Select;
 const { TextArea } = Input;
-const { TabPane } = Tabs;
 
 const StudentFaultsS = () => {
   const getAuth = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('authToken') || localStorage.getItem('token')}` } });
@@ -502,220 +501,135 @@ const StudentFaultsS = () => {
         </div>
       </div>
 
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <TabPane tab="Add Fault" key="add">
-          <Card title="Record New Fault" className={styles.addFaultCard}>
-            {!selectedClass && (
-              <div className={styles.classSelection}>
-                <h3>Select a Class</h3>
-                <div className={styles.classButtons}>
-                  {classes.map(cls => (
-                    <Button
-                      key={cls}
-                      onClick={() => handleClassSelect(cls)}
-                      disabled={isLoading}
-                      className={styles.classButton}
-                    >
-                      {cls}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {selectedClass && (
-              <>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Student Name</label>
-                    <Select
-                      showSearch
-                      placeholder="Search student..."
-                      value={formData.student_name}
-                      onChange={value => handleFormChange('student_name', value)}
-                      className={styles.largeInput}
-                    >
-                      {students.map(student => (
-                        <Option key={`${student.school_id}-${student.class_id}`} value={student.student_name}>
-                          {student.student_name}
-                        </Option>
-                      ))}
-                    </Select>
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
+        {
+          key: 'add',
+          label: 'Add Fault',
+          children: (
+            <Card title="Record New Fault" className={styles.addFaultCard}>
+              {!selectedClass && (
+                <div className={styles.classSelection}>
+                  <h3>Select a Class</h3>
+                  <div className={styles.classButtons}>
+                    {classes.map(cls => (
+                      <Button key={cls} onClick={() => handleClassSelect(cls)} disabled={isLoading} className={styles.classButton}>
+                        {cls}
+                      </Button>
+                    ))}
                   </div>
                 </div>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label>Fault Type</label>
-                    <Select
-                      placeholder="Select fault type"
-                      value={formData.fault_type}
-                      onChange={value => handleFormChange('fault_type', value)}
-                      className={styles.largeInput}
-                    >
-                      {faultTypes.map(type => (
-                        <Option key={type} value={type}>
-                          {type}
-                        </Option>
-                      ))}
-                    </Select>
+              )}
+              {selectedClass && (
+                <>
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label>Student Name</label>
+                      <Select showSearch placeholder="Search student..." value={formData.student_name} onChange={value => handleFormChange('student_name', value)} className={styles.largeInput}>
+                        {students.map(student => (
+                          <Option key={`${student.school_id}-${student.class_id}`} value={student.student_name}>{student.student_name}</Option>
+                        ))}
+                      </Select>
+                    </div>
                   </div>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Description</label>
-                  <TextArea
-                    rows={4}
-                    value={formData.description}
-                    onChange={e => handleFormChange('description', e.target.value)}
-                    placeholder="Enter fault details..."
-                    className={styles.largeInput}
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Attachment (Optional)</label>
-                  <Upload
-                    accept="image/*,.pdf,video/*"
-                    beforeUpload={file => {
-                      setFormData({ ...formData, attachment: file });
-                      return false;
-                    }}
-                    fileList={formData.attachment ? [{ uid: '-1', name: formData.attachment.name, status: 'done' }] : []}
-                    onRemove={() => setFormData({ ...formData, attachment: null })}
-                  >
-                    <Button icon={<FileAddOutlined />}>Upload File</Button>
-                  </Upload>
-                </div>
-                <div className={styles.formActions}>
-                  <Button type="primary" onClick={handleAddSubmit} disabled={isLoading}>
-                    Submit Fault
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setSelectedClass('');
-                      setActiveTab('list');
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </>
-            )}
-          </Card>
-        </TabPane>
-        <TabPane tab="Faults List" key="list">
-          <div className={styles.filterSection}>
-            <Input
-              placeholder="Search by name or ID..."
-              prefix={<SearchOutlined />}
-              onChange={handleSearch}
-              className={styles.searchInput}
-            />
-            <div className={styles.filterGroup}>
-              <Select
-                placeholder="Filter by level"
-                allowClear
-                onChange={value => handleFilterChange('level', value)}
-                className={styles.filterSelect}
-              >
-                {faultLevels.map(level => (
-                  <Option key={level.value} value={level.value}>
-                    <Badge color={level.color} text={level.value} />
-                  </Option>
-                ))}
-              </Select>
-              <Select
-                placeholder="Filter by type"
-                allowClear
-                onChange={value => handleFilterChange('type', value)}
-                className={styles.filterSelect}
-              >
-                {faultTypes.map(type => (
-                  <Option key={type} value={type}>
-                    {type}
-                  </Option>
-                ))}
-              </Select>
-              <DatePicker.RangePicker
-                onChange={dates => handleFilterChange('dateRange', dates)}
-                className={styles.datePicker}
-              />
-            </div>
-          </div>
-          {!selectedClass && (
-            <div className={styles.classSelection}>
-              <h3>Select a Class</h3>
-              <div className={styles.classButtons}>
-                {classes.map(cls => (
-                  <Button key={cls} onClick={() => handleClassSelect(cls)} disabled={isLoading} className={styles.classButton}>
-                    {cls}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-          {selectedClass && (
-            <>
-              <Button
-                onClick={() => setSelectedClass('')}
-                style={{ marginBottom: '1rem' }}
-              >
-                Back to Classes
-              </Button>
-              <Table
-                columns={columns}
-                dataSource={filteredData}
-                rowKey="id"
-                pagination={{ pageSize: 10 }}
-                className={styles.faultsTable}
-                loading={isLoading}
-              />
-            </>
-          )}
-        </TabPane>
-        <TabPane tab="Reports" key="reports">
-          <div className={styles.reportSection}>
-            <Card title="Behavior Statistics" className={styles.statsCard}>
-              <div className={styles.statGrid}>
-                <Statistic title="Total Students with Faults" value={reports.uniqueStudents} />
-                <Statistic
-                  title="This Week"
-                  value={faults.filter(f => dayjs(f.date).isAfter(dayjs().startOf('week'))).length}
-                />
-                <Statistic
-                  title="Critical Faults"
-                  value={faults.filter(f => f.level === 'Critical').length}
-                />
-                <Statistic title="Parent Notifications" value={faults.filter(f => f.action_taken).length} />
-              </div>
-              <div className={styles.chartContainer}>
-                <h3>Class Fault Rankings</h3>
-                {reports.classFaultCounts.length > 0 ? (
-                  <Bar {...barConfig} />
-                ) : (
-                  <p>No fault data available</p>
-                )}
-              </div>
-              <div className={styles.studentRankContainer}>
-                <h3>Top Students with Faults</h3>
-                <Table
-                  columns={studentRankColumns}
-                  dataSource={reports.studentFaultCounts}
-                  rowKey={record => `${record.student_name}:${record.className}`}
-                  pagination={false}
-                  className={styles.studentRankTable}
-                />
-              </div>
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label>Fault Type</label>
+                      <Select placeholder="Select fault type" value={formData.fault_type} onChange={value => handleFormChange('fault_type', value)} className={styles.largeInput}>
+                        {faultTypes.map(type => <Option key={type} value={type}>{type}</Option>)}
+                      </Select>
+                    </div>
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Description</label>
+                    <TextArea rows={4} value={formData.description} onChange={e => handleFormChange('description', e.target.value)} placeholder="Enter fault details..." className={styles.largeInput} />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Attachment (Optional)</label>
+                    <Upload accept="image/*,.pdf,video/*" beforeUpload={file => { setFormData({ ...formData, attachment: file }); return false; }} fileList={formData.attachment ? [{ uid: '-1', name: formData.attachment.name, status: 'done' }] : []} onRemove={() => setFormData({ ...formData, attachment: null })}>
+                      <Button icon={<FileAddOutlined />}>Upload File</Button>
+                    </Upload>
+                  </div>
+                  <div className={styles.formActions}>
+                    <Button type="primary" onClick={handleAddSubmit} disabled={isLoading}>Submit Fault</Button>
+                    <Button onClick={() => { setSelectedClass(''); setActiveTab('list'); }}>Cancel</Button>
+                  </div>
+                </>
+              )}
             </Card>
-            <div className={styles.reportActions}>
-              <Button icon={<FilePdfOutlined />}>Export PDF Report</Button>
-              <Button icon={<MailOutlined />}>Send to Parents</Button>
+          ),
+        },
+        {
+          key: 'list',
+          label: 'Faults List',
+          children: (
+            <>
+              <div className={styles.filterSection}>
+                <Input placeholder="Search by name or ID..." prefix={<SearchOutlined />} onChange={handleSearch} className={styles.searchInput} />
+                <div className={styles.filterGroup}>
+                  <Select placeholder="Filter by level" allowClear onChange={value => handleFilterChange('level', value)} className={styles.filterSelect}>
+                    {faultLevels.map(level => (
+                      <Option key={level.value} value={level.value}><Badge color={level.color} text={level.value} /></Option>
+                    ))}
+                  </Select>
+                  <Select placeholder="Filter by type" allowClear onChange={value => handleFilterChange('type', value)} className={styles.filterSelect}>
+                    {faultTypes.map(type => <Option key={type} value={type}>{type}</Option>)}
+                  </Select>
+                  <DatePicker.RangePicker onChange={dates => handleFilterChange('dateRange', dates)} className={styles.datePicker} />
+                </div>
+              </div>
+              {!selectedClass && (
+                <div className={styles.classSelection}>
+                  <h3>Select a Class</h3>
+                  <div className={styles.classButtons}>
+                    {classes.map(cls => (
+                      <Button key={cls} onClick={() => handleClassSelect(cls)} disabled={isLoading} className={styles.classButton}>{cls}</Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedClass && (
+                <>
+                  <Button onClick={() => setSelectedClass('')} style={{ marginBottom: '1rem' }}>Back to Classes</Button>
+                  <Table columns={columns} dataSource={filteredData} rowKey="id" pagination={{ pageSize: 10 }} className={styles.faultsTable} loading={isLoading} />
+                </>
+              )}
+            </>
+          ),
+        },
+        {
+          key: 'reports',
+          label: 'Reports',
+          children: (
+            <div className={styles.reportSection}>
+              <Card title="Behavior Statistics" className={styles.statsCard}>
+                <div className={styles.statGrid}>
+                  <Statistic title="Total Students with Faults" value={reports.uniqueStudents} />
+                  <Statistic title="This Week" value={faults.filter(f => dayjs(f.date).isAfter(dayjs().startOf('week'))).length} />
+                  <Statistic title="Critical Faults" value={faults.filter(f => f.level === 'Critical').length} />
+                  <Statistic title="Parent Notifications" value={faults.filter(f => f.action_taken).length} />
+                </div>
+                <div className={styles.chartContainer}>
+                  <h3>Class Fault Rankings</h3>
+                  {reports.classFaultCounts.length > 0 ? <Bar {...barConfig} /> : <p>No fault data available</p>}
+                </div>
+                <div className={styles.studentRankContainer}>
+                  <h3>Top Students with Faults</h3>
+                  <Table columns={studentRankColumns} dataSource={reports.studentFaultCounts} rowKey={record => `${record.student_name}:${record.className}`} pagination={false} className={styles.studentRankTable} />
+                </div>
+              </Card>
+              <div className={styles.reportActions}>
+                <Button icon={<FilePdfOutlined />}>Export PDF Report</Button>
+                <Button icon={<MailOutlined />}>Send to Parents</Button>
+              </div>
             </div>
-          </div>
-        </TabPane>
-      </Tabs>
+          ),
+        },
+      ]} />
 
       {/* Fault Details Modal */}
       <Modal
         title="Fault Details"
-        visible={isModalVisible}
+        open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={[
           <Button key="add" icon={<PlusOutlined />} onClick={handleAddNewFaultForStudent}>
@@ -808,7 +722,7 @@ const StudentFaultsS = () => {
       {/* Add New Fault Modal */}
       <Modal
         title={`Add New Fault for ${formData.student_name}`}
-        visible={isAddModalVisible}
+        open={isAddModalVisible}
         onOk={handleAddSubmit}
         onCancel={() => setIsAddModalVisible(false)}
         okText="Submit"
@@ -869,7 +783,7 @@ const StudentFaultsS = () => {
       {/* Edit Fault Modal */}
       <Modal
         title={`Edit Fault for ${selectedFault?.student_name}`}
-        visible={isEditModalVisible}
+        open={isEditModalVisible}
         onOk={handleEditSubmit}
         onCancel={() => setIsEditModalVisible(false)}
         okText="Update"
