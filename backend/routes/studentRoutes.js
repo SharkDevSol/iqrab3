@@ -58,6 +58,31 @@ const upload = multer({
   }
 });
 
+// Ensure global_machine_ids table exists
+const initGlobalMachineIds = async () => {
+  try {
+    await db.query('CREATE SCHEMA IF NOT EXISTS school_schema_points');
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS school_schema_points.global_machine_ids (
+        smachine_id VARCHAR(50) PRIMARY KEY,
+        student_name VARCHAR(255) NOT NULL,
+        class_name VARCHAR(100) NOT NULL,
+        school_id INTEGER,
+        class_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_global_machine_ids_class
+      ON school_schema_points.global_machine_ids(class_name)
+    `);
+  } catch (e) {
+    console.error('global_machine_ids init error:', e.message);
+  }
+};
+initGlobalMachineIds();
+
 // Get all classes
 router.get('/classes', async (req, res) => {
   try {

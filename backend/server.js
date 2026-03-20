@@ -207,14 +207,14 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.) in development
-    if (!origin && process.env.NODE_ENV !== 'production') {
+    // Allow requests with no origin (server-to-server, curl, etc.)
+    if (!origin) {
       return callback(null, true);
     }
     
     // In development, allow all local network IPs
     if (process.env.NODE_ENV !== 'production') {
-      if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || 
+      if (origin.includes('localhost') || origin.includes('127.0.0.1') || 
           origin.match(/^http:\/\/192\.168\.\d+\.\d+/) || 
           origin.match(/^http:\/\/172\.\d+\.\d+\.\d+/) ||
           origin.match(/^http:\/\/10\.\d+\.\d+\.\d+/)) {
@@ -225,7 +225,8 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    callback(new Error('Not allowed by CORS'));
+    // Return false instead of throwing — prevents HTML 500 error
+    callback(null, false);
   },
   methods: 'GET,POST,PUT,DELETE,PATCH',
   credentials: true,
