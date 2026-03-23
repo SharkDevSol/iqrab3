@@ -34,8 +34,47 @@ const FaultsPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [addError, setAddError] = useState('');
 
-  const faultTypes = ['Late Arrival', 'Fight', 'Disrespect', 'Absence', 'Skipped Class', 'Uniform Violation', 'Other'];
-  const faultLevels = ['Minor', 'Moderate', 'Serious', 'Severe'];
+  const faultTypes = [
+    // Attendance Issues
+    'Late Arrival', 'Absence Without Notice', 'Truancy', 'Leaving Class Without Permission',
+    'Leaving School Without Permission', 'Skipping Class',
+    // Academic Infractions
+    'Incomplete Homework', 'Late Homework Submission', 'No Homework', 'Cheating',
+    'Plagiarism', 'Copying from Others', 'Unprepared for Class', 'Not Bringing Required Materials',
+    'Sleeping in Class', 'Not Participating in Class',
+    // Behavioral Issues
+    'Disruptive Behavior', 'Talking During Class', 'Making Noise', 'Disturbing Others',
+    'Disrespect to Teacher', 'Disrespect to Staff', 'Disrespect to Students', 'Insubordination',
+    'Defiance', 'Arguing with Teacher', 'Refusing to Follow Instructions',
+    // Bullying & Harassment
+    'Bullying', 'Verbal Bullying', 'Physical Bullying', 'Cyberbullying',
+    'Harassment', 'Intimidation', 'Threatening Others',
+    // Physical Altercations
+    'Fighting', 'Physical Aggression', 'Pushing/Shoving', 'Hitting', 'Kicking', 'Horseplay',
+    // Language & Communication
+    'Profanity', 'Inappropriate Language', 'Vulgar Gestures', 'Name Calling',
+    'Gossiping', 'Spreading Rumors',
+    // Dress Code & Appearance
+    'Uniform Violation', 'Improper Uniform', 'Missing Uniform Items',
+    'Inappropriate Clothing', 'Dress Code Violation', 'Improper Grooming',
+    // Technology Misuse
+    'Phone Use in Class', 'Unauthorized Device Use', 'Inappropriate Internet Use',
+    'Social Media Misuse', 'Taking Unauthorized Photos/Videos', 'Gaming During Class',
+    // Property & Vandalism
+    'Vandalism', 'Damaging School Property', 'Graffiti', 'Littering',
+    'Theft', 'Stealing', 'Misusing School Property',
+    // Safety Violations
+    'Running in Hallways', 'Unsafe Behavior', 'Not Following Safety Rules',
+    'Reckless Behavior', 'Dangerous Play',
+    // Food & Cafeteria
+    'Eating in Class', 'Food Fight', 'Cafeteria Misconduct', 'Not Cleaning Up After Eating',
+    // Substance Related
+    'Smoking', 'Possession of Prohibited Items', 'Substance Abuse',
+    // Dishonesty
+    'Lying', 'Forgery', 'Falsifying Documents', 'Providing False Information',
+    // Other
+    'Public Display of Affection', 'Inappropriate Behavior', 'Violation of School Rules', 'Other'
+  ];
 
   const getAuthConfig = () => {
     const token = localStorage.getItem('authToken') || localStorage.getItem('token');
@@ -470,19 +509,12 @@ const FaultsPage = () => {
                 </select>
               </div>
 
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:'1rem' }}>
                 <div>
                   <label style={{ display:'block', fontSize:'0.875rem', fontWeight:600, color:'#374151', marginBottom:'0.4rem' }}>Fault Type *</label>
                   <select value={addForm.fault_type} onChange={e => setAddForm(f => ({ ...f, fault_type: e.target.value }))}
                     style={{ width:'100%', padding:'0.75rem', border:'2px solid #e5e7eb', borderRadius:'10px', fontSize:'0.9375rem' }}>
                     {faultTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display:'block', fontSize:'0.875rem', fontWeight:600, color:'#374151', marginBottom:'0.4rem' }}>Level *</label>
-                  <select value={addForm.fault_level} onChange={e => setAddForm(f => ({ ...f, fault_level: e.target.value }))}
-                    style={{ width:'100%', padding:'0.75rem', border:'2px solid #e5e7eb', borderRadius:'10px', fontSize:'0.9375rem' }}>
-                    {faultLevels.map(l => <option key={l} value={l}>{l}</option>)}
                   </select>
                 </div>
               </div>
