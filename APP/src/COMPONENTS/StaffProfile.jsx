@@ -633,7 +633,7 @@ const StaffProfile = () => {
   const handleMarkListMarkChange = (studentId, componentKey, value) => {
     setMarkListData(prev => prev.map(student => {
       if (student.id === studentId) {
-        return { ...student, [componentKey]: parseFloat(value) || 0 };
+        return { ...student, [componentKey]: value === '' ? '' : parseFloat(value) };
       }
       return student;
     }));
@@ -2140,9 +2140,9 @@ const StaffProfile = () => {
                                 type="number"
                                 min="0"
                                 max={component.percentage}
-                                value={student[componentKey] || 0}
+                                value={student[componentKey] === 0 || student[componentKey] ? student[componentKey] : ''}
                                 onChange={(e) => handleMarkListMarkChange(student.id, componentKey, e.target.value)}
-                                placeholder="0"
+                                placeholder=""
                                 disabled={isLocked}
                               />
                             </div>
