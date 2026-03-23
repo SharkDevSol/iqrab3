@@ -3,7 +3,7 @@ const rateLimit = require('express-rate-limit');
 // General API rate limiter
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Limit each IP to 1000 requests per windowMs (increased for development)
+  max: 1000,
   message: {
     error: 'Too many requests, please try again later.',
     retryAfter: '15 minutes'
@@ -11,7 +11,6 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for localhost during development
     const isLocalhost = req.ip === '127.0.0.1' || 
                        req.ip === '::1' || 
                        req.ip === '::ffff:127.0.0.1' ||
@@ -20,17 +19,30 @@ const apiLimiter = rateLimit({
   }
 });
 
-// Strict limiter for login attempts
+// Strict limiter for login attempts - 1 minute lockout after 3 failed attempts
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 login attempts per windowMs
+  windowMs: 1 * 60 * 1000, // 1 minute window
+  max: 3, // 3 attempts per minute per IP+UserAgent
   message: {
-    error: 'Too many login attempts, please try again after 15 minutes.',
-    retryAfter: '15 minutes'
+    error: 'Too many login attempts, please try again after 1 minute.',
+    retryAfter: '1 minute'
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true, // Don't count successful logins
+  skipSuccessfulRequests: true,
+  // Key by IP + User-Agent so each browser/tab is tracked separately
+  keyGenerator: (req) => {
+    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const ua = req.headers['user-agent'] || 'unknown';
+    // Use first 50 chars of UA to differentiate browsers/tabs
+    return `${ip}-${ua.substring(0, 50)}`;
+  },
+  handler: (req, res) => {
+    res.status(429).json({
+      error: 'Too many login attempts. Please wait 1 minute before trying again.',
+      retryAfter: 60
+    });
+  }
 });
 
 // Password reset limiter
