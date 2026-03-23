@@ -93,19 +93,22 @@ router.get('/classes', async (req, res) => {
 router.get('/students/:className', async (req, res) => {
   const { className } = req.params;
   if (!/^[a-zA-Z0-9_]+$/.test(className)) {
-    console.error('Validation failed: Invalid className', { className });
     return res.status(400).json({ error: 'Invalid class name' });
   }
   try {
-    console.log(`Fetching students for class: ${className}`);
-    // Use classes_schema like student list does
+    // Check if is_active column exists
+    const colCheck = await pool.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'classes_schema' AND table_name = $1 AND column_name = 'is_active'
+    `, [className]);
+    const hasIsActive = colCheck.rows.length > 0;
+
     const result = await pool.query(`
       SELECT school_id, class_id, student_name
       FROM classes_schema."${className}"
-      WHERE is_active = TRUE OR is_active IS NULL
+      ${hasIsActive ? "WHERE is_active = TRUE OR is_active IS NULL" : ""}
       ORDER BY LOWER(student_name) ASC
     `);
-    console.log(`Fetched ${result.rows.length} students for ${className}`);
     res.json(result.rows);
   } catch (error) {
     console.error(`Error fetching students for ${className}:`, error);
@@ -167,20 +170,29 @@ router.post('/add-fault', upload, async (req, res) => {
     await client.query('BEGIN');
     console.log(`Adding fault for ${student_name} in class ${className}`);
 
-    // Verify class exists
+    // Verify class exists - check both public and classes_schema
     const classExists = await client.query(`
       SELECT 1 FROM information_schema.tables
-      WHERE table_schema = 'public' AND table_name = $1
+      WHERE (table_schema = 'public' OR table_schema = 'classes_schema') AND table_name = $1
+      LIMIT 1
     `, [className]);
     if (classExists.rows.length === 0) {
       console.error(`Class does not exist: ${className}`);
       throw new Error(`Class ${className} does not exist`);
     }
 
+    // Determine which schema the class is in
+    const schemaResult = await client.query(`
+      SELECT table_schema FROM information_schema.tables
+      WHERE (table_schema = 'public' OR table_schema = 'classes_schema') AND table_name = $1
+      LIMIT 1
+    `, [className]);
+    const classSchema = schemaResult.rows[0].table_schema;
+
     // Get student details
     const studentResult = await client.query(`
       SELECT school_id, class_id
-      FROM public."${className}"
+      FROM ${classSchema}."${className}"
       WHERE student_name = $1
     `, [student_name]);
     if (studentResult.rows.length === 0) {
