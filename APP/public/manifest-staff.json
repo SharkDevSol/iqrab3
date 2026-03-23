@@ -2,7 +2,7 @@
   "name": "Skoolific Staff App",
   "short_name": "Staff",
   "description": "Manage attendance, grades, and communicate with students",
-  "start_url": ".",
+  "start_url": "/app/staff",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ec4899",

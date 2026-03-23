@@ -34,6 +34,10 @@ const StaffProfile = () => {
   const toast = useToast();
   const { t } = useApp();
 
+  // Ethiopian calendar state
+  const [ethiopianToday, setEthiopianToday] = useState(null);
+  const [weekEthiopianDates, setWeekEthiopianDates] = useState({});
+
   // Attendance state
   const [isClassTeacher, setIsClassTeacher] = useState(false);
   const [assignedClass, setAssignedClass] = useState(null);
@@ -87,6 +91,62 @@ const StaffProfile = () => {
     return formatDate(getMonday(nextWeek));
   };
 
+  // Ethiopian calendar utilities (frontend)
+  const ethMonthNames = [
+    'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit',
+    'Megabit', 'Miazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'
+  ];
+  const ethMonthShort = [
+    'Mes', 'Tik', 'Hid', 'Tah', 'Tir', 'Yek',
+    'Meg', 'Mia', 'Gin', 'Sen', 'Ham', 'Neh', 'Pag'
+  ];
+
+  const convertToEthiopian = (gregorianDate) => {
+    const date = new Date(gregorianDate);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const isGregLeap = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+    let ethYear, ethMonth, ethDay;
+    if (month > 9 || (month === 9 && day >= (isGregLeap(year) ? 12 : 11))) {
+      ethYear = year - 7;
+      const newYearDay = isGregLeap(year) ? 12 : 11;
+      const newYear = new Date(year, 8, newYearDay);
+      const current = new Date(year, month - 1, day);
+      const diff = Math.round((current - newYear) / 86400000);
+      ethMonth = Math.floor(diff / 30) + 1;
+      ethDay = (diff % 30) + 1;
+    } else {
+      ethYear = year - 8;
+      const prevNewYearDay = isGregLeap(year - 1) ? 12 : 11;
+      const newYear = new Date(year - 1, 8, prevNewYearDay);
+      const current = new Date(year, month - 1, day);
+      const diff = Math.round((current - newYear) / 86400000);
+      ethMonth = Math.floor(diff / 30) + 1;
+      ethDay = (diff % 30) + 1;
+    }
+    return { year: ethYear, month: ethMonth, day: ethDay };
+  };
+
+  const formatEthiopianShort = (ethDate) => {
+    if (!ethDate) return '';
+    return `${ethMonthShort[ethDate.month - 1]} ${ethDate.day}`;
+  };
+
+  // Build Ethiopian dates for each day of the selected week
+  const buildWeekEthiopianDates = (weekStartDate) => {
+    if (!weekStartDate) return {};
+    const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const result = {};
+    const monday = new Date(weekStartDate + 'T00:00:00');
+    dayNames.forEach((dayName, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      result[dayName] = convertToEthiopian(d);
+    });
+    return result;
+  };
+
   // All days of the week for reference
   const dayLabels = { 
     monday: 'Monday', 
@@ -114,6 +174,7 @@ const StaffProfile = () => {
   const [markListMessage, setMarkListMessage] = useState('');
   const [savingMarks, setSavingMarks] = useState(false);
   const [markListSearchQuery, setMarkListSearchQuery] = useState('');
+  const [savedMarkStudents, setSavedMarkStudents] = useState(new Set()); // track locked students
 
   // Evaluation Book state
   const [evalBookAssignments, setEvalBookAssignments] = useState([]);
@@ -537,12 +598,27 @@ const StaffProfile = () => {
     if (!selectedMarkListSubject || !selectedMarkListClass || !selectedMarkListTerm) return;
     setMarkListLoading(true);
     setMarkListMessage('');
+    setSavedMarkStudents(new Set()); // reset locks on new load
     try {
       const response = await axios.get(
         `${API_BASE_URL}/mark-list/mark-list/${encodeURIComponent(selectedMarkListSubject)}/${encodeURIComponent(selectedMarkListClass)}/${selectedMarkListTerm}`
       );
-      setMarkListData(response.data.markList || []);
+      const list = response.data.markList || [];
+      setMarkListData(list);
       setMarkListConfig(response.data.config || null);
+      // Pre-lock students that already have marks saved (all components > 0)
+      const config = response.data.config;
+      if (config) {
+        const alreadySaved = new Set(
+          list
+            .filter(s => config.mark_components.every(c => {
+              const key = c.name.toLowerCase().replace(/\s+/g, '_');
+              return s[key] > 0;
+            }))
+            .map(s => s.id)
+        );
+        setSavedMarkStudents(alreadySaved);
+      }
     } catch (error) {
       console.error('Error loading mark list:', error);
       setMarkListMessage('Failed to load mark list');
@@ -591,6 +667,8 @@ const StaffProfile = () => {
         }
         return s;
       }));
+      // Lock this student — teacher cannot edit again
+      setSavedMarkStudents(prev => new Set([...prev, studentId]));
       toast.success(`Marks saved for ${student.student_name}`);
     } catch (error) {
       console.error('Error saving marks:', error);
@@ -618,13 +696,17 @@ const StaffProfile = () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/class-teacher/school-days`);
       if (response.data.schoolDays && response.data.schoolDays.length > 0) {
-        setSchoolDays(response.data.schoolDays);
-        setSelectedDay(response.data.schoolDays[0]); // Set first school day as default
+        const days = response.data.schoolDays;
+        setSchoolDays(days);
+        // Auto-select today's day if it's a school day, otherwise first school day
+        const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+        const autoDay = days.includes(todayName) ? todayName : days[0];
+        setSelectedDay(autoDay);
       }
     } catch (error) {
       console.error('Error fetching school days:', error);
-      // Keep default school days
-      setSelectedDay('monday');
+      const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      setSelectedDay(todayName);
     }
   };
 
@@ -634,8 +716,6 @@ const StaffProfile = () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/class-teacher/students/${className}`);
       setStudents(response.data);
-      
-      // Fetch weekly tables
       await fetchWeeklyTables(className);
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -650,15 +730,36 @@ const StaffProfile = () => {
       const response = await axios.get(`${API_BASE_URL}/class-teacher/weekly-tables/${className}`);
       setWeeklyTables(response.data);
       
-      // Auto-select current week if exists, otherwise latest
       const currentWeekTable = `week_${currentWeekMonday.replace(/-/g, '_')}`;
+      
       if (response.data.includes(currentWeekTable)) {
+        // Current week exists — load it
         setSelectedWeek(currentWeekMonday);
         fetchWeeklyAttendance(className, currentWeekMonday);
-      } else if (response.data.length > 0) {
-        const latestWeek = response.data[0].replace('week_', '').replace(/_/g, '-');
-        setSelectedWeek(latestWeek);
-        fetchWeeklyAttendance(className, latestWeek);
+      } else {
+        // Current week doesn't exist — auto-create it silently
+        try {
+          await axios.post(`${API_BASE_URL}/class-teacher/create-weekly-attendance`, {
+            className,
+            weekStart: currentWeekMonday,
+            globalStaffId: profile?.global_staff_id
+          });
+          // Reload tables after creation
+          const refreshed = await axios.get(`${API_BASE_URL}/class-teacher/weekly-tables/${className}`);
+          setWeeklyTables(refreshed.data);
+          setSelectedWeek(currentWeekMonday);
+          setWeeklyAttendanceExists(true);
+          fetchWeeklyAttendance(className, currentWeekMonday);
+        } catch (createErr) {
+          // Creation failed — fall back to latest existing week
+          console.error('Auto-create week failed:', createErr);
+          if (response.data.length > 0) {
+            const latestWeek = response.data[0].replace('week_', '').replace(/_/g, '-');
+            setSelectedWeek(latestWeek);
+            setWeeklyAttendanceExists(true);
+            fetchWeeklyAttendance(className, latestWeek);
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching weekly tables:', error);
@@ -715,6 +816,18 @@ const StaffProfile = () => {
       fetchWeeklyAttendance(assignedClass, selectedWeek);
     }
   }, [selectedWeek, assignedClass, isClassTeacher]);
+
+  // Fetch Ethiopian today and build week dates
+  useEffect(() => {
+    const ethToday = convertToEthiopian(new Date());
+    setEthiopianToday(ethToday);
+  }, []);
+
+  useEffect(() => {
+    if (selectedWeek) {
+      setWeekEthiopianDates(buildWeekEthiopianDates(selectedWeek));
+    }
+  }, [selectedWeek]);
 
   // Handle attendance status change for a specific day
   const handleAttendanceStatusChange = (studentKey, day, status) => {
@@ -1998,8 +2111,11 @@ const StaffProfile = () => {
 
                 {/* Student Cards */}
                 <div className={styles.markListStudents}>
-                  {filteredMarkListData.map((student, idx) => (
-                    <div key={student.id} className={styles.markListStudentCard}>
+                  {filteredMarkListData.map((student, idx) => {
+                    const isAdmin = user?.staffType?.toLowerCase() === 'admin';
+                    const isLocked = savedMarkStudents.has(student.id) && !isAdmin;
+                    return (
+                    <div key={student.id} className={`${styles.markListStudentCard} ${isLocked ? styles.markListStudentLocked : ''}`}>
                       <div className={styles.markListStudentHeader}>
                         <div className={styles.markListStudentInfo}>
                           <div className={styles.markListStudentNumber}>{idx + 1}</div>
@@ -2027,6 +2143,7 @@ const StaffProfile = () => {
                                 value={student[componentKey] || 0}
                                 onChange={(e) => handleMarkListMarkChange(student.id, componentKey, e.target.value)}
                                 placeholder="0"
+                                disabled={isLocked}
                               />
                             </div>
                           );
@@ -2037,16 +2154,23 @@ const StaffProfile = () => {
                         <div className={`${styles.markListStatusBadge} ${student.pass_status === 'Pass' ? styles.markListStatusPass : styles.markListStatusFail}`}>
                           {student.pass_status === 'Pass' ? <><FiCheck /> Passed</> : <><FiX /> Failed</>}
                         </div>
-                        <button 
-                          className={styles.markListSaveBtn}
-                          onClick={() => saveStudentMarks(student.id)}
-                          disabled={savingMarks}
-                        >
-                          <FiSave /> Save
-                        </button>
+                        {isLocked ? (
+                          <span className={styles.markListLockedBadge}>
+                            <FiCheckCircle size={14} /> Saved
+                          </span>
+                        ) : (
+                          <button
+                            className={styles.markListSaveBtn}
+                            onClick={() => saveStudentMarks(student.id)}
+                            disabled={savingMarks}
+                          >
+                            <FiSave /> Save
+                          </button>
+                        )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </>
             )}
@@ -2101,6 +2225,30 @@ const StaffProfile = () => {
   };
 
   const renderAttendanceTab = () => {
+    const getStudentStatus = (student) => {
+      const key = `${student.school_id}-${student.class_id}`;
+      const record = attendanceRecords[key];
+      return record?.[selectedDay] || '';
+    };
+
+    const markStudent = (student, status) => {
+      const key = `${student.school_id}-${student.class_id}`;
+      handleAttendanceStatusChange(key, selectedDay, status);
+    };
+
+    const anyUnsaved = students.some(s => {
+      const key = `${s.school_id}-${s.class_id}`;
+      return attendanceRecords[key]?.[selectedDay];
+    });
+
+    const handleClassChange = (newClass) => {
+      if (newClass === assignedClass) return;
+      setAssignedClass(newClass);
+      setStudents([]);
+      setAttendanceRecords({});
+      fetchStudentsForAttendance(newClass);
+    };
+
     return (
       <div className={styles.modernAttendanceContainer}>
         {/* Header Card */}
@@ -2111,12 +2259,29 @@ const StaffProfile = () => {
             </div>
             <div className={styles.headerText}>
               <h2>Student Attendance</h2>
-              <p>{assignedClass || 'No class assigned'}</p>
+              {teacherClasses.length > 1 ? (
+                <select
+                  className={styles.classSelector}
+                  value={assignedClass || ''}
+                  onChange={(e) => handleClassChange(e.target.value)}
+                >
+                  {teacherClasses.map(cls => (
+                    <option key={cls} value={cls}>{cls}</option>
+                  ))}
+                </select>
+              ) : (
+                <p>{assignedClass || 'No class assigned'}</p>
+              )}
             </div>
           </div>
           <div className={styles.headerDate}>
             <FiCalendar size={18} />
             <span>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+            {ethiopianToday && (
+              <span className={styles.ethDateBadge}>
+                {ethMonthNames[ethiopianToday.month - 1]} {ethiopianToday.day}, {ethiopianToday.year}
+              </span>
+            )}
           </div>
         </div>
 
@@ -2131,7 +2296,6 @@ const StaffProfile = () => {
               <span className={styles.statValue}>{students.length}</span>
             </div>
           </div>
-          
           <div className={styles.statCard}>
             <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
               <FiCheckCircle size={20} />
@@ -2139,11 +2303,10 @@ const StaffProfile = () => {
             <div className={styles.statContent}>
               <span className={styles.statLabel}>Present</span>
               <span className={styles.statValue}>
-                {Object.values(attendanceRecords).filter(r => r === 'present').length}
+                {Object.values(attendanceRecords).filter(r => r[selectedDay] === 'P').length}
               </span>
             </div>
           </div>
-          
           <div className={styles.statCard}>
             <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
               <FiClock size={20} />
@@ -2151,11 +2314,10 @@ const StaffProfile = () => {
             <div className={styles.statContent}>
               <span className={styles.statLabel}>Late</span>
               <span className={styles.statValue}>
-                {Object.values(attendanceRecords).filter(r => r === 'late').length}
+                {Object.values(attendanceRecords).filter(r => r[selectedDay] === 'L').length}
               </span>
             </div>
           </div>
-          
           <div className={styles.statCard}>
             <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>
               <FiXCircle size={20} />
@@ -2163,32 +2325,59 @@ const StaffProfile = () => {
             <div className={styles.statContent}>
               <span className={styles.statLabel}>Absent</span>
               <span className={styles.statValue}>
-                {Object.values(attendanceRecords).filter(r => r === 'absent').length}
+                {Object.values(attendanceRecords).filter(r => r[selectedDay] === 'A').length}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Action Button */}
-        <div className={styles.attendanceActions}>
-          <button 
-            className={styles.primaryActionBtn}
-            onClick={() => navigate('/app/student-attendance-system')}
-          >
-            <FiEdit2 size={18} />
-            <span>Manage Attendance</span>
-          </button>
+        {/* Day selector + Mark All + Save */}
+        <div className={styles.attendanceToolbar}>
+          <div className={styles.daySelector}>
+            {schoolDays.map(day => (
+              <button
+                key={day}
+                className={`${styles.dayBtn} ${selectedDay === day ? styles.dayBtnActive : ''}`}
+                onClick={() => setSelectedDay(day)}
+              >
+                <span>{day.charAt(0).toUpperCase() + day.slice(1, 3)}</span>
+                {weekEthiopianDates[day] && (
+                  <span className={styles.dayBtnEthDate}>{formatEthiopianShort(weekEthiopianDates[day])}</span>
+                )}
+              </button>
+            ))}
+          </div>
+          <div className={styles.toolbarActions}>
+            <button className={styles.markAllBtn} onClick={() => markAllAs('P')}>All Present</button>
+            {anyUnsaved && (
+              <button
+                className={styles.saveAllBtn}
+                onClick={saveAttendance}
+                disabled={savingAttendance}
+              >
+                <FiSave size={14} />
+                {savingAttendance ? 'Saving...' : 'Save'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Students List */}
         <div className={styles.studentsSection}>
           <div className={styles.sectionHeader}>
-            <h3>
-              <FiUsers size={18} />
-              Students List
-            </h3>
+            <h3><FiUsers size={18} /> Students List</h3>
             <span className={styles.badge}>{students.length} students</span>
           </div>
+
+          {!weeklyAttendanceExists && (
+            <div className={styles.noWeekBanner}>
+              <FiAlertCircle size={16} />
+              <span>No attendance sheet for this week. </span>
+              <button onClick={() => createWeeklyAttendance()} disabled={creatingAttendance} className={styles.createWeekBtn}>
+                {creatingAttendance ? 'Creating...' : 'Create Now'}
+              </button>
+            </div>
+          )}
 
           {students.length === 0 ? (
             <div className={styles.emptyState}>
@@ -2198,90 +2387,68 @@ const StaffProfile = () => {
             </div>
           ) : (
             <div className={styles.studentsList}>
-              {students.map((student, index) => (
-                <div key={student.student_id || index} className={styles.studentCard}>
-                  <div className={styles.studentInfo}>
-                    <div className={styles.studentAvatar}>
-                      {student.image_student ? (
-                        <img 
-                          src={`${API_BASE_URL.replace('/api', '')}/uploads/${student.image_student}`} 
-                          alt={student.student_name}
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      <div className={styles.avatarFallback} style={{ display: student.image_student ? 'none' : 'flex' }}>
-                        {student.student_name?.charAt(0) || 'S'}
+              {students.map((student, index) => {
+                const status = getStudentStatus(student);
+                return (
+                  <div key={student.student_id || index} className={styles.studentCard}>
+                    <div className={styles.studentInfo}>
+                      <div className={styles.studentAvatar}>
+                        {student.image_student ? (
+                          <img
+                            src={`${API_BASE_URL.replace('/api', '')}/uploads/${student.image_student}`}
+                            alt={student.student_name}
+                            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                          />
+                        ) : null}
+                        <div className={styles.avatarFallback} style={{ display: student.image_student ? 'none' : 'flex' }}>
+                          {student.student_name?.charAt(0) || 'S'}
+                        </div>
+                      </div>
+                      <div className={styles.studentDetails}>
+                        <h4>{student.student_name}</h4>
+                        <span className={styles.metaItem}>ID: {student.class_id || student.student_id}</span>
                       </div>
                     </div>
-                    <div className={styles.studentDetails}>
-                      <h4>{student.student_name}</h4>
-                      <div className={styles.studentMeta}>
-                        <span className={styles.metaItem}>
-                          <FiUser size={12} />
-                          ID: {student.class_id || student.student_id}
-                        </span>
-                        {student.machine_id && (
-                          <span className={styles.metaItem}>
-                            <FiBriefcase size={12} />
-                            {student.machine_id}
-                          </span>
-                        )}
-                      </div>
+
+                    {/* Inline mark buttons */}
+                    <div className={styles.inlineMarkBtns}>
+                      <button
+                        className={`${styles.markBtn} ${styles.markBtnP} ${status === 'P' ? styles.markBtnActive : ''}`}
+                        onClick={() => markStudent(student, status === 'P' ? '' : 'P')}
+                      >✓</button>
+                      <button
+                        className={`${styles.markBtn} ${styles.markBtnL} ${status === 'L' ? styles.markBtnActive : ''}`}
+                        onClick={() => markStudent(student, status === 'L' ? '' : 'L')}
+                      >⏰</button>
+                      <button
+                        className={`${styles.markBtn} ${styles.markBtnA} ${status === 'A' ? styles.markBtnActive : ''}`}
+                        onClick={() => markStudent(student, status === 'A' ? '' : 'A')}
+                      >✗</button>
+                      <button
+                        className={`${styles.markBtn} ${styles.markBtnE} ${status === 'E' ? styles.markBtnActive : ''}`}
+                        onClick={() => markStudent(student, status === 'E' ? '' : 'E')}
+                      >E</button>
                     </div>
                   </div>
-                  
-                  <div className={styles.attendanceStatus}>
-                    {attendanceRecords[student.student_id] === 'present' && (
-                      <span className={`${styles.statusBadge} ${styles.statusPresent}`}>
-                        <FiCheckCircle size={14} />
-                        Present
-                      </span>
-                    )}
-                    {attendanceRecords[student.student_id] === 'late' && (
-                      <span className={`${styles.statusBadge} ${styles.statusLate}`}>
-                        <FiClock size={14} />
-                        Late
-                      </span>
-                    )}
-                    {attendanceRecords[student.student_id] === 'absent' && (
-                      <span className={`${styles.statusBadge} ${styles.statusAbsent}`}>
-                        <FiXCircle size={14} />
-                        Absent
-                      </span>
-                    )}
-                    {!attendanceRecords[student.student_id] && (
-                      <span className={`${styles.statusBadge} ${styles.statusUnmarked}`}>
-                        <FiClock size={14} />
-                        Not Marked
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* School Days Info */}
-        <div className={styles.schoolDaysCard}>
-          <div className={styles.schoolDaysHeader}>
-            <FiCalendar size={18} />
-            <h4>School Days</h4>
+        {/* Save floating button when there are changes */}
+        {anyUnsaved && (
+          <div className={styles.floatingSaveBar}>
+            <button
+              className={styles.floatingSaveBtn}
+              onClick={saveAttendance}
+              disabled={savingAttendance}
+            >
+              <FiSave size={18} />
+              {savingAttendance ? 'Saving...' : 'Save Attendance'}
+            </button>
           </div>
-          <div className={styles.schoolDaysList}>
-            {schoolDays.map(day => (
-              <span key={day} className={styles.dayBadge}>
-                {day.charAt(0).toUpperCase() + day.slice(1)}
-              </span>
-            ))}
-          </div>
-          <p className={styles.schoolDaysNote}>
-            Weeks start from Monday and show only these days
-          </p>
-        </div>
+        )}
       </div>
     );
   };

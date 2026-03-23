@@ -2,7 +2,7 @@
   "name": "Skoolific Guardian App",
   "short_name": "Guardian",
   "description": "Monitor your child's progress, attendance, and payments",
-  "start_url": ".",
+  "start_url": "/app/guardian-login",
   "scope": "/",
   "display": "standalone",
   "background_color": "#10b981",

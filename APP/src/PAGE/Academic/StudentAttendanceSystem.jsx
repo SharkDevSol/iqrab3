@@ -408,6 +408,16 @@ const StudentAttendanceSystem = ({ preSelectedClass = null }) => {
     return record;
   };
 
+  // Check if an Ethiopian day is in the future (after today)
+  const isFutureDay = (dayInfo) => {
+    if (!currentEthiopianDate) return false;
+    if (dayInfo.year > currentEthiopianDate.year) return true;
+    if (dayInfo.year < currentEthiopianDate.year) return false;
+    if (dayInfo.month > currentEthiopianDate.month) return true;
+    if (dayInfo.month < currentEthiopianDate.month) return false;
+    return dayInfo.day > currentEthiopianDate.day;
+  };
+
   const handleCellClick = (student, dayInfo) => {
     const currentRecord = attendanceData.find(
       att => att.student_id === student.student_id && 

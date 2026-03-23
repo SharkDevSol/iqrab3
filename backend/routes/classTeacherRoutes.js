@@ -650,6 +650,22 @@ router.put('/weekly-attendance/:className/:weekStart', async (req, res) => {
     return res.status(400).json({ error: 'Invalid class name provided.' });
   }
 
+  // Helper: convert Gregorian date to Ethiopian
+  const { convertToEthiopian, getEthiopianDayOfWeek } = require('../utils/ethiopianCalendar');
+
+  // Status map: teacher short codes → admin full words
+  const statusMap = { 'P': 'PRESENT', 'A': 'ABSENT', 'L': 'LATE', 'E': 'LEAVE' };
+
+  // Build day → Gregorian date map for this week
+  const dayNames = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+  const weekMonday = new Date(weekStart + 'T00:00:00');
+  const dayDateMap = {};
+  dayNames.forEach((day, i) => {
+    const d = new Date(weekMonday);
+    d.setDate(weekMonday.getDate() + i);
+    dayDateMap[day] = d;
+  });
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -668,10 +684,11 @@ router.put('/weekly-attendance/:className/:weekStart', async (req, res) => {
       return res.status(404).json({ error: 'Weekly attendance not found. Please create it first.' });
     }
 
-    // Update each record
+    // Update each record in weekly table + sync to academic_student_attendance
     for (const record of records) {
       const { school_id, class_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday } = record;
       
+      // 1. Update weekly table
       await client.query(`
         UPDATE "${schemaName}"."${tableName}"
         SET monday = $1, tuesday = $2, wednesday = $3, thursday = $4, 
@@ -682,6 +699,50 @@ router.put('/weekly-attendance/:className/:weekStart', async (req, res) => {
         friday || null, saturday || null, sunday || null,
         school_id, class_id
       ]);
+
+      // 2. Get student name for academic table
+      const studentRes = await client.query(`
+        SELECT student_name, smachine_id FROM classes_schema."${className}"
+        WHERE school_id = $1
+        LIMIT 1
+      `, [school_id]);
+      const studentName = studentRes.rows[0]?.student_name || '';
+      const smachineId = studentRes.rows[0]?.smachine_id || null;
+
+      // 3. Sync each day to academic_student_attendance
+      const dayValues = { monday, tuesday, wednesday, thursday, friday, saturday, sunday };
+      for (const dayName of dayNames) {
+        const shortStatus = dayValues[dayName];
+        if (!shortStatus) continue; // skip empty days
+
+        const fullStatus = statusMap[shortStatus];
+        if (!fullStatus) continue;
+
+        const gregDate = dayDateMap[dayName];
+        const ethDate = convertToEthiopian(gregDate);
+        const dayOfWeek = getEthiopianDayOfWeek(ethDate.year, ethDate.month, ethDate.day);
+        const weekNumber = Math.ceil(ethDate.day / 7);
+
+        await client.query(`
+          INSERT INTO academic_student_attendance 
+            (student_id, student_name, class_name, smachine_id, date,
+             ethiopian_year, ethiopian_month, ethiopian_day,
+             day_of_week, week_number, check_in_time, status, notes, shift_number)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+          ON CONFLICT (student_id, class_name, ethiopian_year, ethiopian_month, ethiopian_day)
+          DO UPDATE SET
+            status = EXCLUDED.status,
+            notes = EXCLUDED.notes,
+            updated_at = CURRENT_TIMESTAMP
+        `, [
+          school_id, studentName, className, smachineId, gregDate,
+          ethDate.year, ethDate.month, ethDate.day,
+          dayOfWeek, weekNumber,
+          '08:00:00', fullStatus,
+          'Marked by class teacher',
+          1
+        ]);
+      }
     }
 
     await client.query('COMMIT');

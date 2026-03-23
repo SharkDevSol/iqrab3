@@ -190,6 +190,15 @@ async function markAbsentStudents() {
       // Process each student for this day
       for (const student of students) {
         try {
+          // Skip future days — never mark future dates as absent
+          const gregDay = ethiopianToGregorian(currentDate.year, month, day);
+          const today = new Date();
+          today.setHours(23, 59, 59, 999);
+          if (gregDay > today) {
+            daySkipped++;
+            continue;
+          }
+
           // Check if student already has attendance record for this day
           const existingRecord = await pool.query(`
             SELECT * FROM academic_student_attendance

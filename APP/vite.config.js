@@ -5,6 +5,18 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    chunkSizeWarningLimit: 6000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-axios': ['axios'],
+          'vendor-icons': ['react-icons'],
+        }
+      }
+    }
+  },
   server: {
     host: '0.0.0.0', // Listen on all network interfaces
     port: 5173,

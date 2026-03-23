@@ -11,39 +11,33 @@ function convertToEthiopian(gregorianDate) {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
   const day = date.getDate();
-  
-  // Ethiopian year is 7-8 years behind Gregorian
-  let ethYear = year - 8;
-  
-  // Ethiopian New Year (Meskerem 1) = September 11 (Gregorian)
-  let ethMonth, ethDay;
-  
-  if (month >= 9) {
-    // September to December
-    if (month === 9 && day < 11) {
-      // Before Sept 11: previous Ethiopian year
-      ethYear = year - 9;
-      ethMonth = 13; // Pagume
-      ethDay = day + 25;
-    } else {
-      ethMonth = month - 8; // Sept=1, Oct=2, Nov=3, Dec=4
-      ethDay = day - 10;
-      if (ethDay <= 0) {
-        ethDay += 30;
-        ethMonth -= 1;
-      }
-    }
+
+  // Ethiopian New Year = Sept 11 (Sept 12 in Gregorian leap year)
+  const isGregorianLeapYear = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+
+  let ethYear, ethMonth, ethDay;
+
+  if (month > 9 || (month === 9 && day >= (isGregorianLeapYear(year) ? 12 : 11))) {
+    // On or after Ethiopian New Year in this Gregorian year
+    ethYear = year - 7;
+    const newYearDay = isGregorianLeapYear(year) ? 12 : 11;
+    // Days since Ethiopian New Year
+    const newYear = new Date(year, 8, newYearDay); // Sept
+    const current = new Date(year, month - 1, day);
+    const diff = Math.round((current - newYear) / 86400000);
+    ethMonth = Math.floor(diff / 30) + 1;
+    ethDay = (diff % 30) + 1;
   } else {
-    // January to August
-    ethMonth = month + 4; // Jan=5, Feb=6, Mar=7, Apr=8, May=9, Jun=10, Jul=11, Aug=12
-    ethDay = day - 7; // Offset for Ethiopian calendar
-    
-    if (ethDay <= 0) {
-      ethDay += 30;
-      ethMonth -= 1;
-    }
+    // Before Ethiopian New Year — previous Ethiopian year
+    ethYear = year - 8;
+    const prevNewYearDay = isGregorianLeapYear(year - 1) ? 12 : 11;
+    const newYear = new Date(year - 1, 8, prevNewYearDay); // Sept of previous year
+    const current = new Date(year, month - 1, day);
+    const diff = Math.round((current - newYear) / 86400000);
+    ethMonth = Math.floor(diff / 30) + 1;
+    ethDay = (diff % 30) + 1;
   }
-  
+
   return { year: ethYear, month: ethMonth, day: ethDay };
 }
 
