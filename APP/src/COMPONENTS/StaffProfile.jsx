@@ -1204,6 +1204,17 @@ const StaffProfile = () => {
     }
   };
 
+  const handleDeleteFault = async (fault, className) => {
+    if (!window.confirm(`Delete this fault for ${fault.student_name}?`)) return;
+    try {
+      await axios.delete(`${API_BASE_URL}/faults/delete-fault/${className}/${fault.id}`, getAuthConfig());
+      toast.success('Fault deleted');
+      fetchFaultHistory(className);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to delete fault');
+    }
+  };
+
   const fetchFaultHistory = async (className) => {
     if (!className) return;
     try {
@@ -3015,13 +3026,19 @@ const StaffProfile = () => {
                                 )}
                               </div>
                               <p className={styles.faultDescription}>{fault.description}</p>
-                              {fault.reported_by && (
-                                <div className={styles.faultItemFooter}>
+                              <div className={styles.faultItemFooter}>
+                                {fault.reported_by && (
                                   <span className={styles.reportedBy}>
                                     Reported by: {fault.reported_by}
                                   </span>
-                                </div>
-                              )}
+                                )}
+                                <button
+                                  onClick={() => handleDeleteFault(fault, selectedFaultClass)}
+                                  style={{ marginLeft:'auto', background:'none', border:'1.5px solid #fca5a5', borderRadius:'8px', color:'#dc2626', padding:'0.3rem 0.75rem', cursor:'pointer', display:'flex', alignItems:'center', gap:'0.35rem', fontSize:'0.8rem', fontWeight:600 }}
+                                >
+                                  🗑 Delete
+                                </button>
+                              </div>
                             </div>
                           );
                         })}
