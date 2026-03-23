@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiAlertCircle, FiUser, FiCalendar, FiFilter, FiDownload, FiSearch, FiBarChart2, FiTrendingUp, FiUsers, FiFileText, FiPlus, FiX, FiSave } from 'react-icons/fi';
+import { FiAlertCircle, FiUser, FiCalendar, FiFilter, FiDownload, FiSearch, FiBarChart2, FiTrendingUp, FiUsers, FiFileText, FiPlus, FiX, FiSave, FiTrash2 } from 'react-icons/fi';
 import axios from 'axios';
 import styles from './FaultsPage.module.css';
 
@@ -127,6 +127,16 @@ const FaultsPage = () => {
       setAddError(err.response?.data?.error || 'Failed to add fault');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteFault = async (fault, className) => {
+    if (!window.confirm(`Delete this fault for ${fault.student_name}?`)) return;
+    try {
+      await axios.delete(`${API_BASE_URL}/faults/delete-fault/${className}/${fault.id}`, getAuthConfig());
+      fetchAllFaults();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete fault');
     }
   };
 
@@ -461,11 +471,19 @@ const FaultsPage = () => {
 
                         <p className={styles.faultDescription}>{fault.description}</p>
 
-                        {fault.reported_by && (
-                          <div className={styles.faultItemFooter}>
+                        <div className={styles.faultItemFooter}>
+                          {fault.reported_by && (
                             <span className={styles.reportedBy}>Reported by: {fault.reported_by}</span>
-                          </div>
-                        )}
+                          )}
+                          <button
+                            onClick={() => handleDeleteFault(fault, group.className)}
+                            style={{ marginLeft:'auto', background:'none', border:'1.5px solid #fca5a5', borderRadius:'8px', color:'#dc2626', padding:'0.3rem 0.75rem', cursor:'pointer', display:'flex', alignItems:'center', gap:'0.35rem', fontSize:'0.8rem', fontWeight:600, transition:'all 0.2s' }}
+                            onMouseOver={e => e.currentTarget.style.background='#fee2e2'}
+                            onMouseOut={e => e.currentTarget.style.background='none'}
+                          >
+                            <FiTrash2 size={13} /> Delete
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
