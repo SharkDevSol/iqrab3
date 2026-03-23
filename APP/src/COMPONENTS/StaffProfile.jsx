@@ -1943,7 +1943,7 @@ const StaffProfile = () => {
     // Calculate class average
     const classAverage = markListData.length > 0 
       ? (markListData.reduce((sum, s) => sum + (parseFloat(s.total) || 0), 0) / markListData.length).toFixed(2)
-      : 0;
+      : '';
 
     return (
       <div className={styles.markListContainer}>
@@ -2008,7 +2008,7 @@ const StaffProfile = () => {
                     <FiUsers style={{ color: '#e67e22' }} />
                   </div>
                   <div className={styles.markListStatInfo}>
-                    <div className={styles.markListStatValue}>{classAverage}%</div>
+                    <div className={styles.markListStatValue}>{classAverage ? `${classAverage}%` : ''}</div>
                     <div className={styles.markListStatLabel}>Average</div>
                   </div>
                 </div>
@@ -2126,7 +2126,7 @@ const StaffProfile = () => {
                         </div>
                         <div className={styles.markListStudentTotal}>
                           <div className={styles.markListTotalLabel}>Total</div>
-                          <div className={styles.markListTotalValue}>{student.total || 0}%</div>
+                          <div className={styles.markListTotalValue}>{student.total ? `${student.total}%` : ''}</div>
                         </div>
                       </div>
 
