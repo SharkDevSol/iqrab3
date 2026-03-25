@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import './CreateMarklist/MarkListFrontend.css';
 
+const API_BASE_URL = 'https://bilal.skoolific.com/api';
+
 const MarkListForm = () => {
   const { t } = useApp();
   const [subjects, setSubjects] = useState([]);
@@ -31,10 +33,10 @@ const MarkListForm = () => {
   const fetchInitialData = async () => {
     try {
       const [subjectsRes, classesRes, mappingsRes, configRes] = await Promise.all([
-        fetch('/api/mark-list/subjects'),
-        fetch('/api/mark-list/classes'),
-        fetch('/api/mark-list/subjects-classes'),
-        fetch('/api/schedule/config')
+        fetch(`${API_BASE_URL}/mark-list/subjects`),
+        fetch(`${API_BASE_URL}/mark-list/classes`),
+        fetch(`${API_BASE_URL}/mark-list/subjects-classes`),
+        fetch(`${API_BASE_URL}/schedule/config`)
       ]);
 
       const [subjectsData, classesData, mappingsData, configData] = await Promise.all([
@@ -106,7 +108,7 @@ const MarkListForm = () => {
     }
 
     try {
-      const response = await fetch('/api/mark-list/create-mark-forms', {
+      const response = await fetch(`${API_BASE_URL}/mark-list/create-mark-forms`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -188,7 +190,7 @@ const MarkListForm = () => {
         });
       }
 
-      const response = await fetch('/api/mark-list/update-marks', {
+      const response = await fetch(`${API_BASE_URL}/mark-list/update-marks`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -448,9 +450,9 @@ const TeacherAssignment = () => {
   const fetchData = async () => {
     try {
       const [teachersResponse, combinationsResponse, assignmentsResponse] = await Promise.all([
-        fetch('/api/mark-list/teachers'),
-        fetch('/api/mark-list/subject-class-combinations'),
-        fetch('/api/mark-list/teacher-assignments')
+        fetch(`${API_BASE_URL}/mark-list/teachers`),
+        fetch(`${API_BASE_URL}/mark-list/subject-class-combinations`),
+        fetch(`${API_BASE_URL}/mark-list/teacher-assignments`)
       ]);
 
       const [teachersData, combinationsData, assignmentsData] = await Promise.all([
@@ -502,7 +504,7 @@ const TeacherAssignment = () => {
         }
       });
 
-      const response = await fetch('/api/mark-list/assign-teachers', {
+      const response = await fetch(`${API_BASE_URL}/mark-list/assign-teachers`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -645,8 +647,8 @@ const ClassRanking = () => {
   const fetchInitialData = async () => {
     try {
       const [classesRes, configRes] = await Promise.all([
-        fetch('/api/mark-list/classes'),
-        fetch('/api/schedule/config')
+        fetch(`${API_BASE_URL}/mark-list/classes`),
+        fetch(`${API_BASE_URL}/schedule/config`)
       ]);
 
       const [classesData, configData] = await Promise.all([

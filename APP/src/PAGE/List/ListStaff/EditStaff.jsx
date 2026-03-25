@@ -39,7 +39,7 @@ const EditStaff = () => {
   const fetchColumns = async () => {
     try {
       const response = await axios.get(
-        `http://localhost:5000/api/staff/columns/${encodeURIComponent(staffType)}/${encodeURIComponent(className)}`
+        `https://bilal.skoolific.com/api/staff/columns/${encodeURIComponent(staffType)}/${encodeURIComponent(className)}`
       );
       setColumns(response.data);
     } catch (error) {
@@ -96,7 +96,7 @@ const EditStaff = () => {
 
     try {
       const response = await axios.put(
-        `http://localhost:5000/api/staff/update/${staffData.global_staff_id || staffData.id}`,
+        `https://bilal.skoolific.com/api/staff/update/${staffData.global_staff_id || staffData.id}`,
         formDataToSend,
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );

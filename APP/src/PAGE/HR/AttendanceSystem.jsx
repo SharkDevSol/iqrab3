@@ -4,7 +4,7 @@ import { FiCalendar, FiUsers, FiClock, FiTrendingUp, FiX, FiTrash2 } from 'react
 import styles from './AttendanceSystem.module.css';
 import { getCurrentEthiopianMonth, getEthiopianMonthName, ethiopianToGregorian } from '../../utils/ethiopianCalendar';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://bilal.skoolific.com';
 
 const ethiopianMonths = [
   'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit',

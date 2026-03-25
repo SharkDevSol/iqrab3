@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import styles from './AccountSelector.module.css';
 
-const API_BASE = 'http://localhost:5000/api/finance/accounts';
+const API_BASE = 'https://bilal.skoolific.com/api/finance/accounts';
 
 const AccountSelector = ({ value, onChange, excludeId, type, disabled = false }) => {
   const [accounts, setAccounts] = useState([]);

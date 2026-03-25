@@ -1233,7 +1233,7 @@ router.post('/assign-teachers', async (req, res) => {
       
       // Validate subject_class exists
       const mappingResult = await client.query(
-        'SELECT subject_class FROM subjects_of_school_schema.subject_class_mappings WHERE subject_class = $1',
+        'SELECT subject_class FROM subjects_of_school_schema.subject_class_mappings WHERE LOWER(subject_class) = LOWER($1)',
         [assignment.subjectClass]
       );
       if (mappingResult.rows.length === 0) {
@@ -1253,7 +1253,7 @@ router.post('/assign-teachers', async (req, res) => {
         for (const table of tablesResult.rows) {
           const tableName = table.table_name;
           const teacherCheck = await client.query(`
-            SELECT name FROM "${schemaName}"."${tableName}" WHERE name = $1 AND role = 'Teacher'
+            SELECT name FROM "${schemaName}"."${tableName}" WHERE LOWER(name) = LOWER($1) AND role = 'Teacher'
           `, [assignment.teacherName]);
           if (teacherCheck.rows.length > 0) {
             teacherExists = true;

@@ -159,7 +159,7 @@ const Post = () => {
             return (
               <div key={index} className={styles.mediaItem}>
                 <img 
-                  src={`http://localhost:5000/Uploads/posts/${item.filename}`} 
+                  src={`https://bilal.skoolific.com/Uploads/posts/${item.filename}`} 
                   alt="Post media" 
                 />
                 {media.length > 4 && index === 3 && (
@@ -170,14 +170,14 @@ const Post = () => {
           } else if (item.mimetype?.startsWith('video/')) {
             return (
               <div key={index} className={styles.mediaItem}>
-                <video controls src={`http://localhost:5000/Uploads/posts/${item.filename}`} />
+                <video controls src={`https://bilal.skoolific.com/Uploads/posts/${item.filename}`} />
               </div>
             );
           } else {
             return (
               <a 
                 key={index} 
-                href={`http://localhost:5000/Uploads/posts/${item.filename}`} 
+                href={`https://bilal.skoolific.com/Uploads/posts/${item.filename}`} 
                 download 
                 className={styles.fileAttachment}
               >

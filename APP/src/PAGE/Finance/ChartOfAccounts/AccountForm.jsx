@@ -5,7 +5,7 @@ import { FiSave, FiX, FiArrowLeft } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import AccountSelector from './AccountSelector';
 
-const API_BASE = 'http://localhost:5000/api/finance/accounts';
+const API_BASE = 'https://bilal.skoolific.com/api/finance/accounts';
 
 const AccountForm = () => {
   const navigate = useNavigate();

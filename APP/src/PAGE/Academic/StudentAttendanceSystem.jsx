@@ -4,7 +4,7 @@ import { FiCalendar, FiUsers, FiCheckCircle, FiXCircle, FiClock, FiEdit2, FiX, F
 import styles from './StudentAttendanceSystem.module.css';
 
 // API base URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://bilal.skoolific.com/api';
 
 const StudentAttendanceSystem = ({ preSelectedClass = null }) => {
   const [selectedClass, setSelectedClass] = useState(preSelectedClass || '');
@@ -32,6 +32,14 @@ const StudentAttendanceSystem = ({ preSelectedClass = null }) => {
   });
   const [showCurrentWeekModal, setShowCurrentWeekModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Report feature states
+  const [showReport, setShowReport] = useState(false);
+  const [reportClass, setReportClass] = useState('');
+  const [reportDate, setReportDate] = useState({ year: 2018, month: 1, day: 1 });
+  const [reportData, setReportData] = useState([]);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportSummary, setReportSummary] = useState({ present: 0, absent: 0, leave: 0, late: 0, total: 0 });
 
   const ethiopianMonths = [
     'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit',
@@ -531,6 +539,60 @@ const StudentAttendanceSystem = ({ preSelectedClass = null }) => {
     });
   };
 
+  // Fetch report data for specific date
+  const fetchReportData = async () => {
+    if (!reportClass || !reportDate.year || !reportDate.month || !reportDate.day) {
+      alert('Please select class and date');
+      return;
+    }
+
+    try {
+      setReportLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/academic/student-attendance/weekly`, {
+        params: {
+          week: Math.ceil(reportDate.day / 7),
+          year: reportDate.year,
+          month: reportDate.month,
+          class: reportClass
+        }
+      });
+
+      if (response.data.success) {
+        // Filter data for the specific date
+        const dateData = response.data.data.filter(
+          record => record.ethiopian_year === reportDate.year &&
+                   record.ethiopian_month === reportDate.month &&
+                   record.ethiopian_day === reportDate.day
+        );
+        
+        setReportData(dateData);
+        
+        // Calculate summary
+        const present = dateData.filter(a => a.status === 'PRESENT').length;
+        const absent = dateData.filter(a => a.status === 'ABSENT').length;
+        const leave = dateData.filter(a => a.status === 'LEAVE').length;
+        const late = dateData.filter(a => a.status === 'LATE').length;
+        
+        setReportSummary({
+          present,
+          late,
+          absent,
+          leave,
+          total: dateData.length
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching report:', err);
+      alert('Failed to fetch report data');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const printReport = () => {
+    window.print();
+  };
+
   const selectedWeek = getSelectedWeek();
 
   return (
@@ -642,6 +704,183 @@ const StudentAttendanceSystem = ({ preSelectedClass = null }) => {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Report Section */}
+      <div className={styles.reportSection}>
+        <div className={styles.reportHeader}>
+          <h2>📊 Attendance Report by Date</h2>
+          <button 
+            onClick={() => setShowReport(!showReport)}
+            className={styles.toggleReportButton}
+          >
+            {showReport ? '▼ Hide Report' : '▶ Show Report'}
+          </button>
+        </div>
+
+        {showReport && (
+          <div className={styles.reportContent}>
+            <div className={styles.reportFilters}>
+              <div className={styles.filterGroup}>
+                <label>Class</label>
+                <select
+                  value={reportClass}
+                  onChange={(e) => setReportClass(e.target.value)}
+                  className={styles.select}
+                >
+                  <option value="">Select Class</option>
+                  {classes.map(cls => (
+                    <option key={cls} value={cls}>{cls}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.filterGroup}>
+                <label>Year</label>
+                <input
+                  type="number"
+                  value={reportDate.year}
+                  onChange={(e) => setReportDate({ ...reportDate, year: parseInt(e.target.value) })}
+                  className={styles.input}
+                  min="2000"
+                  max="2100"
+                />
+              </div>
+
+              <div className={styles.filterGroup}>
+                <label>Month</label>
+                <select
+                  value={reportDate.month}
+                  onChange={(e) => setReportDate({ ...reportDate, month: parseInt(e.target.value) })}
+                  className={styles.select}
+                >
+                  {ethiopianMonths.map((month, index) => (
+                    <option key={index} value={index + 1}>{month}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.filterGroup}>
+                <label>Day</label>
+                <input
+                  type="number"
+                  value={reportDate.day}
+                  onChange={(e) => setReportDate({ ...reportDate, day: parseInt(e.target.value) })}
+                  className={styles.input}
+                  min="1"
+                  max="30"
+                />
+              </div>
+
+              <div className={styles.filterGroup}>
+                <label>Actions</label>
+                <div className={styles.buttonGroup}>
+                  <button
+                    onClick={fetchReportData}
+                    disabled={!reportClass || reportLoading}
+                    className={styles.generateReportButton}
+                  >
+                    {reportLoading ? '⏳ Loading...' : '📊 Generate Report'}
+                  </button>
+                  {reportData.length > 0 && (
+                    <button
+                      onClick={printReport}
+                      className={styles.printButton}
+                    >
+                      🖨️ Print
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {reportData.length > 0 && (
+              <>
+                {/* Report Summary */}
+                <div className={styles.reportSummary}>
+                  <h3>Report for {reportClass} - {ethiopianMonths[reportDate.month - 1]} {reportDate.day}, {reportDate.year}</h3>
+                  <div className={styles.summaryCards}>
+                    <div className={`${styles.card} ${styles.presentCard}`}>
+                      <FiCheckCircle className={styles.cardIcon} />
+                      <div className={styles.cardContent}>
+                        <h3>{reportSummary.present}</h3>
+                        <p>Present</p>
+                      </div>
+                    </div>
+
+                    <div className={`${styles.card} ${styles.lateCard}`}>
+                      <FiClock className={styles.cardIcon} />
+                      <div className={styles.cardContent}>
+                        <h3>{reportSummary.late}</h3>
+                        <p>Late</p>
+                      </div>
+                    </div>
+
+                    <div className={`${styles.card} ${styles.absentCard}`}>
+                      <FiXCircle className={styles.cardIcon} />
+                      <div className={styles.cardContent}>
+                        <h3>{reportSummary.absent}</h3>
+                        <p>Absent</p>
+                      </div>
+                    </div>
+
+                    <div className={`${styles.card} ${styles.leaveCard}`}>
+                      <FiClock className={styles.cardIcon} />
+                      <div className={styles.cardContent}>
+                        <h3>{reportSummary.leave}</h3>
+                        <p>On Leave</p>
+                      </div>
+                    </div>
+
+                    <div className={`${styles.card} ${styles.totalCard}`}>
+                      <FiCalendar className={styles.cardIcon} />
+                      <div className={styles.cardContent}>
+                        <h3>{reportSummary.total}</h3>
+                        <p>Total</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Report Table */}
+                <div className={styles.reportTable}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Student Name</th>
+                        <th>Class ID</th>
+                        <th>Machine ID</th>
+                        <th>Status</th>
+                        <th>Check-in Time</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.map((record, index) => (
+                        <tr key={record.id || index}>
+                          <td>{index + 1}</td>
+                          <td className={styles.studentName}>{record.student_name}</td>
+                          <td>{record.class_id || 'N/A'}</td>
+                          <td>{record.smachine_id || 'Not Set'}</td>
+                          <td>{renderStatusBadge(record)}</td>
+                          <td>{record.check_in_time || '-'}</td>
+                          <td>{record.notes || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+
+            {reportData.length === 0 && !reportLoading && reportClass && (
+              <div className={styles.noData}>
+                No attendance records found for the selected date.
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Summary Cards */}

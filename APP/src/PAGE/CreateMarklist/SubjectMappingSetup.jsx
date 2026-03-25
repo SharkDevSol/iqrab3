@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import styles from './CreateMarklist/CreateMarklist.module.css';
 
+const API_BASE_URL = 'https://bilal.skoolific.com/api';
+
 const SubjectConfiguration = ({ onSubjectsConfigured }) => {
   const [subjectCount, setSubjectCount] = useState(3);
   const [subjectNames, setSubjectNames] = useState(['', '', '']);
@@ -15,7 +17,7 @@ const SubjectConfiguration = ({ onSubjectsConfigured }) => {
 
   const fetchExistingData = async () => {
     try {
-      const response = await fetch('/api/mark-list/subjects');
+      const response = await fetch(`${API_BASE_URL}/mark-list/subjects`);
       const subjects = await response.json();
       setExistingSubjects(subjects);
 
@@ -64,11 +66,11 @@ const SubjectConfiguration = ({ onSubjectsConfigured }) => {
 
     try {
       // Get term count from schedule config
-      const setupResponse = await fetch('/api/schedule/config');
+      const setupResponse = await fetch(`${API_BASE_URL}/schedule/config`);
       const setupData = await setupResponse.json();
       const termCount = setupData.terms || 2;
 
-      const response = await fetch('/api/mark-list/configure-subjects', {
+      const response = await fetch(`${API_BASE_URL}/mark-list/configure-subjects`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -186,9 +188,9 @@ const ClassSubjectMapping = ({ onMappingCompleted }) => {
   const fetchData = async () => {
     try {
       const [classesResponse, subjectsResponse, mappingsResponse] = await Promise.all([
-        fetch('/api/mark-list/classes'),
-        fetch('/api/mark-list/subjects'),
-        fetch('/api/mark-list/subjects-classes')
+        fetch(`${API_BASE_URL}/mark-list/classes`),
+        fetch(`${API_BASE_URL}/mark-list/subjects`),
+        fetch(`${API_BASE_URL}/mark-list/subjects-classes`)
       ]);
 
       const [classesData, subjectsData, mappingsData] = await Promise.all([
@@ -237,7 +239,7 @@ const ClassSubjectMapping = ({ onMappingCompleted }) => {
       });
 
       // Save to subject_class_mappings
-      const response = await fetch('/api/mark-list/map-subjects-classes', {
+      const response = await fetch(`${API_BASE_URL}/mark-list/map-subjects-classes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

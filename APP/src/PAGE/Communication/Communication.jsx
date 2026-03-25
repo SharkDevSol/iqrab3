@@ -33,7 +33,7 @@ const Communication = ({ activeChatId, userId, requests = [] }) => {
       return;
     }
 
-    socket.current = io('http://localhost:5000');
+    socket.current = io('https://bilal.skoolific.com');
     socket.current.emit('join', actualUserId.toString());
 
     socket.current.on('new_request', (request) => {

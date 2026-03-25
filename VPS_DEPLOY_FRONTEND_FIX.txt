@@ -1,0 +1,41 @@
+========================================
+DEPLOY FRONTEND FIX TO VPS
+========================================
+
+Run these commands on your VPS:
+
+cd /var/www/bilal-school
+git pull origin main
+cd APP
+NODE_ENV=production npm run build
+sudo systemctl reload nginx
+
+========================================
+CLEAR BROWSER CACHE
+========================================
+
+After deployment, in your browser:
+1. Press Ctrl+Shift+Delete
+2. Select "Cached images and files"
+3. Click "Clear data"
+4. Go to https://bilal.skoolific.com
+5. Press Ctrl+F5 (hard refresh)
+
+========================================
+TEST
+========================================
+
+1. Go to https://bilal.skoolific.com
+2. Login as admin
+3. Go to Student List page
+4. It should now load without CORS errors!
+
+========================================
+WHAT WAS FIXED
+========================================
+
+- ListStudent.jsx: Replaced all hardcoded localhost:5000 URLs with API_BASE_URL from environment variable
+- fileUtils.js: Fixed image/file URLs to use environment variable
+- Now uses VITE_API_URL=https://bilal.skoolific.com/api from .env.production
+
+The frontend will now correctly connect to the production API!

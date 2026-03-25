@@ -383,7 +383,7 @@ const Setting = () => {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         
-        const logoUrl = `http://localhost:5000${response.data.logoUrl}`;
+        const logoUrl = `https://bilal.skoolific.com${response.data.logoUrl}`;
         setSchoolLogo(response.data.logo);
         setSchoolLogoUrl(logoUrl);
         
@@ -410,7 +410,7 @@ const Setting = () => {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         
-        const iconUrl = `http://localhost:5000${response.data.iconUrl}`;
+        const iconUrl = `https://bilal.skoolific.com${response.data.iconUrl}`;
         setWebIcon(response.data.icon);
         setWebIconUrl(iconUrl);
         

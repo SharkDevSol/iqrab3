@@ -7,7 +7,7 @@ import {
 import { useApp } from '../../context/AppContext';
 import styles from './EvaluationBookReports.module.css';
 
-const API_BASE = 'http://localhost:5000/api/evaluation-book';
+const API_BASE = 'https://bilal.skoolific.com/api/evaluation-book';
 
 const EvaluationBookReports = () => {
   const { t } = useApp();

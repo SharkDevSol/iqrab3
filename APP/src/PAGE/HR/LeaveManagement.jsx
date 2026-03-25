@@ -3,7 +3,7 @@ import axios from 'axios';
 import styles from '../Finance/PaymentManagement.module.css';
 import { getCurrentEthiopianMonth, getEthiopianMonthName } from '../../utils/ethiopianCalendar';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://bilal.skoolific.com';
 
 const LeaveManagement = () => {
   const [attendanceIssues, setAttendanceIssues] = useState([]);

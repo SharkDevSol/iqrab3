@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import styles from '../Finance/PaymentManagement.module.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://bilal.skoolific.com';
 
 const AttendanceTimeSettings = () => {
   const [settings, setSettings] = useState(null);
@@ -96,12 +96,12 @@ const AttendanceTimeSettings = () => {
       for (const staffType of types) {
         try {
           const classesResponse = await axios.get(
-            `http://localhost:5000/api/staff/classes?staffType=${encodeURIComponent(staffType)}`
+            `https://bilal.skoolific.com/api/staff/classes?staffType=${encodeURIComponent(staffType)}`
           );
           
           for (const className of classesResponse.data) {
             const dataResponse = await axios.get(
-              `http://localhost:5000/api/staff/data/${staffType}/${className}`
+              `https://bilal.skoolific.com/api/staff/data/${staffType}/${className}`
             );
             
             const staffWithMeta = dataResponse.data.data.map(staff => ({

@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import styles from './TaskDetail.module.css';
+
+const API_BASE_URL = 'https://bilal.skoolific.com/api';
 import StudentFormBuilder from '../PAGE/CreateRegister/CreateRegisterStudent/StudentFormBuilder';
 import StaffFormBuilder from '../PAGE/CreateRegister/CreateRegisterStaff/StaffFormBuilder';
 import CreateRegisterStaff from '../PAGE/CreateRegister/CreateRegisterStaff/CreateRegisterStaff';
@@ -129,7 +131,7 @@ function TaskDetail() {
     setError(null);
     try {
       // Save schedule config
-      const response = await fetch('/api/schedule/config', {
+      const response = await fetch(`${API_BASE_URL}/schedule/config`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -462,7 +464,7 @@ function TaskDetail() {
       const loadInitialData = async () => {
         try {
           // Check if teacher assignments already exist
-          const checkResponse = await fetch('/api/mark-list/teacher-assignments');
+          const checkResponse = await fetch(`${API_BASE_URL}/mark-list/teacher-assignments`);
           if (checkResponse.ok) {
             const checkData = await checkResponse.json();
             
@@ -477,14 +479,14 @@ function TaskDetail() {
           }
 
           // Load class-subject mappings
-          const classSubjectsResponse = await fetch('/api/mark-list/subjects-classes');
+          const classSubjectsResponse = await fetch(`${API_BASE_URL}/mark-list/subjects-classes`);
           if (classSubjectsResponse.ok) {
             const classSubjectsData = await classSubjectsResponse.json();
             setClassSubjects(classSubjectsData);
           }
 
           // Load teachers from schedule system with work times
-          const teachersResponse = await fetch('/api/school-setup/teachers-with-worktime');
+          const teachersResponse = await fetch(`${API_BASE_URL}/school-setup/teachers-with-worktime`);
           if (teachersResponse.ok) {
             const teachersData = await teachersResponse.json();
             setTeachers(teachersData);
@@ -542,7 +544,7 @@ function TaskDetail() {
         }
 
         // 1. Save to mark-list system (existing)
-        const response = await fetch('/api/mark-list/assign-teachers', {
+        const response = await fetch(`${API_BASE_URL}/mark-list/assign-teachers`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -556,7 +558,7 @@ function TaskDetail() {
         }
         
         // 2. ALSO save to schedule system with work time information
-        const scheduleResponse = await fetch('/api/school-setup/sync-teacher-assignments', {
+        const scheduleResponse = await fetch(`${API_BASE_URL}/school-setup/sync-teacher-assignments`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -579,7 +581,7 @@ function TaskDetail() {
         });
         
         // Fetch the updated assignments to display
-        const dataResponse = await fetch('/api/mark-list/teacher-assignments');
+        const dataResponse = await fetch(`${API_BASE_URL}/mark-list/teacher-assignments`);
         if (dataResponse.ok) {
           const data = await dataResponse.json();
           setMergeData(data);
