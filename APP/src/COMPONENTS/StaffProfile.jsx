@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiUser, FiClipboard, FiFileText, FiMessageSquare, FiEye, FiBriefcase, FiUserCheck, FiCalendar, FiCheck, FiX, FiClock, FiSave, FiArrowLeft, FiBook, FiBarChart2, FiAlertCircle, FiEdit, FiEdit2, FiList, FiSearch, FiUsers, FiSettings, FiSend, FiStar, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import axios from 'axios';
@@ -829,15 +829,28 @@ const StaffProfile = () => {
     }
   }, [selectedWeek]);
 
-  // Handle attendance status change for a specific day
+  // Auto-save debounce ref
+  const autoSaveTimer = useRef(null);
+
+  // Handle attendance status change for a specific day - auto saves after 1.5s
   const handleAttendanceStatusChange = (studentKey, day, status) => {
-    setAttendanceRecords(prev => ({
-      ...prev,
-      [studentKey]: { 
-        ...prev[studentKey],
-        [day]: status
-      }
-    }));
+    setAttendanceRecords(prev => {
+      const updated = {
+        ...prev,
+        [studentKey]: {
+          ...prev[studentKey],
+          [day]: status
+        }
+      };
+
+      // Auto-save after 1.5 seconds of no changes
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = setTimeout(() => {
+        saveAttendanceWithRecords(updated);
+      }, 1500);
+
+      return updated;
+    });
   };
 
   // Mark all students with same status for selected day
@@ -853,6 +866,12 @@ const StaffProfile = () => {
       }
     });
     setAttendanceRecords(updatedRecords);
+
+    // Auto-save after 1.5s
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      saveAttendanceWithRecords(updatedRecords);
+    }, 1500);
   };
 
   // Create new weekly attendance
@@ -891,14 +910,19 @@ const StaffProfile = () => {
 
   // Save weekly attendance
   const saveAttendance = async () => {
+    await saveAttendanceWithRecords(attendanceRecords);
+  };
+
+  // Save with explicit records (used by auto-save)
+  const saveAttendanceWithRecords = async (records) => {
     if (!profile || !assignedClass || !selectedWeek || students.length === 0) return;
     setSavingAttendance(true);
     try {
-      const records = students
+      const payload = students
         .filter(student => student.school_id && student.class_id)
         .map(student => {
           const key = `${student.school_id}-${student.class_id}`;
-          const record = attendanceRecords[key] || {};
+          const record = records[key] || {};
           return {
             school_id: String(student.school_id),
             class_id: String(student.class_id),
@@ -913,14 +937,12 @@ const StaffProfile = () => {
         });
       
       await axios.put(`${API_BASE_URL}/class-teacher/weekly-attendance/${assignedClass}/${selectedWeek}`, {
-        records,
+        records: payload,
         globalStaffId: profile.global_staff_id
       });
       
-      // Refresh attendance data after saving
       await fetchWeeklyAttendance(assignedClass, selectedWeek);
-      
-      toast.success('Attendance saved successfully!');
+      toast.success('Attendance saved!');
     } catch (error) {
       console.error('Error saving attendance:', error);
       toast.error(error.response?.data?.error || 'Failed to save attendance');
