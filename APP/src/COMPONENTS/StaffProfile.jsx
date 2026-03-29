@@ -739,10 +739,14 @@ const StaffProfile = () => {
       } else {
         // Current week doesn't exist — auto-create it silently
         try {
+          const staffUser = JSON.parse(localStorage.getItem('staffUser') || '{}');
+          const globalStaffId = profile?.global_staff_id || staffUser?.global_staff_id;
+          if (!globalStaffId) throw new Error('Staff ID not found');
+          
           await axios.post(`${API_BASE_URL}/class-teacher/create-weekly-attendance`, {
             className,
             weekStart: currentWeekMonday,
-            globalStaffId: profile?.global_staff_id
+            globalStaffId
           });
           // Reload tables after creation
           const refreshed = await axios.get(`${API_BASE_URL}/class-teacher/weekly-tables/${className}`);
