@@ -5,13 +5,16 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
   build: {
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 2500,
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // Core React
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
+          // Core React - must be single instance
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router-dom/')) {
             return 'vendor-react';
           }
           // Axios
@@ -20,10 +23,10 @@ export default defineConfig({
           if (id.includes('node_modules/react-icons')) return 'vendor-icons';
           // Framer motion
           if (id.includes('node_modules/framer-motion')) return 'vendor-motion';
-          // Charts - merge with antd to avoid version conflict
-          if (id.includes('node_modules/recharts') || id.includes('node_modules/@ant-design/charts') || id.includes('node_modules/@ant-design/plots')) return 'vendor-antd';
-          // Ant Design
+          // Ant Design + Charts together (same React instance)
           if (id.includes('node_modules/antd') || id.includes('node_modules/@ant-design')) return 'vendor-antd';
+          // Recharts
+          if (id.includes('node_modules/recharts')) return 'vendor-antd';
           // Date libraries
           if (id.includes('node_modules/dayjs') || id.includes('node_modules/moment')) return 'vendor-date';
           // PDF/export
