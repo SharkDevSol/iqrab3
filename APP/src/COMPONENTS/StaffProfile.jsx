@@ -323,7 +323,7 @@ const StaffProfile = () => {
         
         // Fetch students for the first assigned class
         if (assignedClasses[0]) {
-          fetchStudentsForAttendance(assignedClasses[0]);
+          fetchStudentsForAttendance(assignedClasses[0], globalStaffId);
           fetchSchoolDays();
         }
         
@@ -711,12 +711,12 @@ const StaffProfile = () => {
   };
 
   // Fetch students for attendance
-  const fetchStudentsForAttendance = async (className) => {
+  const fetchStudentsForAttendance = async (className, staffId) => {
     setAttendanceLoading(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/class-teacher/students/${className}`);
       setStudents(response.data);
-      await fetchWeeklyTables(className);
+      await fetchWeeklyTables(className, staffId);
     } catch (error) {
       console.error('Error fetching students:', error);
     } finally {
@@ -725,7 +725,7 @@ const StaffProfile = () => {
   };
 
   // Fetch weekly attendance tables
-  const fetchWeeklyTables = async (className) => {
+  const fetchWeeklyTables = async (className, staffId) => {
     try {
       const response = await axios.get(`${API_BASE_URL}/class-teacher/weekly-tables/${className}`);
       setWeeklyTables(response.data);
@@ -740,7 +740,7 @@ const StaffProfile = () => {
         // Current week doesn't exist — auto-create it silently
         try {
           const staffUser = JSON.parse(localStorage.getItem('staffUser') || '{}');
-          const globalStaffId = profile?.global_staff_id || staffUser?.global_staff_id;
+          const globalStaffId = staffId || profile?.global_staff_id || staffUser?.global_staff_id;
           if (!globalStaffId) throw new Error('Staff ID not found');
           
           await axios.post(`${API_BASE_URL}/class-teacher/create-weekly-attendance`, {
