@@ -471,14 +471,18 @@ router.post('/create-mark-forms', async (req, res) => {
 });
 
 // Route to get mark list for a specific subject, class, and term
+// Helper: normalize class name for table lookup (G8A → 8a, 8A → 8a)
+const normalizeClassName = (name) => name.toLowerCase().replace(/^g/, '');
+
 router.get('/mark-list/:subjectName/:className/:termNumber', async (req, res) => {
   const { subjectName, termNumber } = req.params;
-  const className = req.params.className.toLowerCase();
+  const className = req.params.className; // keep original for classes_schema lookup
+  const tableClassName = normalizeClassName(className); // for subject schema table names
   
   const client = await pool.connect();
   try {
     const schemaName = `subject_${subjectName.toLowerCase().replace(/[\s\-\.]+/g, '_')}_schema`;
-    const tableName = `${className.toLowerCase()}_term_${termNumber}`;
+    const tableName = `${tableClassName}_term_${termNumber}`;
     
     // Check if is_active column exists
     const columnCheck = await client.query(`
@@ -493,9 +497,17 @@ router.get('/mark-list/:subjectName/:className/:termNumber', async (req, res) =>
     const whereClause = hasIsActive ? 'WHERE is_active = TRUE OR is_active IS NULL' : '';
     
     // SYNC STUDENTS: Add new active students and remove deactivated ones
+    // Try to find the actual class table name (handles both G8A and 8A formats)
+    const classTableCheck = await client.query(
+      `SELECT table_name FROM information_schema.tables 
+       WHERE table_schema = 'classes_schema' AND (table_name = $1 OR table_name = $2)`,
+      [className, tableClassName.toUpperCase()]
+    );
+    const actualClassName = classTableCheck.rows.length > 0 ? classTableCheck.rows[0].table_name : className;
+
     // Get current active students from class table
     const activeStudentsResult = await client.query(
-      `SELECT student_name, age, gender FROM classes_schema."${className}" 
+      `SELECT student_name, age, gender FROM classes_schema."${actualClassName}" 
        ${whereClause}`
     );
     const activeStudents = activeStudentsResult.rows;
