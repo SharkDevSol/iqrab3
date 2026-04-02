@@ -1,4 +1,5 @@
 // Script to sync all subjects from subject_class_mappings into subjects table
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const pool = require('../config/db');
 
 async function syncSubjects() {
