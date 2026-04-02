@@ -2389,7 +2389,7 @@ const StaffProfile = () => {
               {students.map((student, index) => {
                 const status = getStudentStatus(student);
                 return (
-                  <div key={student.student_id || index} className={styles.studentCard}>
+                  <div key={student.student_id || index} className={styles.studentCard} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                     <div className={styles.studentInfo}>
                       <div className={styles.studentAvatar}>
                         {student.image_student ? (
