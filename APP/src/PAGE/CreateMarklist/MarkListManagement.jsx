@@ -1,6 +1,7 @@
 // PAGE/CreateMarklist/MarkListManagement.jsx
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import SubjectMappingSetup from './SubjectMappingSetup';
 import './CreateMarklist/MarkListFrontend.css';
 
 const API_BASE_URL = 'https://bilal.skoolific.com/api';
@@ -958,9 +959,10 @@ const ClassRanking = () => {
 };
 
 const MarkListManagement = () => {
-  const [activeTab, setActiveTab] = useState('forms');
+  const [activeTab, setActiveTab] = useState('subjects');
 
   const tabs = [
+    { id: 'subjects', label: '📚 Subject Setup', component: SubjectMappingSetup },
     { id: 'forms', label: 'Mark List Forms', component: MarkListForm },
     { id: 'teachers', label: 'Teacher Assignment', component: TeacherAssignment },
     { id: 'ranking', label: 'Class Ranking', component: ClassRanking }
