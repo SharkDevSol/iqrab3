@@ -285,7 +285,7 @@ router.post('/map-subjects-classes', async (req, res) => {
       const classResult = await client.query(
         `SELECT table_name FROM information_schema.tables 
          WHERE table_schema = 'classes_schema' AND table_name = $1`,
-        [mapping.className]
+        [mapping.className?.toLowerCase()]
       );
       if (classResult.rows.length === 0) {
         console.warn(`Class ${mapping.className} not found in classes_schema, skipping`);
@@ -305,7 +305,7 @@ router.post('/map-subjects-classes', async (req, res) => {
       // Insert mapping
       await client.query(
         'INSERT INTO subjects_of_school_schema.subject_class_mappings (class_name, subject_name) VALUES ($1, $2) ON CONFLICT (subject_name, class_name) DO NOTHING',
-        [mapping.className, mapping.subjectName]
+        [mapping.className?.toLowerCase(), mapping.subjectName]
       );
     }
     
@@ -333,7 +333,8 @@ router.get('/subjects-classes', async (req, res) => {
 
 // Route to create mark list forms for subjects
 router.post('/create-mark-forms', async (req, res) => {
-  const { subjectName, className, termNumber, markComponents } = req.body;
+  const { subjectName, termNumber, markComponents } = req.body;
+  const className = req.body.className?.toLowerCase();
   
   if (!subjectName || !className || !termNumber || !markComponents) {
     return res.status(400).json({ error: 'Subject name, class name, term number, and mark components are required' });
@@ -471,7 +472,8 @@ router.post('/create-mark-forms', async (req, res) => {
 
 // Route to get mark list for a specific subject, class, and term
 router.get('/mark-list/:subjectName/:className/:termNumber', async (req, res) => {
-  const { subjectName, className, termNumber } = req.params;
+  const { subjectName, termNumber } = req.params;
+  const className = req.params.className.toLowerCase();
   
   const client = await pool.connect();
   try {
@@ -561,7 +563,8 @@ router.get('/mark-list/:subjectName/:className/:termNumber', async (req, res) =>
 
 // Route to update marks for a student
 router.put('/update-marks', async (req, res) => {
-  const { subjectName, className, termNumber, studentId, marks } = req.body;
+  const { subjectName, termNumber, studentId, marks } = req.body;
+  const className = req.body.className?.toLowerCase();
   
   if (!subjectName || !className || !termNumber || !studentId || !marks) {
     return res.status(400).json({ error: 'All fields are required' });
@@ -686,7 +689,8 @@ router.get('/teachers', async (req, res) => {
 
 // Route to calculate class ranking
 router.get('/ranking/:className/:termNumber', async (req, res) => {
-  const { className, termNumber } = req.params;
+  const { termNumber } = req.params;
+  const className = req.params.className.toLowerCase();
   
   try {
     // Validate class exists
@@ -877,7 +881,8 @@ router.get('/teacher-mark-lists/:teacherName', async (req, res) => {
 
 // Route to calculate and update all totals for a specific mark list
 router.post('/calculate-totals', async (req, res) => {
-  const { subjectName, className, termNumber } = req.body;
+  const { subjectName, termNumber } = req.body;
+  const className = req.body.className?.toLowerCase();
   
   if (!subjectName || !className || !termNumber) {
     return res.status(400).json({ error: 'Subject name, class name, and term number are required' });
@@ -957,7 +962,8 @@ router.post('/calculate-totals', async (req, res) => {
 
 // Route to get comprehensive class ranking with detailed breakdown
 router.get('/comprehensive-ranking/:className/:termNumber', async (req, res) => {
-  const { className, termNumber } = req.params;
+  const { termNumber } = req.params;
+  const className = req.params.className.toLowerCase();
   
   try {
     // Validate class exists in classes_schema
@@ -1101,7 +1107,8 @@ router.get('/comprehensive-ranking/:className/:termNumber', async (req, res) => 
 
 // Route to get mark list statistics
 router.get('/statistics/:subjectName/:className/:termNumber', async (req, res) => {
-  const { subjectName, className, termNumber } = req.params;
+  const { subjectName, termNumber } = req.params;
+  const className = req.params.className.toLowerCase();
   
   try {
     const schemaName = `subject_${subjectName.toLowerCase().replace(/[\s\-\.]+/g, '_')}_schema`;
@@ -1178,7 +1185,8 @@ router.get('/classes/:teacherId', async (req, res) => {
 
 // Route to bulk update marks (for importing from spreadsheet)
 router.post('/bulk-update-marks', async (req, res) => {
-  const { subjectName, className, termNumber, marksData } = req.body;
+  const { subjectName, termNumber, marksData } = req.body;
+  const className = req.body.className?.toLowerCase();
   
   if (!subjectName || !className || !termNumber || !marksData || !Array.isArray(marksData)) {
     return res.status(400).json({ error: 'All fields are required and marksData must be an array' });
@@ -1375,7 +1383,8 @@ router.get('/teacher-assignments', async (req, res) => {
 
 // Route to get all marks for a specific student
 router.get('/student-marks/:schoolId/:className', async (req, res) => {
-  const { schoolId, className } = req.params;
+  const { schoolId } = req.params;
+  const className = req.params.className.toLowerCase();
   
   try {
     // First, get the student's name from their school_id
@@ -1507,7 +1516,7 @@ router.get('/student-marks/:schoolId/:className', async (req, res) => {
 
 // Route to sync all mark lists for a class (add new students, remove deactivated)
 router.post('/sync-class-students/:className', async (req, res) => {
-  const { className } = req.params;
+  const className = req.params.className.toLowerCase();
   
   const client = await pool.connect();
   try {
