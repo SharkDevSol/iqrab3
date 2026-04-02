@@ -427,7 +427,7 @@ router.get('/mark-list/:subjectName/:className/:termNumber', async (req, res) =>
     
     // Get current students in mark list
     const markListResult = await client.query(
-      `SELECT student_name FROM "`${schemaName}`"."`${tableName}`"`
+      `SELECT student_name FROM "${schemaName}"."${tableName}"`
     );
     const markListStudents = markListResult.rows.map(r => r.student_name);
     
@@ -445,7 +445,7 @@ router.get('/mark-list/:subjectName/:className/:termNumber', async (req, res) =>
     // Add new students
     for (const student of studentsToAdd) {
       await client.query(
-        `INSERT INTO "`${schemaName}`"."`${tableName}`" (student_name, age, gender) 
+        `INSERT INTO "${schemaName}"."${tableName}" (student_name, age, gender) 
          VALUES ($1, $2, $3)`,
         [student.student_name, student.age, student.gender]
       );
@@ -454,19 +454,19 @@ router.get('/mark-list/:subjectName/:className/:termNumber', async (req, res) =>
     // Remove deactivated students
     for (const studentName of studentsToRemove) {
       await client.query(
-        `DELETE FROM "`${schemaName}`"."`${tableName}`" WHERE student_name = $1`,
+        `DELETE FROM "${schemaName}"."${tableName}" WHERE student_name = $1`,
         [studentName]
       );
     }
     
     // Get updated mark list data (only active students)
     const result = await client.query(
-      `SELECT * FROM "`${schemaName}`"."`${tableName}`" ORDER BY student_name`
+      `SELECT * FROM "${schemaName}"."${tableName}" ORDER BY student_name`
     );
     
     // Get form configuration
     const configResult = await client.query(
-      `SELECT * FROM "`${schemaName}`".form_config WHERE class_name = $1 AND term_number = $2`,
+      `SELECT * FROM "${schemaName}".form_config WHERE class_name = $1 AND term_number = $2`,
       [className, termNumber]
     );
     
@@ -503,7 +503,7 @@ router.put('/update-marks', async (req, res) => {
     
     // Get form configuration to validate marks
     const configResult = await client.query(
-      `SELECT * FROM "`${schemaName}`".form_config WHERE class_name = $1 AND term_number = $2`,
+      `SELECT * FROM "${schemaName}".form_config WHERE class_name = $1 AND term_number = $2`,
       [className, termNumber]
     );
     
@@ -548,7 +548,7 @@ router.put('/update-marks', async (req, res) => {
     updateValues.push(studentId);
     
     const updateQuery = `
-      UPDATE "`${schemaName}`"."`${tableName}`" 
+      UPDATE "${schemaName}"."${tableName}" 
       SET ${updateColumns.join(', ')} 
       WHERE id = $${updateValues.length}
     `;
@@ -643,7 +643,7 @@ router.get('/ranking/:className/:termNumber', async (req, res) => {
       const tableName = `${className.toLowerCase()}_term_${termNumber}`;
       
       try {
-        const marksResult = await pool.query(`SELECT student_name, total FROM "`${schemaName}`"."`${tableName}`"`);
+        const marksResult = await pool.query(`SELECT student_name, total FROM "${schemaName}"."${tableName}"`);
         
         for (const mark of marksResult.rows) {
           if (!studentData[mark.student_name]) {
@@ -778,10 +778,10 @@ router.get('/teacher-mark-lists/:teacherName', async (req, res) => {
               });
               console.log(`✓ Added: ${subjectName} Class ${className} Term ${term}`);
             } else {
-              console.log(`✗ Table not found: "`${schemaName}`"."`${tableName}`"`);
+              console.log(`✗ Table not found: "${schemaName}"."${tableName}"`);
             }
           } catch (error) {
-            console.log(`Error checking table "`${schemaName}`"."`${tableName}`":`, error.message);
+            console.log(`Error checking table "${schemaName}"."${tableName}":`, error.message);
           }
         }
       } else {
@@ -819,7 +819,7 @@ router.post('/calculate-totals', async (req, res) => {
     
     // Get form configuration
     const configResult = await client.query(
-      `SELECT * FROM "`${schemaName}`".form_config WHERE class_name = $1 AND term_number = $2`,
+      `SELECT * FROM "${schemaName}".form_config WHERE class_name = $1 AND term_number = $2`,
       [className, termNumber]
     );
     
@@ -831,7 +831,7 @@ router.post('/calculate-totals', async (req, res) => {
     const markComponents = config.mark_components;
     
     // Get all students
-    const studentsResult = await client.query(`SELECT id FROM "`${schemaName}`"."`${tableName}`"`);
+    const studentsResult = await client.query(`SELECT id FROM "${schemaName}"."${tableName}"`);
     
     for (const student of studentsResult.rows) {
       // Calculate total for this student
@@ -841,7 +841,7 @@ router.post('/calculate-totals', async (req, res) => {
       );
       
       const studentDataResult = await client.query(
-        `SELECT ${componentColumns.join(', ')} FROM "`${schemaName}`"."`${tableName}`" WHERE id = $1`,
+        `SELECT ${componentColumns.join(', ')} FROM "${schemaName}"."${tableName}" WHERE id = $1`,
         [student.id]
       );
       
@@ -863,7 +863,7 @@ router.post('/calculate-totals', async (req, res) => {
         
         // Update student record
         await client.query(
-          `UPDATE "`${schemaName}`"."`${tableName}`" 
+          `UPDATE "${schemaName}"."${tableName}" 
            SET total = $1, pass_status = $2, updated_at = CURRENT_TIMESTAMP 
            WHERE id = $3`,
           [total, passStatus, student.id]
@@ -916,8 +916,8 @@ router.get('/comprehensive-ranking/:className/:termNumber', async (req, res) => 
       try {
         // Get marks and form configuration
         const [marksResult, configResult] = await Promise.all([
-          pool.query(`SELECT student_name, total, pass_status FROM "`${schemaName}`"."`${tableName}`"`),
-          pool.query(`SELECT * FROM "`${schemaName}`".form_config WHERE class_name = $1 AND term_number = $2`, 
+          pool.query(`SELECT student_name, total, pass_status FROM "${schemaName}"."${tableName}"`),
+          pool.query(`SELECT * FROM "${schemaName}".form_config WHERE class_name = $1 AND term_number = $2`, 
                     [className, termNumber])
         ]);
         
@@ -1036,7 +1036,7 @@ router.get('/statistics/:subjectName/:className/:termNumber', async (req, res) =
     
     // Get all marks
     const marksResult = await pool.query(`
-      SELECT total, pass_status FROM "`${schemaName}`"."`${tableName}`"
+      SELECT total, pass_status FROM "${schemaName}"."${tableName}"
       WHERE total IS NOT NULL
     `);
     
@@ -1120,7 +1120,7 @@ router.post('/bulk-update-marks', async (req, res) => {
     
     // Get form configuration
     const configResult = await client.query(
-      `SELECT * FROM "`${schemaName}`".form_config WHERE class_name = $1 AND term_number = $2`,
+      `SELECT * FROM "${schemaName}".form_config WHERE class_name = $1 AND term_number = $2`,
       [className, termNumber]
     );
     
@@ -1140,7 +1140,7 @@ router.post('/bulk-update-marks', async (req, res) => {
       
       // Find student by name
       const studentResult = await client.query(
-        `SELECT id FROM "`${schemaName}`"."`${tableName}`" WHERE LOWER(student_name) = LOWER($1)`,
+        `SELECT id FROM "${schemaName}"."${tableName}" WHERE LOWER(student_name) = LOWER($1)`,
         [studentName]
       );
       
@@ -1187,7 +1187,7 @@ router.post('/bulk-update-marks', async (req, res) => {
       updateValues.push(studentId);
       
       const updateQuery = `
-        UPDATE "`${schemaName}`"."`${tableName}`" 
+        UPDATE "${schemaName}"."${tableName}" 
         SET ${updateColumns.join(', ')} 
         WHERE id = $${updateValues.length}
       `;
@@ -1385,7 +1385,7 @@ router.get('/student-marks/:schoolId/:className', async (req, res) => {
         try {
           // Check if table exists and get student's marks by student_name
           const studentMarks = await pool.query(`
-            SELECT * FROM "`${schemaName}`"."`${tableName}`" 
+            SELECT * FROM "${schemaName}"."${tableName}" 
             WHERE student_name = $1
           `, [studentName]);
           
@@ -1394,7 +1394,7 @@ router.get('/student-marks/:schoolId/:className', async (req, res) => {
             
             // Get form config for mark components
             const configResult = await pool.query(`
-              SELECT mark_components FROM "`${schemaName}`".form_config 
+              SELECT mark_components FROM "${schemaName}".form_config 
               WHERE class_name = $1 AND term_number = $2
             `, [className, term]);
             
@@ -1490,7 +1490,7 @@ router.post('/sync-class-students/:className', async (req, res) => {
           
           // Get current students in mark list
           const markListResult = await client.query(
-            `SELECT student_name FROM "`${schemaName}`"."`${tableName}`"`
+            `SELECT student_name FROM "${schemaName}"."${tableName}"`
           );
           const markListStudents = markListResult.rows.map(r => r.student_name);
           
@@ -1507,7 +1507,7 @@ router.post('/sync-class-students/:className', async (req, res) => {
           // Add new students
           for (const student of studentsToAdd) {
             await client.query(
-              `INSERT INTO "`${schemaName}`"."`${tableName}`" (student_name, age, gender) 
+              `INSERT INTO "${schemaName}"."${tableName}" (student_name, age, gender) 
                VALUES ($1, $2, $3)`,
               [student.student_name, student.age, student.gender]
             );
@@ -1517,7 +1517,7 @@ router.post('/sync-class-students/:className', async (req, res) => {
           // Remove deactivated students
           for (const studentName of studentsToRemove) {
             await client.query(
-              `DELETE FROM "`${schemaName}`"."`${tableName}`" WHERE student_name = $1`,
+              `DELETE FROM "${schemaName}"."${tableName}" WHERE student_name = $1`,
               [studentName]
             );
             totalRemoved++;
@@ -1532,7 +1532,7 @@ router.post('/sync-class-students/:className', async (req, res) => {
             });
           }
         } catch (tableError) {
-          console.log(`Error syncing "`${schemaName}`"."`${tableName}`":`, tableError.message);
+          console.log(`Error syncing "${schemaName}"."${tableName}":`, tableError.message);
           continue;
         }
       }
@@ -1651,7 +1651,7 @@ router.get('/guardian-marks/:guardianUsername', async (req, res) => {
             if (tableExistsResult.rows[0].exists) {
               // Get marks for this student
               const marksResult = await client.query(`
-                SELECT * FROM "`${schemaName}`"."`${tableName}`"
+                SELECT * FROM "${schemaName}"."${tableName}"
                 WHERE student_name = $1
               `, [ward.student_name]);
               
@@ -1693,4 +1693,6 @@ router.get('/guardian-marks/:guardianUsername', async (req, res) => {
 });
 
 module.exports = router;
+
+
 
