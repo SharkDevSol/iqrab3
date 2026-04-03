@@ -4488,9 +4488,7 @@
 
 .studentCard {
   display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: space-between !important;
+  flex-direction: column !important;
   padding: 0.625rem 0.75rem !important;
   background: #f8fafc;
   border-radius: 14px;
