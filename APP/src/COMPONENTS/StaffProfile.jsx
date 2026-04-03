@@ -2390,22 +2390,12 @@ const StaffProfile = () => {
                 const status = getStudentStatus(student);
                 return (
                   <div key={student.student_id || index} className={styles.attendanceStudentCard}>
-                    <div className={styles.attendanceStudentInfo}>
-                      <div className={styles.attendanceAvatar}>
-                        {student.image_student ? (
-                          <img src={`${API_BASE_URL.replace('/api', '')}/uploads/${student.image_student}`} alt={student.student_name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} onError={(e) => { e.target.style.display = 'none'; }} />
-                        ) : (student.student_name?.charAt(0) || 'S')}
-                      </div>
-                      <div className={styles.attendanceStudentText}>
-                        <span className={styles.attendanceStudentName}>{student.student_name}</span>
-                        <span className={styles.attendanceStudentId}>ID: {student.class_id || student.student_id}</span>
-                      </div>
-                    </div>
+                    <span className={styles.attendanceStudentName}>{student.student_name}</span>
                     <div className={styles.attendanceMarkBtns}>
-                      <button className={`${styles.markBtn} ${styles.markBtnP} ${status === 'P' ? styles.markBtnActive : ''}`} onClick={() => markStudent(student, status === 'P' ? '' : 'P')}>✓</button>
-                      <button className={`${styles.markBtn} ${styles.markBtnL} ${status === 'L' ? styles.markBtnActive : ''}`} onClick={() => markStudent(student, status === 'L' ? '' : 'L')}>⏰</button>
-                      <button className={`${styles.markBtn} ${styles.markBtnA} ${status === 'A' ? styles.markBtnActive : ''}`} onClick={() => markStudent(student, status === 'A' ? '' : 'A')}>✗</button>
-                      <button className={`${styles.markBtn} ${styles.markBtnE} ${status === 'E' ? styles.markBtnActive : ''}`} onClick={() => markStudent(student, status === 'E' ? '' : 'E')}>F</button>
+                      <button className={`${styles.attBtn} ${status === 'P' ? styles.attBtnPActive : styles.attBtnP}`} onClick={() => markStudent(student, status === 'P' ? '' : 'P')}>✓</button>
+                      <button className={`${styles.attBtn} ${status === 'L' ? styles.attBtnLActive : styles.attBtnL}`} onClick={() => markStudent(student, status === 'L' ? '' : 'L')}>⏰</button>
+                      <button className={`${styles.attBtn} ${status === 'A' ? styles.attBtnAActive : styles.attBtnA}`} onClick={() => markStudent(student, status === 'A' ? '' : 'A')}>✗</button>
+                      <button className={`${styles.attBtn} ${status === 'E' ? styles.attBtnEActive : styles.attBtnE}`} onClick={() => markStudent(student, status === 'E' ? '' : 'E')}>F</button>
                     </div>
                   </div>
                 );

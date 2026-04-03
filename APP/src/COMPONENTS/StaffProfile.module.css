@@ -4486,67 +4486,60 @@
   gap: 0.75rem;
 }
 
-/* Attendance student card - clean 2-row layout */
+/* Attendance student card - single row: name left, buttons right */
 .attendanceStudentCard {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
   background: #f8fafc;
-  border-radius: 14px;
-  border: 2px solid #e2e8f0;
-}
-
-.attendanceStudentInfo {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.attendanceAvatar {
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 700;
-  font-size: 0.85rem;
-  overflow: hidden;
-}
-
-.attendanceStudentText {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  gap: 0.5rem;
 }
 
 .attendanceStudentName {
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: #1f2937;
-}
-
-.attendanceStudentId {
-  font-size: 0.7rem;
-  color: #9ca3af;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .attendanceMarkBtns {
   display: flex;
   flex-direction: row;
-  gap: 0.4rem;
+  gap: 0.25rem;
+  flex-shrink: 0;
 }
 
-.attendanceMarkBtns .markBtn {
-  flex: 1;
-  height: 34px;
-  font-size: 0.85rem;
-  border-radius: 8px;
+/* Small attendance buttons */
+.attBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1.5px solid;
+  background: white;
+  font-size: 0.72rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
 }
+
+.attBtnP  { border-color: #22c55e; color: #22c55e; }
+.attBtnL  { border-color: #f59e0b; color: #f59e0b; }
+.attBtnA  { border-color: #ef4444; color: #ef4444; }
+.attBtnE  { border-color: #8b5cf6; color: #8b5cf6; }
+
+.attBtnPActive { border-color: #22c55e; background: #22c55e; color: white; }
+.attBtnLActive { border-color: #f59e0b; background: #f59e0b; color: white; }
+.attBtnAActive { border-color: #ef4444; background: #ef4444; color: white; }
+.attBtnEActive { border-color: #8b5cf6; background: #8b5cf6; color: white; }
 
 .studentCard {
   display: flex !important;
