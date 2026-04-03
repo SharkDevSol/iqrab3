@@ -225,6 +225,7 @@ const StaffProfile = () => {
   const [selectedMarkListSubject, setSelectedMarkListSubject] = useState('');
   const [selectedMarkListClass, setSelectedMarkListClass] = useState('');
   const [selectedMarkListTerm, setSelectedMarkListTerm] = useState(1);
+  const [selectedMarkComponent, setSelectedMarkComponent] = useState(''); // New: selected component filter
   const [markListData, setMarkListData] = useState([]);
   const [markListConfig, setMarkListConfig] = useState(null);
   const [markListMessage, setMarkListMessage] = useState('');
@@ -2181,6 +2182,20 @@ const StaffProfile = () => {
                 </select>
               </div>
               
+              <div className={styles.filterGroup}>
+                <label>Test</label>
+                <select 
+                  value={selectedMarkComponent} 
+                  onChange={(e) => setSelectedMarkComponent(e.target.value)}
+                  disabled={!markListConfig}
+                >
+                  <option value="">All Components</option>
+                  {markListConfig?.mark_components.map(component => (
+                    <option key={component.name} value={component.name}>{component.name}</option>
+                  ))}
+                </select>
+              </div>
+              
               <button 
                 className={styles.loadMarkListBtn}
                 onClick={loadMarkListData}
@@ -2221,6 +2236,12 @@ const StaffProfile = () => {
                   {filteredMarkListData.map((student, idx) => {
                     const isAdmin = user?.staffType?.toLowerCase() === 'admin';
                     const isLocked = savedMarkStudents.has(student.id) && !isAdmin;
+                    
+                    // Filter components based on selection
+                    const componentsToShow = selectedMarkComponent 
+                      ? markListConfig.mark_components.filter(c => c.name === selectedMarkComponent)
+                      : markListConfig.mark_components;
+                    
                     return (
                     <div key={student.id} style={{background:'white',borderRadius:'12px',padding:'0.6rem 0.75rem',marginBottom:'0.45rem',boxShadow:'0 2px 6px rgba(99,102,241,0.08)',border:'1.5px solid #e0e7ff',display:'flex',alignItems:'center',gap:'0.5rem',flexWrap:'wrap'}}>
                       {/* Number + Name */}
@@ -2229,9 +2250,9 @@ const StaffProfile = () => {
                         <span style={{fontWeight:600,fontSize:'0.82rem',color:'#1e293b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{student.student_name}</span>
                       </div>
                       
-                      {/* Mark inputs - horizontal */}
+                      {/* Mark inputs - horizontal (filtered by selection) */}
                       <div style={{display:'flex',gap:'0.35rem',flex:1,minWidth:'200px'}}>
-                        {markListConfig.mark_components.map(component => {
+                        {componentsToShow.map(component => {
                           const componentKey = component.name.toLowerCase().replace(/\s+/g, '_');
                           return (
                             <div key={component.name} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'0.1rem',flex:1,minWidth:'45px'}}>
