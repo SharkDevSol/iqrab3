@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaChalkboardTeacher, FaUserGraduate, FaUserShield, FaHeart } from 'react-icons/fa';
 import { useApp } from '../../context/AppContext';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://iqrab1.skoolific.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://bilal.skoolific.com';
 
 const Post = () => {
   const { t } = useApp();
@@ -179,7 +179,7 @@ const Post = () => {
             return (
               <a 
                 key={index} 
-                href={`https://iqrab1.skoolific.com/Uploads/posts/${item.filename}`} 
+                href={`https://bilal.skoolific.com/Uploads/posts/${item.filename}`} 
                 download 
                 className={styles.fileAttachment}
               >
