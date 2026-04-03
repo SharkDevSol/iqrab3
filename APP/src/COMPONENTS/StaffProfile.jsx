@@ -652,16 +652,34 @@ const StaffProfile = () => {
     return [...new Set(terms)].sort();
   };
 
-  // Get available mark components for selected subject/class/term
+  // Get available mark components from config
   const getAvailableComponents = () => {
-    if (!selectedMarkListSubject || !selectedMarkListClass || !selectedMarkListTerm) return [];
-    const assignment = teacherAssignments.find(
-      a => a.subjectName === selectedMarkListSubject && 
-           a.className === selectedMarkListClass && 
-           a.termNumber === selectedMarkListTerm
-    );
-    return assignment?.markComponents || [];
+    if (!markListConfig) return [];
+    return markListConfig.mark_components || [];
   };
+
+  // Fetch mark list config when term is selected (to populate Test dropdown)
+  const fetchMarkListConfig = async () => {
+    if (!selectedMarkListSubject || !selectedMarkListClass || !selectedMarkListTerm) return;
+    try {
+      const response = await axios.get(
+        `${API_BASE_URL}/mark-list/mark-list/${encodeURIComponent(selectedMarkListSubject)}/${encodeURIComponent(selectedMarkListClass)}/${selectedMarkListTerm}`
+      );
+      setMarkListConfig(response.data.config || null);
+    } catch (error) {
+      console.error('Error fetching mark list config:', error);
+      setMarkListConfig(null);
+    }
+  };
+
+  // Fetch config when term changes
+  useEffect(() => {
+    if (selectedMarkListSubject && selectedMarkListClass && selectedMarkListTerm) {
+      fetchMarkListConfig();
+    } else {
+      setMarkListConfig(null);
+    }
+  }, [selectedMarkListSubject, selectedMarkListClass, selectedMarkListTerm]);
 
   // Load mark list data
   const loadMarkListData = async () => {
@@ -2182,7 +2200,7 @@ const StaffProfile = () => {
                   onChange={(e) => {
                     setSelectedMarkListTerm(parseInt(e.target.value));
                     setMarkListData([]);
-                    setMarkListConfig(null);
+                    setSelectedMarkComponent(''); // Reset component selection
                   }}
                   disabled={!selectedMarkListClass}
                 >
