@@ -652,6 +652,17 @@ const StaffProfile = () => {
     return [...new Set(terms)].sort();
   };
 
+  // Get available mark components for selected subject/class/term
+  const getAvailableComponents = () => {
+    if (!selectedMarkListSubject || !selectedMarkListClass || !selectedMarkListTerm) return [];
+    const assignment = teacherAssignments.find(
+      a => a.subjectName === selectedMarkListSubject && 
+           a.className === selectedMarkListClass && 
+           a.termNumber === selectedMarkListTerm
+    );
+    return assignment?.markComponents || [];
+  };
+
   // Load mark list data
   const loadMarkListData = async () => {
     if (!selectedMarkListSubject || !selectedMarkListClass || !selectedMarkListTerm) return;
@@ -2041,6 +2052,7 @@ const StaffProfile = () => {
     const subjects = getMarkListSubjects();
     const classes = getMarkListClasses();
     const terms = getMarkListTerms();
+    const availableComponents = getAvailableComponents();
     const progress = getMarkListProgress();
     
     // Filter students by search query
@@ -2187,10 +2199,10 @@ const StaffProfile = () => {
                 <select 
                   value={selectedMarkComponent} 
                   onChange={(e) => setSelectedMarkComponent(e.target.value)}
-                  disabled={!markListConfig}
+                  disabled={!selectedMarkListTerm || availableComponents.length === 0}
                 >
                   <option value="">All Components</option>
-                  {markListConfig?.mark_components.map(component => (
+                  {availableComponents.map(component => (
                     <option key={component.name} value={component.name}>{component.name}</option>
                   ))}
                 </select>
@@ -2243,52 +2255,45 @@ const StaffProfile = () => {
                       : markListConfig.mark_components;
                     
                     return (
-                    <div key={student.id} style={{background:'white',borderRadius:'12px',padding:'0.6rem 0.75rem',marginBottom:'0.45rem',boxShadow:'0 2px 6px rgba(99,102,241,0.08)',border:'1.5px solid #e0e7ff',display:'flex',alignItems:'center',gap:'0.5rem',flexWrap:'wrap'}}>
+                    <div key={student.id} style={{background:'white',borderRadius:'10px',padding:'0.5rem 0.6rem',marginBottom:'0.4rem',boxShadow:'0 1px 4px rgba(99,102,241,0.06)',border:'1px solid #e0e7ff',display:'flex',alignItems:'center',gap:'0.4rem'}}>
                       {/* Number + Name */}
-                      <div style={{display:'flex',alignItems:'center',gap:'0.4rem',minWidth:'120px',flex:'0 0 auto'}}>
-                        <div style={{width:'28px',height:'28px',borderRadius:'50%',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:700,fontSize:'0.75rem',flexShrink:0}}>{idx+1}</div>
-                        <span style={{fontWeight:600,fontSize:'0.82rem',color:'#1e293b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{student.student_name}</span>
+                      <div style={{display:'flex',alignItems:'center',gap:'0.3rem',flex:1,minWidth:0}}>
+                        <div style={{width:'24px',height:'24px',borderRadius:'50%',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:700,fontSize:'0.7rem',flexShrink:0}}>{idx+1}</div>
+                        <span style={{fontWeight:600,fontSize:'0.78rem',color:'#1e293b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{student.student_name}</span>
                       </div>
                       
-                      {/* Mark inputs - horizontal (filtered by selection) */}
-                      <div style={{display:'flex',gap:'0.35rem',flex:1,minWidth:'200px'}}>
-                        {componentsToShow.map(component => {
-                          const componentKey = component.name.toLowerCase().replace(/\s+/g, '_');
-                          return (
-                            <div key={component.name} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'0.1rem',flex:1,minWidth:'45px'}}>
-                              <span style={{fontSize:'0.6rem',color:'#64748b',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.3px'}}>{component.name}</span>
-                              <input
-                                type="number"
-                                min="0"
-                                max={component.percentage}
-                                value={student[componentKey] === '' ? '' : (parseFloat(student[componentKey]) === 0 ? '' : student[componentKey])}
-                                onChange={(e) => handleMarkListMarkChange(student.id, componentKey, e.target.value)}
-                                disabled={isLocked}
-                                placeholder="0"
-                                style={{width:'100%',padding:'0.25rem 0.15rem',borderRadius:'6px',border:'1.5px solid',borderColor:parseFloat(student[componentKey])>0?'#6366f1':'#e2e8f0',background:parseFloat(student[componentKey])>0?'#eef2ff':'white',color:'#1e293b',fontSize:'0.78rem',fontWeight:600,textAlign:'center',outline:'none'}}
-                              />
-                              <span style={{fontSize:'0.55rem',color:'#94a3b8'}}>/{component.percentage}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      {/* Mark inputs - compact horizontal */}
+                      {componentsToShow.map(component => {
+                        const componentKey = component.name.toLowerCase().replace(/\s+/g, '_');
+                        return (
+                          <div key={component.name} style={{display:'flex',alignItems:'center',gap:'0.2rem',flexShrink:0}}>
+                            <span style={{fontSize:'0.6rem',color:'#64748b',fontWeight:600,textTransform:'uppercase'}}>{component.name}</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max={component.percentage}
+                              value={student[componentKey] === '' ? '' : (parseFloat(student[componentKey]) === 0 ? '' : student[componentKey])}
+                              onChange={(e) => handleMarkListMarkChange(student.id, componentKey, e.target.value)}
+                              disabled={isLocked}
+                              placeholder="0"
+                              style={{width:'40px',padding:'0.2rem 0.1rem',borderRadius:'6px',border:'1px solid',borderColor:parseFloat(student[componentKey])>0?'#6366f1':'#cbd5e1',background:parseFloat(student[componentKey])>0?'#eef2ff':'white',color:'#1e293b',fontSize:'0.75rem',fontWeight:600,textAlign:'center',outline:'none'}}
+                            />
+                            <span style={{fontSize:'0.55rem',color:'#94a3b8'}}>/{component.percentage}</span>
+                          </div>
+                        );
+                      })}
                       
-                      {/* Total + Save button */}
-                      <div style={{display:'flex',alignItems:'center',gap:'0.4rem',flex:'0 0 auto'}}>
-                        {parseFloat(student.total) > 0 && (
-                          <span style={{background:'#f0fdf4',color:'#16a34a',borderRadius:'16px',padding:'0.2rem 0.5rem',fontSize:'0.7rem',fontWeight:700,minWidth:'45px',textAlign:'center'}}>{student.total}%</span>
-                        )}
-                        {!isLocked ? (
-                          <button onClick={() => saveStudentMarks(student.id)} disabled={savingMarks}
-                            style={{padding:'0.3rem 0.6rem',background:'#6366f1',color:'white',border:'none',borderRadius:'8px',fontWeight:600,fontSize:'0.7rem',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.2rem',whiteSpace:'nowrap'}}>
-                            <FiSave size={11}/> Save
-                          </button>
-                        ) : (
-                          <div style={{color:'#16a34a',fontSize:'0.7rem',fontWeight:600,display:'flex',alignItems:'center',gap:'0.2rem'}}>
-                            <FiCheckCircle size={14}/> Saved
+                      {/* Save button */}
+                      {!isLocked ? (
+                        <button onClick={() => saveStudentMarks(student.id)} disabled={savingMarks}
+                          style={{padding:'0.25rem 0.5rem',background:'#6366f1',color:'white',border:'none',borderRadius:'6px',fontWeight:600,fontSize:'0.65rem',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.15rem',whiteSpace:'nowrap',flexShrink:0}}>
+                          <FiSave size={10}/> Save
+                        </button>
+                      ) : (
+                          <div style={{color:'#16a34a',fontSize:'0.65rem',fontWeight:600,display:'flex',alignItems:'center',gap:'0.15rem',flexShrink:0}}>
+                            <FiCheckCircle size={12}/>
                           </div>
                         )}
-                      </div>
                     </div>
                     );
                   })}
