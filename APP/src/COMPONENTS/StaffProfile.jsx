@@ -2389,46 +2389,25 @@ const StaffProfile = () => {
               {students.map((student, index) => {
                 const status = getStudentStatus(student);
                 return (
-                  <div key={student.student_id || index} className={styles.studentCard} style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.5rem 0.625rem', background: 'white', borderRadius: '12px', marginBottom: '0.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '2px solid #f0f0f0' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
-                      <div style={{ width: '36px', height: '36px', flexShrink: 0, borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.9rem', overflow: 'hidden' }}>
+                  <div key={student.student_id || index} style={{ display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '12px', marginBottom: '0.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '2px solid #f0f0f0', padding: '0.6rem 0.75rem', gap: '0.5rem' }}>
+                    {/* Student name row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ width: '32px', height: '32px', flexShrink: 0, borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden' }}>
                         {student.image_student ? (
-                          <img
-                            src={`${API_BASE_URL.replace('/api', '')}/uploads/${student.image_student}`}
-                            alt={student.student_name}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            onError={(e) => { e.target.style.display = 'none'; }}
-                          />
+                          <img src={`${API_BASE_URL.replace('/api', '')}/uploads/${student.image_student}`} alt={student.student_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
                         ) : (student.student_name?.charAt(0) || 'S')}
                       </div>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#1f2937' }}>{student.student_name}</div>
+                      <div>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#1f2937' }}>{student.student_name}</div>
                         <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>ID: {student.class_id || student.student_id}</div>
                       </div>
                     </div>
-
-                    {/* Inline mark buttons */}
-                    <div style={{ display: 'flex', flexDirection: 'row', flexShrink: 0, gap: '0.3rem' }}>
-                      <button
-                        className={`${styles.markBtn} ${styles.markBtnP} ${status === 'P' ? styles.markBtnActive : ''}`}
-                        style={{ width: '32px', height: '32px', fontSize: '0.8rem', borderRadius: '8px', flexShrink: 0 }}
-                        onClick={() => markStudent(student, status === 'P' ? '' : 'P')}
-                      >✓</button>
-                      <button
-                        className={`${styles.markBtn} ${styles.markBtnL} ${status === 'L' ? styles.markBtnActive : ''}`}
-                        style={{ width: '32px', height: '32px', fontSize: '0.8rem', borderRadius: '8px', flexShrink: 0 }}
-                        onClick={() => markStudent(student, status === 'L' ? '' : 'L')}
-                      >⏰</button>
-                      <button
-                        className={`${styles.markBtn} ${styles.markBtnA} ${status === 'A' ? styles.markBtnActive : ''}`}
-                        style={{ width: '32px', height: '32px', fontSize: '0.8rem', borderRadius: '8px', flexShrink: 0 }}
-                        onClick={() => markStudent(student, status === 'A' ? '' : 'A')}
-                      >✗</button>
-                      <button
-                        className={`${styles.markBtn} ${styles.markBtnE} ${status === 'E' ? styles.markBtnActive : ''}`}
-                        style={{ width: '32px', height: '32px', fontSize: '0.8rem', borderRadius: '8px', flexShrink: 0 }}
-                        onClick={() => markStudent(student, status === 'E' ? '' : 'E')}
-                      >F</button>
+                    {/* Buttons row */}
+                    <div style={{ display: 'flex', flexDirection: 'row', gap: '0.4rem' }}>
+                      <button className={`${styles.markBtn} ${styles.markBtnP} ${status === 'P' ? styles.markBtnActive : ''}`} style={{ flex: 1, height: '32px', fontSize: '0.8rem', borderRadius: '8px' }} onClick={() => markStudent(student, status === 'P' ? '' : 'P')}>✓</button>
+                      <button className={`${styles.markBtn} ${styles.markBtnL} ${status === 'L' ? styles.markBtnActive : ''}`} style={{ flex: 1, height: '32px', fontSize: '0.8rem', borderRadius: '8px' }} onClick={() => markStudent(student, status === 'L' ? '' : 'L')}>⏰</button>
+                      <button className={`${styles.markBtn} ${styles.markBtnA} ${status === 'A' ? styles.markBtnActive : ''}`} style={{ flex: 1, height: '32px', fontSize: '0.8rem', borderRadius: '8px' }} onClick={() => markStudent(student, status === 'A' ? '' : 'A')}>✗</button>
+                      <button className={`${styles.markBtn} ${styles.markBtnE} ${status === 'E' ? styles.markBtnActive : ''}`} style={{ flex: 1, height: '32px', fontSize: '0.8rem', borderRadius: '8px' }} onClick={() => markStudent(student, status === 'E' ? '' : 'E')}>F</button>
                     </div>
                   </div>
                 );
