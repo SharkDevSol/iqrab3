@@ -2211,42 +2211,46 @@ const StaffProfile = () => {
                     const isAdmin = user?.staffType?.toLowerCase() === 'admin';
                     const isLocked = savedMarkStudents.has(student.id) && !isAdmin;
                     return (
-                    <div key={student.id} className={`${styles.mlCard} ${isLocked ? styles.markListStudentLocked : ''}`}>
-                      {/* Row: avatar + name + inputs + save */}
-                      <div className={styles.mlRow}>
-                        <div className={styles.mlAvatar}>{student.student_name?.charAt(0)}</div>
-                        <div className={styles.mlName}>
-                          <span>{student.student_name}</span>
-                          {parseFloat(student.total) > 0 && <span className={styles.mlTotal}>{student.total}%</span>}
-                        </div>
-                        <div className={styles.mlInputs}>
-                          {markListConfig.mark_components.map(component => {
-                            const componentKey = component.name.toLowerCase().replace(/\s+/g, '_');
-                            return (
-                              <div key={component.name} className={styles.mlInputWrap}>
-                                <span className={styles.mlLabel}>{component.name}</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max={component.percentage}
-                                  value={student[componentKey] === '' ? '' : (parseFloat(student[componentKey]) === 0) ? '' : student[componentKey]}
-                                  onChange={(e) => handleMarkListMarkChange(student.id, componentKey, e.target.value)}
-                                  placeholder="0"
-                                  disabled={isLocked}
-                                  className={styles.mlInput}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {isLocked ? (
-                          <span className={styles.mlSaved}><FiCheckCircle size={16} /></span>
-                        ) : (
-                          <button className={styles.mlSaveBtn} onClick={() => saveStudentMarks(student.id)} disabled={savingMarks}>
-                            <FiSave size={15} />
-                          </button>
-                        )}
+                    <div key={student.id} style={{background:'white',borderRadius:'14px',padding:'0.75rem',marginBottom:'0.5rem',boxShadow:'0 2px 8px rgba(99,102,241,0.08)',border:'1.5px solid #e0e7ff'}}>
+                      {/* Name row */}
+                      <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.6rem'}}>
+                        <div style={{width:'32px',height:'32px',borderRadius:'50%',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:700,fontSize:'0.8rem',flexShrink:0}}>{idx+1}</div>
+                        <span style={{fontWeight:600,fontSize:'0.88rem',color:'#1e293b',flex:1}}>{student.student_name}</span>
+                        {parseFloat(student.total) > 0 && <span style={{background:'#f0fdf4',color:'#16a34a',borderRadius:'20px',padding:'0.15rem 0.5rem',fontSize:'0.75rem',fontWeight:700}}>{student.total}%</span>}
                       </div>
+                      {/* Mark dropdowns row */}
+                      <div style={{display:'flex',gap:'0.3rem',flexWrap:'wrap'}}>
+                        {markListConfig.mark_components.map(component => {
+                          const componentKey = component.name.toLowerCase().replace(/\s+/g, '_');
+                          const val = parseFloat(student[componentKey]) || 0;
+                          const max = component.percentage;
+                          const opts = Array.from({length: max+1}, (_,i) => i);
+                          return (
+                            <div key={component.name} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'0.15rem',flex:1,minWidth:'50px'}}>
+                              <span style={{fontSize:'0.65rem',color:'#64748b',fontWeight:600,textTransform:'uppercase'}}>{component.name}</span>
+                              <select
+                                value={val}
+                                onChange={(e) => handleMarkListMarkChange(student.id, componentKey, e.target.value)}
+                                disabled={isLocked}
+                                style={{width:'100%',padding:'0.3rem 0.2rem',borderRadius:'8px',border:'1.5px solid',borderColor:val>0?'#6366f1':'#e2e8f0',background:val>0?'#eef2ff':'white',color:val>0?'#4f46e5':'#94a3b8',fontSize:'0.8rem',fontWeight:600,textAlign:'center',cursor:isLocked?'not-allowed':'pointer'}}
+                              >
+                                {opts.map(o => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                              <span style={{fontSize:'0.6rem',color:'#94a3b8'}}>/{max}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {/* Save button */}
+                      {!isLocked && (
+                        <button onClick={() => saveStudentMarks(student.id)} disabled={savingMarks}
+                          style={{marginTop:'0.6rem',width:'100%',padding:'0.4rem',background:'#6366f1',color:'white',border:'none',borderRadius:'8px',fontWeight:600,fontSize:'0.8rem',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.3rem'}}>
+                          <FiSave size={13}/> Save
+                        </button>
+                      )}
+                      {isLocked && (
+                        <div style={{marginTop:'0.5rem',textAlign:'center',color:'#16a34a',fontSize:'0.78rem',fontWeight:600}}>✓ Saved</div>
+                      )}
                     </div>
                     );
                   })}
