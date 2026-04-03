@@ -2216,29 +2216,26 @@ const StaffProfile = () => {
                   </div>
                 </div>
 
-                {/* Student Cards */}
+                {/* Student Cards - Compact Horizontal Layout */}
                 <div className={styles.markListStudents}>
                   {filteredMarkListData.map((student, idx) => {
                     const isAdmin = user?.staffType?.toLowerCase() === 'admin';
                     const isLocked = savedMarkStudents.has(student.id) && !isAdmin;
                     return (
-                    <div key={student.id} style={{background:'white',borderRadius:'14px',padding:'0.75rem',marginBottom:'0.5rem',boxShadow:'0 2px 8px rgba(99,102,241,0.08)',border:'1.5px solid #e0e7ff'}}>
-                      {/* Name row */}
-                      <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.6rem'}}>
-                        <div style={{width:'32px',height:'32px',borderRadius:'50%',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:700,fontSize:'0.8rem',flexShrink:0}}>{idx+1}</div>
-                        <span style={{fontWeight:600,fontSize:'0.88rem',color:'#1e293b',flex:1}}>{student.student_name}</span>
-                        {parseFloat(student.total) > 0 && <span style={{background:'#f0fdf4',color:'#16a34a',borderRadius:'20px',padding:'0.15rem 0.5rem',fontSize:'0.75rem',fontWeight:700}}>{student.total}%</span>}
+                    <div key={student.id} style={{background:'white',borderRadius:'12px',padding:'0.6rem 0.75rem',marginBottom:'0.45rem',boxShadow:'0 2px 6px rgba(99,102,241,0.08)',border:'1.5px solid #e0e7ff',display:'flex',alignItems:'center',gap:'0.5rem',flexWrap:'wrap'}}>
+                      {/* Number + Name */}
+                      <div style={{display:'flex',alignItems:'center',gap:'0.4rem',minWidth:'120px',flex:'0 0 auto'}}>
+                        <div style={{width:'28px',height:'28px',borderRadius:'50%',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:700,fontSize:'0.75rem',flexShrink:0}}>{idx+1}</div>
+                        <span style={{fontWeight:600,fontSize:'0.82rem',color:'#1e293b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{student.student_name}</span>
                       </div>
-                      {/* Mark dropdowns row */}
-                      <div style={{display:'flex',gap:'0.3rem',flexWrap:'wrap'}}>
+                      
+                      {/* Mark inputs - horizontal */}
+                      <div style={{display:'flex',gap:'0.35rem',flex:1,minWidth:'200px'}}>
                         {markListConfig.mark_components.map(component => {
                           const componentKey = component.name.toLowerCase().replace(/\s+/g, '_');
-                          const val = parseFloat(student[componentKey]) || 0;
-                          const max = component.percentage;
-                          const opts = Array.from({length: max+1}, (_,i) => i);
                           return (
-                            <div key={component.name} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'0.15rem',flex:1,minWidth:'50px'}}>
-                              <span style={{fontSize:'0.65rem',color:'#64748b',fontWeight:600,textTransform:'uppercase'}}>{component.name}</span>
+                            <div key={component.name} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'0.1rem',flex:1,minWidth:'45px'}}>
+                              <span style={{fontSize:'0.6rem',color:'#64748b',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.3px'}}>{component.name}</span>
                               <input
                                 type="number"
                                 min="0"
@@ -2247,23 +2244,30 @@ const StaffProfile = () => {
                                 onChange={(e) => handleMarkListMarkChange(student.id, componentKey, e.target.value)}
                                 disabled={isLocked}
                                 placeholder="0"
-                                style={{width:'100%',padding:'0.3rem 0.2rem',borderRadius:'8px',border:'1.5px solid',borderColor:parseFloat(student[componentKey])>0?'#6366f1':'#e2e8f0',background:parseFloat(student[componentKey])>0?'#eef2ff':'white',color:'#1e293b',fontSize:'0.82rem',fontWeight:600,textAlign:'center',outline:'none'}}
+                                style={{width:'100%',padding:'0.25rem 0.15rem',borderRadius:'6px',border:'1.5px solid',borderColor:parseFloat(student[componentKey])>0?'#6366f1':'#e2e8f0',background:parseFloat(student[componentKey])>0?'#eef2ff':'white',color:'#1e293b',fontSize:'0.78rem',fontWeight:600,textAlign:'center',outline:'none'}}
                               />
-                              <span style={{fontSize:'0.6rem',color:'#94a3b8'}}>/{component.percentage}</span>
+                              <span style={{fontSize:'0.55rem',color:'#94a3b8'}}>/{component.percentage}</span>
                             </div>
                           );
                         })}
                       </div>
-                      {/* Save button */}
-                      {!isLocked && (
-                        <button onClick={() => saveStudentMarks(student.id)} disabled={savingMarks}
-                          style={{marginTop:'0.5rem',width:'100%',padding:'0.35rem',background:'#6366f1',color:'white',border:'none',borderRadius:'8px',fontWeight:600,fontSize:'0.75rem',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.25rem'}}>
-                          <FiSave size={12}/> Save
-                        </button>
-                      )}
-                      {isLocked && (
-                        <div style={{marginTop:'0.4rem',textAlign:'center',color:'#16a34a',fontSize:'0.75rem',fontWeight:600}}>✓ Saved</div>
-                      )}
+                      
+                      {/* Total + Save button */}
+                      <div style={{display:'flex',alignItems:'center',gap:'0.4rem',flex:'0 0 auto'}}>
+                        {parseFloat(student.total) > 0 && (
+                          <span style={{background:'#f0fdf4',color:'#16a34a',borderRadius:'16px',padding:'0.2rem 0.5rem',fontSize:'0.7rem',fontWeight:700,minWidth:'45px',textAlign:'center'}}>{student.total}%</span>
+                        )}
+                        {!isLocked ? (
+                          <button onClick={() => saveStudentMarks(student.id)} disabled={savingMarks}
+                            style={{padding:'0.3rem 0.6rem',background:'#6366f1',color:'white',border:'none',borderRadius:'8px',fontWeight:600,fontSize:'0.7rem',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.2rem',whiteSpace:'nowrap'}}>
+                            <FiSave size={11}/> Save
+                          </button>
+                        ) : (
+                          <div style={{color:'#16a34a',fontSize:'0.7rem',fontWeight:600,display:'flex',alignItems:'center',gap:'0.2rem'}}>
+                            <FiCheckCircle size={14}/> Saved
+                          </div>
+                        )}
+                      </div>
                     </div>
                     );
                   })}
