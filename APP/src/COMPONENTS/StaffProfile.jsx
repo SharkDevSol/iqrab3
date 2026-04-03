@@ -2393,7 +2393,7 @@ const StaffProfile = () => {
                   <div key={student.student_id || index} style={{display:'flex',flexDirection:'row',alignItems:'center',justifyContent:'space-between',padding:'0.6rem 0.8rem',background:'linear-gradient(135deg,#f8faff,#f0f4ff)',borderRadius:'14px',border:'1.5px solid #e0e7ff',gap:'0.75rem',boxShadow:'0 1px 4px rgba(99,102,241,0.08)'}}>
                     <div style={{display:'flex',alignItems:'center',gap:'0.5rem',flex:1,minWidth:0}}>
                       <div style={{width:'28px',height:'28px',borderRadius:'50%',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:'0.7rem',fontWeight:700,flexShrink:0}}>{num}</div>
-                      <span style={{fontSize:'0.84rem',fontWeight:600,color:'#1e293b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{student.student_name}</span>
+                      <span style={{fontSize:'0.84rem',fontWeight:600,color:'#1e293b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',textShadow:'none',WebkitTextFillColor:'#1e293b'}}>{student.student_name}</span>
                     </div>
                     <div style={{display:'flex',gap:'0.3rem',flexShrink:0}}>
                       <button style={{width:'30px',height:'30px',borderRadius:'8px',border:'none',background:status==='P'?'#22c55e':'#dcfce7',color:status==='P'?'white':'#16a34a',fontSize:'0.75rem',fontWeight:700,cursor:'pointer'}} onClick={() => markStudent(student, status === 'P' ? '' : 'P')}>✓</button>
