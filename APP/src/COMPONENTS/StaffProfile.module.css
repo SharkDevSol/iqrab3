@@ -4486,6 +4486,68 @@
   gap: 0.75rem;
 }
 
+/* Attendance student card - clean 2-row layout */
+.attendanceStudentCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 14px;
+  border: 2px solid #e2e8f0;
+}
+
+.attendanceStudentInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.attendanceAvatar {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 0.85rem;
+  overflow: hidden;
+}
+
+.attendanceStudentText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.attendanceStudentName {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.attendanceStudentId {
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+.attendanceMarkBtns {
+  display: flex;
+  flex-direction: row;
+  gap: 0.4rem;
+}
+
+.attendanceMarkBtns .markBtn {
+  flex: 1;
+  height: 34px;
+  font-size: 0.85rem;
+  border-radius: 8px;
+}
+
 .studentCard {
   display: flex !important;
   flex-direction: column !important;
