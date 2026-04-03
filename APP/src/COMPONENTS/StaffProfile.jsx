@@ -2304,12 +2304,12 @@ const StaffProfile = () => {
                       {/* Save button */}
                       {!isLocked ? (
                         <button onClick={() => saveStudentMarks(student.id)} disabled={savingMarks}
-                          style={{padding:'0.25rem 0.5rem',background:'#6366f1',color:'white',border:'none',borderRadius:'6px',fontWeight:600,fontSize:'0.65rem',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'0.15rem',whiteSpace:'nowrap',flexShrink:0}}>
-                          <FiSave size={10}/> Save
+                          style={{width:'28px',height:'28px',padding:'0',background:'#6366f1',color:'white',border:'none',borderRadius:'6px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                          <FiSave size={14}/>
                         </button>
                       ) : (
-                          <div style={{color:'#16a34a',fontSize:'0.65rem',fontWeight:600,display:'flex',alignItems:'center',gap:'0.15rem',flexShrink:0}}>
-                            <FiCheckCircle size={12}/>
+                          <div style={{width:'28px',height:'28px',color:'#16a34a',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                            <FiCheckCircle size={14}/>
                           </div>
                         )}
                     </div>
