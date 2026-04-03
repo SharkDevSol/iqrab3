@@ -2395,12 +2395,30 @@ const StaffProfile = () => {
                       <div style={{width:'28px',height:'28px',borderRadius:'50%',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:'0.7rem',fontWeight:700,flexShrink:0}}>{num}</div>
                       <span style={{fontSize:'0.84rem',fontWeight:600,color:'#1e293b',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',textShadow:'none',WebkitTextFillColor:'#1e293b'}}>{student.student_name}</span>
                     </div>
-                    <div style={{display:'flex',gap:'0.3rem',flexShrink:0}}>
-                      <button style={{width:'30px',height:'30px',borderRadius:'8px',border:'none',background:status==='P'?'#22c55e':'#dcfce7',color:status==='P'?'white':'#16a34a',fontSize:'0.75rem',fontWeight:700,cursor:'pointer'}} onClick={() => markStudent(student, status === 'P' ? '' : 'P')}>✓</button>
-                      <button style={{width:'30px',height:'30px',borderRadius:'8px',border:'none',background:status==='L'?'#f59e0b':'#fef3c7',color:status==='L'?'white':'#d97706',fontSize:'0.75rem',fontWeight:700,cursor:'pointer'}} onClick={() => markStudent(student, status === 'L' ? '' : 'L')}>⏰</button>
-                      <button style={{width:'30px',height:'30px',borderRadius:'8px',border:'none',background:status==='A'?'#ef4444':'#fee2e2',color:status==='A'?'white':'#dc2626',fontSize:'0.75rem',fontWeight:700,cursor:'pointer'}} onClick={() => markStudent(student, status === 'A' ? '' : 'A')}>✗</button>
-                      <button style={{width:'30px',height:'30px',borderRadius:'8px',border:'none',background:status==='E'?'#8b5cf6':'#ede9fe',color:status==='E'?'white':'#7c3aed',fontSize:'0.75rem',fontWeight:700,cursor:'pointer'}} onClick={() => markStudent(student, status === 'E' ? '' : 'E')}>F</button>
-                    </div>
+                    <select
+                      value={status || ''}
+                      onChange={(e) => markStudent(student, e.target.value)}
+                      style={{
+                        flexShrink:0,
+                        padding:'0.3rem 0.5rem',
+                        borderRadius:'8px',
+                        border:'1.5px solid',
+                        borderColor: status==='P'?'#22c55e':status==='L'?'#f59e0b':status==='A'?'#ef4444':status==='E'?'#8b5cf6':'#cbd5e1',
+                        background: status==='P'?'#dcfce7':status==='L'?'#fef3c7':status==='A'?'#fee2e2':status==='E'?'#ede9fe':'white',
+                        color: status==='P'?'#16a34a':status==='L'?'#d97706':status==='A'?'#dc2626':status==='E'?'#7c3aed':'#64748b',
+                        fontSize:'0.78rem',
+                        fontWeight:600,
+                        cursor:'pointer',
+                        outline:'none',
+                        minWidth:'90px'
+                      }}
+                    >
+                      <option value=''>— Select —</option>
+                      <option value='P'>✓ Present</option>
+                      <option value='L'>⏰ Late</option>
+                      <option value='A'>✗ Absent</option>
+                      <option value='E'>F Excuse</option>
+                    </select>
                   </div>
                 );
               })}
