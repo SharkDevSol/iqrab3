@@ -1,4 +1,4 @@
-const CACHE_NAME = 'skoolific-v1';
+const CACHE_NAME = 'skoolific-v2';
 const urlsToCache = [
   '/',
   '/static/css/main.css',
