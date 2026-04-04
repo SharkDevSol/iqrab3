@@ -39,7 +39,7 @@ const MarkListCreateInline = ({ subject, className, term, onCreated }) => {
     if (total !== 100) return setMsg('Total must be 100%');
     setLoading(true);
     try {
-      const res = await fetch(`https://bilal.skoolific.com/api/mark-list/create-mark-forms`, {
+      const res = await fetch(`https://iqrab3.skoolific.com/api/mark-list/create-mark-forms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subjectName: subject, className, termNumber: term, markComponents: components })
