@@ -413,17 +413,21 @@ const formatDate = (date) => {
 router.get('/school-days', async (req, res) => {
   try {
     // First try to get from attendance settings (primary source)
-    const attendanceResult = await pool.query(`
-      SELECT school_days FROM academic_student_attendance_settings 
-      ORDER BY id DESC LIMIT 1
-    `);
-    
-    if (attendanceResult.rows.length > 0 && attendanceResult.rows[0].school_days) {
-      // school_days is stored as string array like ['Monday', 'Tuesday', ...]
-      const schoolDays = attendanceResult.rows[0].school_days.map(d => d.toLowerCase());
-      const dayMap = { 'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4, 'friday': 5, 'saturday': 6, 'sunday': 7 };
-      const schoolDaysNumbers = schoolDays.map(d => dayMap[d]);
-      return res.json({ schoolDays, schoolDaysNumbers });
+    try {
+      const attendanceResult = await pool.query(`
+        SELECT school_days FROM academic_student_attendance_settings 
+        ORDER BY id DESC LIMIT 1
+      `);
+      
+      if (attendanceResult.rows.length > 0 && attendanceResult.rows[0].school_days) {
+        // school_days is stored as string array like ['Monday', 'Tuesday', ...]
+        const schoolDays = attendanceResult.rows[0].school_days.map(d => d.toLowerCase());
+        const dayMap = { 'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4, 'friday': 5, 'saturday': 6, 'sunday': 7 };
+        const schoolDaysNumbers = schoolDays.map(d => dayMap[d]);
+        return res.json({ schoolDays, schoolDaysNumbers });
+      }
+    } catch (attendanceError) {
+      console.log('Attendance settings table not found or error, falling back to schedule config:', attendanceError.message);
     }
     
     // Fallback to schedule config
