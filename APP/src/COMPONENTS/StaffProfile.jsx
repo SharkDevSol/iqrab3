@@ -799,7 +799,12 @@ const StaffProfile = () => {
     }
   };
 
-  // Fetch students for attendance
+  // Fetch school days when switching to attendance tab
+  useEffect(() => {
+    if (activeTab === 'attendance' && isClassTeacher) {
+      fetchSchoolDays();
+    }
+  }, [activeTab, isClassTeacher]);
   const fetchStudentsForAttendance = async (className, staffId) => {
     setAttendanceLoading(true);
     try {
