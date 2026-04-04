@@ -10,7 +10,7 @@ function LiveAttendanceMonitor() {
   useEffect(() => {
     console.log('🔌 Connecting to Socket.IO server...');
     
-    const socket = io('https://iqrab3.skoolific.com', {
+    const socket = io('https://bilal.skoolific.com', {
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionDelay: 1000,

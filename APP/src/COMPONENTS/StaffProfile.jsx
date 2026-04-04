@@ -39,7 +39,7 @@ const MarkListCreateInline = ({ subject, className, term, onCreated }) => {
     if (total !== 100) return setMsg('Total must be 100%');
     setLoading(true);
     try {
-      const res = await fetch(`https://iqrab3.skoolific.com/api/mark-list/create-mark-forms`, {
+      const res = await fetch(`https://bilal.skoolific.com/api/mark-list/create-mark-forms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subjectName: subject, className, termNumber: term, markComponents: components })
@@ -2478,17 +2478,6 @@ const StaffProfile = () => {
           </div>
           <div style={{ display:'flex', gap:'0.5rem' }}>
             <button className={styles.markAllBtn} style={{ flex:1, fontSize:'0.78rem', padding:'0.4rem' }} onClick={() => markAllAs('P')}>All Present</button>
-            {anyUnsaved && (
-              <button
-                className={styles.saveAllBtn}
-                style={{ flex:1, fontSize:'0.78rem', padding:'0.4rem' }}
-                onClick={saveAttendance}
-                disabled={savingAttendance}
-              >
-                <FiSave size={13} />
-                {savingAttendance ? 'Saving...' : 'Save'}
-              </button>
-            )}
           </div>
         </div>
 
@@ -2556,20 +2545,6 @@ const StaffProfile = () => {
             </div>
           )}
         </div>
-
-        {/* Save floating button when there are changes */}
-        {anyUnsaved && (
-          <div className={styles.floatingSaveBar}>
-            <button
-              className={styles.floatingSaveBtn}
-              onClick={saveAttendance}
-              disabled={savingAttendance}
-            >
-              <FiSave size={18} />
-              {savingAttendance ? 'Saving...' : 'Save Attendance'}
-            </button>
-          </div>
-        )}
       </div>
     );
   };
