@@ -4,6 +4,11 @@ import './index.css'
 import App from './App.jsx'
 import { AppProvider } from './context/AppContext.jsx'
 import { LanguageSelectionProvider } from './context/LanguageSelectionContext.jsx'
+import axios from 'axios'
+
+// Configure axios defaults from environment variable
+axios.defaults.baseURL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://iqrab2.skoolific.com';
+console.log('🌐 Axios configured with baseURL:', axios.defaults.baseURL);
 
 // Unregister all service workers and clear caches to force fresh load
 if ('serviceWorker' in navigator) {

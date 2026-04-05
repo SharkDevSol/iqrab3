@@ -12,6 +12,9 @@ export default defineConfig({
     chunkSizeWarningLimit: 6000,
     rollupOptions: {
       output: {
+        entryFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
+        chunkFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
+        assetFileNames: `assets/[name]-[hash]-${Date.now()}.[ext]`,
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-axios': ['axios'],
@@ -21,14 +24,14 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0', // Listen on all network interfaces
-    port: 5011,
+    port: 5022,
     https: fs.existsSync('./certs/cert.pem') ? {
       key: fs.readFileSync('./certs/key.pem'),
       cert: fs.readFileSync('./certs/cert.pem'),
     } : false,
     proxy: {
       '/api': {
-        target: 'http://localhost:5011', 
+        target: 'http://localhost:5022', 
         changeOrigin: true,
         rewrite: (path) => path,
         configure: (proxy, options) => {

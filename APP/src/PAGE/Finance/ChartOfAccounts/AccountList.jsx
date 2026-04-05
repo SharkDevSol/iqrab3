@@ -4,7 +4,7 @@ import styles from './AccountList.module.css';
 import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiEye, FiFilter } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 
-const API_BASE = 'https://iqrab3.skoolific.com/api/finance/accounts';
+const API_BASE = 'https://iqrab2.skoolific.com/api/finance/accounts';
 
 const AccountList = () => {
   const navigate = useNavigate();

@@ -1055,78 +1055,60 @@ router.post('/add-staff', upload, async (req, res) => {
     }
 
     // ---- SCHOOL SCHEMA POINTS - TEACHERS TABLE ----
-    let schoolSchemaError = null;
     if (formData.role === 'Teacher' && formData.name) {
-      try {
-        await addTeacherToSchoolSchemaPoints(
-          client,
-          globalStaffId,
-          formData.name,
-          formData.staff_work_time || 'Full Time',
-          formData.role,
-          formData.staff_enrollment_type || 'Permanent'
-        );
-      } catch (e) {
-        schoolSchemaError = e.message;
-        console.error('School schema points error:', e);
-      }
+      await addTeacherToSchoolSchemaPoints(
+        client,
+        globalStaffId,
+        formData.name,
+        formData.staff_work_time || 'Full Time',
+        formData.role,
+        formData.staff_enrollment_type || 'Permanent'
+      );
     }
 
     // ---- SCHEDULE (only for Teachers) ----
-    let scheduleError = null;
     if (staffType === 'Teachers' && formData.name) {
-      try {
-        const isPart = formData.staff_work_time === 'Part Time';
-        console.log(`Processing schedule for ${formData.name}, isPartTime: ${isPart}`);
-        
-        const sched = isPart
-          ? extractPartTimeSchedule(formData)
-          : {
-              work_days: [1, 2, 3, 4, 5], // Use integers instead of strings for full-time
-              preferred_shifts: ['morning', 'afternoon'],
-              availability: [],
-              max_hours_per_day: 8,
-              max_hours_per_week: 40,
-            };
-        
-        console.log('Schedule data to be inserted:', sched);
-        
-        await addTeacherToScheduleSystem(
-          client,
-          globalStaffId,
-          formData.name,
-          sched,
-          isPart ? 'part_time' : 'full_time'
-        );
-      } catch (e) {
-        scheduleError = e.message;
-        console.error('Schedule system error:', e);
-      }
+      const isPart = formData.staff_work_time === 'Part Time';
+      console.log(`Processing schedule for ${formData.name}, isPartTime: ${isPart}`);
+      
+      const sched = isPart
+        ? extractPartTimeSchedule(formData)
+        : {
+            work_days: [1, 2, 3, 4, 5], // Use integers instead of strings for full-time
+            preferred_shifts: ['morning', 'afternoon'],
+            availability: [],
+            max_hours_per_day: 8,
+            max_hours_per_week: 40,
+          };
+      
+      console.log('Schedule data to be inserted:', sched);
+      
+      await addTeacherToScheduleSystem(
+        client,
+        globalStaffId,
+        formData.name,
+        sched,
+        isPart ? 'part_time' : 'full_time'
+      );
     }
 
     await updateStaffIds(schema, className, client);
     
     // ---- INITIALIZE ATTENDANCE PROFILE (NEW) ----
-    let attendanceError = null;
     if (formData.name && globalStaffId) {
-      try {
-        // Determine role for attendance system
-        const attendanceRole = formData.role || 
-                              (staffType === 'Teachers' ? 'Teacher' : 'General Staff');
-        
-        // Create initial attendance profile
-        await client.query(`
-          INSERT INTO staff_attendance_profiles 
-          (staff_id, staff_name, role, created_at)
-          VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-          ON CONFLICT (staff_id) DO NOTHING
-        `, [globalStaffId.toString(), formData.name, attendanceRole]);
-        
-        console.log(`Attendance profile created for ${formData.name} (${attendanceRole})`);
-      } catch (e) {
-        attendanceError = e.message;
-        console.error('Attendance profile creation error:', e);
-      }
+      // Determine role for attendance system
+      const attendanceRole = formData.role || 
+                            (staffType === 'Teachers' ? 'Teacher' : 'General Staff');
+      
+      // Create initial attendance profile
+      await client.query(`
+        INSERT INTO staff_attendance_profiles 
+        (staff_id, staff_name, role, created_at)
+        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+        ON CONFLICT (staff_id) DO NOTHING
+      `, [globalStaffId.toString(), formData.name, attendanceRole]);
+      
+      console.log(`Attendance profile created for ${formData.name} (${attendanceRole})`);
     }
     
     await client.query('COMMIT');
@@ -1134,9 +1116,6 @@ router.post('/add-staff', upload, async (req, res) => {
     res.json({
       message: 'Staff added successfully',
       userCredentials,
-      schoolSchemaError,
-      scheduleError,
-      attendanceError,
       teacherData: formData.role === 'Teacher' ? {
         name: formData.name,
         workTime: formData.staff_work_time,

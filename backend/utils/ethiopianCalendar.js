@@ -25,8 +25,10 @@ function convertToEthiopian(gregorianDate) {
     const newYear = new Date(year, 8, newYearDay); // Sept
     const current = new Date(year, month - 1, day);
     const diff = Math.round((current - newYear) / 86400000);
-    ethMonth = Math.floor(diff / 30) + 1;
-    ethDay = (diff % 30) + 1;
+    // Subtract 1 from diff to fix the date offset
+    const adjustedDiff = diff - 1;
+    ethMonth = Math.floor(adjustedDiff / 30) + 1;
+    ethDay = (adjustedDiff % 30) + 1;
   } else {
     // Before Ethiopian New Year — previous Ethiopian year
     ethYear = year - 8;
@@ -34,8 +36,10 @@ function convertToEthiopian(gregorianDate) {
     const newYear = new Date(year - 1, 8, prevNewYearDay); // Sept of previous year
     const current = new Date(year, month - 1, day);
     const diff = Math.round((current - newYear) / 86400000);
-    ethMonth = Math.floor(diff / 30) + 1;
-    ethDay = (diff % 30) + 1;
+    // Subtract 1 from diff to fix the date offset
+    const adjustedDiff = diff - 1;
+    ethMonth = Math.floor(adjustedDiff / 30) + 1;
+    ethDay = (adjustedDiff % 30) + 1;
   }
 
   return { year: ethYear, month: ethMonth, day: ethDay };

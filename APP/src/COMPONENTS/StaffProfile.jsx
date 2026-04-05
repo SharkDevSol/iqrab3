@@ -19,7 +19,7 @@ import {
 import styles from './StaffProfile.module.css';
 
 // API base URL - use environment variable or fallback to localhost
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5011/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5022/api';
 
 // Inline component to create mark list when not found
 const MarkListCreateInline = ({ subject, className, term, onCreated }) => {
@@ -39,7 +39,7 @@ const MarkListCreateInline = ({ subject, className, term, onCreated }) => {
     if (total !== 100) return setMsg('Total must be 100%');
     setLoading(true);
     try {
-      const res = await fetch(`https://iqrab3.skoolific.com/api/mark-list/create-mark-forms`, {
+      const res = await fetch(`https://iqrab2.skoolific.com/api/mark-list/create-mark-forms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subjectName: subject, className, termNumber: term, markComponents: components })

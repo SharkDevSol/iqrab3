@@ -276,45 +276,8 @@ class AI06WebSocketService {
       // ========================================
       console.log(`\n👔 Processing STAFF attendance...`);
       
-      // Convert Gregorian to Ethiopian date
-      const gregorianToEthiopian = (date) => {
-        const year = date.getFullYear();
-        const month = date.getMonth() + 1; // 1-12
-        const day = date.getDate();
-        
-        // Ethiopian year is 7-8 years behind
-        let ethYear = year - 8;
-        
-        // Ethiopian New Year (Meskerem 1) = September 11 (Gregorian)
-        let ethMonth, ethDay;
-        
-        if (month >= 9) {
-          // September to December
-          if (month === 9 && day < 11) {
-            ethYear = year - 9;
-            ethMonth = 13; // Pagume
-            ethDay = day + 25;
-          } else {
-            ethMonth = month - 8;
-            ethDay = day - 10;
-            if (ethDay <= 0) {
-              ethDay += 30;
-              ethMonth -= 1;
-            }
-          }
-        } else {
-          // January to August
-          ethMonth = month + 4;
-          ethDay = day - 7;
-          
-          if (ethDay <= 0) {
-            ethDay += 30;
-            ethMonth -= 1;
-          }
-        }
-        
-        return { year: ethYear, month: ethMonth, day: ethDay };
-      };
+      // Convert Gregorian to Ethiopian date using the utility function
+      const { convertToEthiopian: gregorianToEthiopian } = require('../utils/ethiopianCalendar');
       
       const ethDate = gregorianToEthiopian(scanDate);
       const ethYear = ethDate.year;
@@ -457,7 +420,7 @@ class AI06WebSocketService {
       // Fetch time settings from database
       // First check for shift-specific time settings
       const shiftSettingsResult = await pool.query(`
-        SELECT late_threshold, half_day_threshold 
+        SELECT late_threshold 
         FROM shift_time_settings 
         WHERE shift_name = $1
         LIMIT 1
@@ -470,20 +433,19 @@ class AI06WebSocketService {
         // Use shift-specific settings
         settings = shiftSettingsResult.rows[0];
         usedShiftSettings = true;
-        console.log(`⚙️ Using ${effectiveShift} time settings (Late: ${settings.late_threshold}, Half Day: ${settings.half_day_threshold}h)`);
+        console.log(`⚙️ Using ${effectiveShift} time settings (Late: ${settings.late_threshold})`);
       } else {
         // Fall back to global settings
         const globalSettingsResult = await pool.query(`
-          SELECT late_threshold, half_day_threshold 
+          SELECT late_threshold 
           FROM hr_attendance_time_settings 
           LIMIT 1
         `);
         
         settings = globalSettingsResult.rows[0] || {
-          late_threshold: '08:15',
-          half_day_threshold: 4.0
+          late_threshold: '08:15'
         };
-        console.log(`⚙️ Using global time settings (Late: ${settings.late_threshold}, Half Day: ${settings.half_day_threshold}h)`);
+        console.log(`⚙️ Using global time settings (Late: ${settings.late_threshold})`);
       }
       
       // Determine status based on check-in time and working hours
@@ -520,8 +482,8 @@ class AI06WebSocketService {
           const outMinutes = outHour * 60 + outMin;
           const workingHours = (outMinutes - inMinutes) / 60;
           
-          // Check if half day based on working hours
-          const halfDayThreshold = parseFloat(settings.half_day_threshold || 4.0);
+          // Check if half day based on working hours (4 hours threshold)
+          const halfDayThreshold = 4.0;
           if (workingHours < halfDayThreshold) {
             isHalfDay = true;
           }
