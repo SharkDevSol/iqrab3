@@ -10,7 +10,7 @@ function LiveAttendanceMonitor() {
   useEffect(() => {
     console.log('🔌 Connecting to Socket.IO server...');
     
-    const socket = io(import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://iqrab2.skoolific.com', {
+    const socket = io(import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://bilal.skoolific.com', {
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionDelay: 1000,

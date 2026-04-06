@@ -24,14 +24,14 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0', // Listen on all network interfaces
-    port: 5022,
+    port: 5011,
     https: fs.existsSync('./certs/cert.pem') ? {
       key: fs.readFileSync('./certs/key.pem'),
       cert: fs.readFileSync('./certs/cert.pem'),
     } : false,
     proxy: {
       '/api': {
-        target: 'http://localhost:5022', 
+        target: 'http://localhost:5011', 
         changeOrigin: true,
         rewrite: (path) => path,
         configure: (proxy, options) => {

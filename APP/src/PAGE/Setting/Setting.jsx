@@ -4,7 +4,7 @@ import styles from './Setting.module.css';
 import { useApp } from '../../context/AppContext';
 import { FiUser, FiLock, FiGlobe, FiSun, FiImage, FiSave, FiCheck, FiX, FiCamera, FiUpload, FiHome, FiSmartphone, FiDownload, FiShare2, FiCopy } from 'react-icons/fi';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://iqrab2.skoolific.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://bilal.skoolific.com';
 
 const Setting = () => {
   const { theme, updateTheme, language, updateLanguage, profile, updateProfile, websiteName, updateWebsiteName, t } = useApp();

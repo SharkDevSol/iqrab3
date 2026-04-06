@@ -19,7 +19,7 @@ import {
 import styles from './StaffProfile.module.css';
 
 // API base URL - use environment variable or fallback to localhost
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5022/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5011/api';
 
 // Inline component to create mark list when not found
 const MarkListCreateInline = ({ subject, className, term, onCreated }) => {
@@ -39,7 +39,7 @@ const MarkListCreateInline = ({ subject, className, term, onCreated }) => {
     if (total !== 100) return setMsg('Total must be 100%');
     setLoading(true);
     try {
-      const res = await fetch(`https://iqrab2.skoolific.com/api/mark-list/create-mark-forms`, {
+      const res = await fetch(`${API_BASE_URL}/mark-list/create-mark-forms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subjectName: subject, className, termNumber: term, markComponents: components })
@@ -728,37 +728,60 @@ const StaffProfile = () => {
     }));
   };
 
-  // Save marks for a student
-  const saveStudentMarks = async (studentId) => {
-    const student = markListData.find(s => s.id === studentId);
-    if (!student || !markListConfig) return;
+  // Save marks for all students at once
+  const saveAllStudentMarks = async () => {
+    if (!markListData.length || !markListConfig) return;
 
     setSavingMarks(true);
     try {
-      const marks = {};
-      markListConfig.mark_components.forEach(component => {
-        const componentKey = component.name.toLowerCase().replace(/\s+/g, '_');
-        marks[componentKey] = student[componentKey] || 0;
+      const studentsToSave = markListData.filter(student => {
+        // Only save students who have at least one mark entered
+        return markListConfig.mark_components.some(component => {
+          const componentKey = component.name.toLowerCase().replace(/\s+/g, '_');
+          return student[componentKey] && parseFloat(student[componentKey]) > 0;
+        });
       });
 
-      const response = await axios.put(`${API_BASE_URL}/mark-list/update-marks`, {
-        subjectName: selectedMarkListSubject,
-        className: selectedMarkListClass,
-        termNumber: selectedMarkListTerm,
-        studentId: studentId,
-        marks: marks
+      if (studentsToSave.length === 0) {
+        toast.error('No marks to save');
+        setSavingMarks(false);
+        return;
+      }
+
+      // Save all students in parallel
+      const savePromises = studentsToSave.map(async (student) => {
+        const marks = {};
+        markListConfig.mark_components.forEach(component => {
+          const componentKey = component.name.toLowerCase().replace(/\s+/g, '_');
+          marks[componentKey] = student[componentKey] || 0;
+        });
+
+        const response = await axios.put(`${API_BASE_URL}/mark-list/update-marks`, {
+          subjectName: selectedMarkListSubject,
+          className: selectedMarkListClass,
+          termNumber: selectedMarkListTerm,
+          studentId: student.id,
+          marks: marks
+        });
+
+        return { studentId: student.id, total: response.data.total, passStatus: response.data.passStatus };
       });
 
-      // Update local state with new total and status
+      const results = await Promise.all(savePromises);
+
+      // Update local state with new totals and lock saved students
+      const newLockedStudents = new Set(savedMarkStudents);
       setMarkListData(prev => prev.map(s => {
-        if (s.id === studentId) {
-          return { ...s, total: response.data.total, pass_status: response.data.passStatus };
+        const result = results.find(r => r.studentId === s.id);
+        if (result) {
+          newLockedStudents.add(s.id);
+          return { ...s, total: result.total, pass_status: result.passStatus };
         }
         return s;
       }));
-      // Lock this student — teacher cannot edit again
-      setSavedMarkStudents(prev => new Set([...prev, studentId]));
-      toast.success(`Marks saved for ${student.student_name}`);
+      
+      setSavedMarkStudents(newLockedStudents);
+      toast.success(`Marks saved for ${studentsToSave.length} student(s)`);
     } catch (error) {
       console.error('Error saving marks:', error);
       toast.error('Failed to save marks');
@@ -2270,7 +2293,12 @@ const StaffProfile = () => {
                 <div className={styles.markListStudents}>
                   {filteredMarkListData.map((student, idx) => {
                     const isAdmin = user?.staffType?.toLowerCase() === 'admin';
-                    const isLocked = savedMarkStudents.has(student.id) && !isAdmin;
+                    // Lock student if they have any saved marks (non-zero values)
+                    const hasAnyMarks = markListConfig.mark_components.some(component => {
+                      const componentKey = component.name.toLowerCase().replace(/\s+/g, '_');
+                      return student[componentKey] && parseFloat(student[componentKey]) > 0;
+                    });
+                    const isLocked = hasAnyMarks && savedMarkStudents.has(student.id) && !isAdmin;
                     
                     // Filter components based on selection
                     const componentsToShow = selectedMarkComponent 
@@ -2288,6 +2316,9 @@ const StaffProfile = () => {
                       {/* Mark inputs - compact horizontal */}
                       {componentsToShow.map(component => {
                         const componentKey = component.name.toLowerCase().replace(/\s+/g, '_');
+                        const hasValue = student[componentKey] && parseFloat(student[componentKey]) > 0;
+                        const inputIsLocked = hasValue && savedMarkStudents.has(student.id) && !isAdmin;
+                        
                         return (
                           <div key={component.name} style={{display:'flex',alignItems:'center',gap:'0.2rem',flexShrink:0}}>
                             <span style={{fontSize:'0.6rem',color:'#64748b',fontWeight:600,textTransform:'uppercase'}}>{component.name}</span>
@@ -2297,29 +2328,51 @@ const StaffProfile = () => {
                               max={component.percentage}
                               value={student[componentKey] === '' ? '' : (parseFloat(student[componentKey]) === 0 ? '' : student[componentKey])}
                               onChange={(e) => handleMarkListMarkChange(student.id, componentKey, e.target.value)}
-                              disabled={isLocked}
+                              disabled={inputIsLocked}
                               placeholder="0"
-                              style={{width:'40px',padding:'0.2rem 0.1rem',borderRadius:'6px',border:'1px solid',borderColor:parseFloat(student[componentKey])>0?'#6366f1':'#cbd5e1',background:parseFloat(student[componentKey])>0?'#eef2ff':'white',color:'#1e293b',fontSize:'0.75rem',fontWeight:600,textAlign:'center',outline:'none'}}
+                              style={{width:'40px',padding:'0.2rem 0.1rem',borderRadius:'6px',border:'1px solid',borderColor:parseFloat(student[componentKey])>0?'#6366f1':'#cbd5e1',background:inputIsLocked?'#f1f5f9':parseFloat(student[componentKey])>0?'#eef2ff':'white',color:'#1e293b',fontSize:'0.75rem',fontWeight:600,textAlign:'center',outline:'none',cursor:inputIsLocked?'not-allowed':'text'}}
                             />
-                            <span style={{fontSize:'0.55rem',color:'#94a3b8'}}>/{component.percentage}</span>
+                            <span style={{fontSize:'0.7rem',color:'#1e293b',fontWeight:700}}>/{component.percentage}</span>
                           </div>
                         );
                       })}
                       
-                      {/* Save button */}
-                      {!isLocked ? (
-                        <button onClick={() => saveStudentMarks(student.id)} disabled={savingMarks}
-                          style={{width:'28px',height:'28px',padding:'0',background:'#6366f1',color:'white',border:'none',borderRadius:'6px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                          <FiSave size={14}/>
-                        </button>
-                      ) : (
-                          <div style={{width:'28px',height:'28px',color:'#16a34a',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                            <FiCheckCircle size={14}/>
-                          </div>
-                        )}
+                      {/* Status indicator */}
+                      {isLocked && (
+                        <div style={{width:'28px',height:'28px',color:'#16a34a',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                          <FiCheckCircle size={14}/>
+                        </div>
+                      )}
                     </div>
                     );
                   })}
+                </div>
+
+                {/* Save All Button */}
+                <div style={{marginTop:'1rem',display:'flex',justifyContent:'center'}}>
+                  <button 
+                    onClick={saveAllStudentMarks} 
+                    disabled={savingMarks}
+                    style={{
+                      padding:'0.75rem 2rem',
+                      background:'linear-gradient(135deg,#6366f1,#8b5cf6)',
+                      color:'white',
+                      border:'none',
+                      borderRadius:'10px',
+                      fontWeight:700,
+                      fontSize:'0.9rem',
+                      cursor:savingMarks?'not-allowed':'pointer',
+                      display:'flex',
+                      alignItems:'center',
+                      gap:'0.5rem',
+                      boxShadow:'0 4px 12px rgba(99,102,241,0.3)',
+                      transition:'all 0.2s',
+                      opacity:savingMarks?0.6:1
+                    }}
+                  >
+                    <FiSave size={18}/>
+                    {savingMarks ? 'Saving...' : 'Save All Marks'}
+                  </button>
                 </div>
               </>
             )}

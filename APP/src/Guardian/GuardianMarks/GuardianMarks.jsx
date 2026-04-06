@@ -20,7 +20,7 @@ const GuardianMarks = () => {
     try {
       const guardianInfo = JSON.parse(localStorage.getItem('guardianInfo') || '{}');
       const response = await axios.get(
-        `https://iqrab2.skoolific.com/api/mark-list/guardian-marks/${guardianInfo.guardian_username}`
+        `https://bilal.skoolific.com/api/mark-list/guardian-marks/${guardianInfo.guardian_username}`
       );
       
       if (response.data.success) {
