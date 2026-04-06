@@ -320,13 +320,27 @@ const StaffProfile = () => {
   useEffect(() => {
     const storedUser = localStorage.getItem('staffUser');
     const storedProfile = localStorage.getItem('staffProfile');
+    
+    console.log('StaffProfile: Checking stored data...', { 
+      hasUser: !!storedUser, 
+      hasProfile: !!storedProfile 
+    });
+    
     if (!storedUser || !storedProfile) {
+      console.log('StaffProfile: No stored data, redirecting to login');
       navigate('/app/staff-login');
       return;
     }
     try {
       const userData = JSON.parse(storedUser);
       const profileData = JSON.parse(storedProfile);
+      
+      console.log('StaffProfile: Loaded user data:', { 
+        username: userData.username, 
+        staffType: userData.staffType,
+        profileName: profileData.name 
+      });
+      
       setUser(userData);
       setProfile(profileData);
       fetchStaffEvaluations(profileData.global_staff_id);
@@ -348,6 +362,7 @@ const StaffProfile = () => {
       // Fetch classes for faults system - pass profileData since state hasn't updated yet
       fetchFaultClassesForTeacher(profileData.name);
     } catch (error) {
+      console.error('StaffProfile: Error parsing stored data:', error);
       navigate('/app/staff-login');
       return;
     }
@@ -3226,26 +3241,38 @@ const StaffProfile = () => {
   );
 
   const renderContent = () => {
-    switch (activeTab) {
-      case 'profile': return renderProfileTab();
-      case 'schedule': return isTeacher ? renderScheduleTab() : renderProfileTab();
-      case 'marklist': return isTeacher ? renderMarkListTab() : renderProfileTab();
-      case 'class': return isTeacher ? (
-        <ClassCommunicationTab
-          userType="teacher"
-          userId={profile?.global_staff_id}
-          userName={profile?.name}
-          teachingClasses={teacherClasses}
-        />
-      ) : renderProfileTab();
-      case 'attendance': return isClassTeacher ? renderAttendanceTab() : renderProfileTab();
-      case 'evalbook': return renderEvalBookTab();
-      case 'faults': return renderFaultsTab();
-      case 'evaluations': return renderEvaluationsTab();
-      case 'posts': return renderPostsTab();
-      case 'communications': return renderCommunicationsTab();
-      case 'settings': return renderSettingsTab();
-      default: return renderProfileTab();
+    try {
+      switch (activeTab) {
+        case 'profile': return renderProfileTab();
+        case 'schedule': return isTeacher ? renderScheduleTab() : renderProfileTab();
+        case 'marklist': return isTeacher ? renderMarkListTab() : renderProfileTab();
+        case 'class': return isTeacher ? (
+          <ClassCommunicationTab
+            userType="teacher"
+            userId={profile?.global_staff_id}
+            userName={profile?.name}
+            teachingClasses={teacherClasses}
+          />
+        ) : renderProfileTab();
+        case 'attendance': return isClassTeacher ? renderAttendanceTab() : renderProfileTab();
+        case 'evalbook': return renderEvalBookTab();
+        case 'faults': return renderFaultsTab();
+        case 'evaluations': return renderEvaluationsTab();
+        case 'posts': return renderPostsTab();
+        case 'communications': return renderCommunicationsTab();
+        case 'settings': return renderSettingsTab();
+        default: return renderProfileTab();
+      }
+    } catch (error) {
+      console.error('Error rendering tab:', activeTab, error);
+      return (
+        <div className={styles.errorContainer}>
+          <p>Error loading {activeTab} tab</p>
+          <button onClick={() => setActiveTab('profile')} className={styles.retryButton}>
+            Go to Profile
+          </button>
+        </div>
+      );
     }
   };
 
