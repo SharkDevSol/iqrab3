@@ -36,21 +36,24 @@ const MarkListForm = () => {
 
   const fetchInitialData = async () => {
     try {
-      const [subjectsRes, classesRes, mappingsRes, configRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/mark-list/subjects`),
+      const [classesRes, mappingsRes, configRes] = await Promise.all([
         fetch(`${API_BASE_URL}/mark-list/classes`),
         fetch(`${API_BASE_URL}/mark-list/subjects-classes`),
         fetch(`${API_BASE_URL}/schedule/config`)
       ]);
 
-      const [subjectsData, classesData, mappingsData, configData] = await Promise.all([
-        subjectsRes.json(),
+      const [classesData, mappingsData, configData] = await Promise.all([
         classesRes.json(),
         mappingsRes.json(),
         configRes.json()
       ]);
 
-      setSubjects(subjectsData);
+      // Derive unique subjects directly from mappings (no dependency on subjects table)
+      const uniqueSubjects = [...new Map(
+        mappingsData.map(m => [m.subject_name, { id: m.subject_name, subject_name: m.subject_name }])
+      ).values()];
+
+      setSubjects(uniqueSubjects);
       setClasses(classesData);
       setSubjectClassMappings(mappingsData);
       setConfig({ term_count: configData.terms || 2 });
