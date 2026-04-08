@@ -1,6 +1,7 @@
 // PAGE/CreateMarklist/MarkListManagement.jsx
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useNavigate } from 'react-router-dom';
 import SubjectMappingSetup from './SubjectMappingSetup';
 import './CreateMarklist/MarkListFrontend.css';
 
@@ -8,6 +9,7 @@ const API_BASE_URL = 'https://iqrab3.skoolific.com/api';
 
 const MarkListForm = () => {
   const { t } = useApp();
+  const navigate = useNavigate();
   const [subjects, setSubjects] = useState([]);
   const [classes, setClasses] = useState([]);
   const [subjectClassMappings, setSubjectClassMappings] = useState([]);
@@ -272,6 +274,17 @@ const MarkListForm = () => {
     <div className="mark-list-form">
       <div className="form-header">
         <h2>Mark List Management</h2>
+        {subjects.length === 0 && (
+          <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '6px', padding: '10px 16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span>⚠️ No subjects found. Please set up subjects first.</span>
+            <button
+              onClick={() => navigate('/Subject-Mapping-Setup')}
+              style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: '4px', padding: '6px 14px', cursor: 'pointer', fontWeight: 600 }}
+            >
+              Setup Subjects
+            </button>
+          </div>
+        )}
         <div className="mode-toggle">
           <button 
             className={viewMode === 'create' ? 'active' : ''}

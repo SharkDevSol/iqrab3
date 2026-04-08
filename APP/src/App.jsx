@@ -23,7 +23,7 @@ import StudentAttendanceTimeSettings from "./PAGE/Academic/StudentAttendanceTime
 import Post from "./PAGE/Post/Post";
 import MarkListSystem from "./PAGE/CreateMarklist/CreateMarklist/CreateMarklist";
 import MarkListManagement from "./PAGE/CreateMarklist/MarkListManagement";
-// SubjectMappingSetup removed - not used
+import SubjectMappingSetup from "./PAGE/CreateMarklist/SubjectMappingSetup";
 import "./PAGE/CreateMarklist/CreateMarklist/MarkListFrontend.css";
 import ReportCard from "./PAGE/CreateMarklist/ReportCard/ReportCard";
 // Roaster removed - not used
@@ -233,7 +233,7 @@ function App() {
               {/* Counsellor route removed */}
               <Route path="create-mark-list" element={<MarkListSystem />} />
               <Route path="Mark-List-Management" element={<MarkListManagement />} />
-              {/* Subject-Mapping-Setup route removed */}
+              <Route path="Subject-Mapping-Setup" element={<SubjectMappingSetup />} />
               <Route path="post" element={<Post />} />
               {/* Roaster route removed */}
               <Route path="report-card" element={<ReportCard />} />
