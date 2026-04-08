@@ -824,6 +824,50 @@ router.get('/subject-class-combinations', async (req, res) => {
   }
 });
 
+// Route to get all teacher assignments
+router.get('/teacher-assignments', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM subjects_of_school_schema.teachers_subjects ORDER BY teacher_name');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch teacher assignments', details: error.message });
+  }
+});
+
+// Route to assign subject-class to a teacher
+router.post('/assign-teacher', async (req, res) => {
+  const { teacherName, subjectClass } = req.body;
+  if (!teacherName || !subjectClass) {
+    return res.status(400).json({ error: 'teacherName and subjectClass are required' });
+  }
+  try {
+    const result = await pool.query(
+      'INSERT INTO subjects_of_school_schema.teachers_subjects (teacher_name, subject_class) VALUES ($1, $2) ON CONFLICT (teacher_name, subject_class) DO NOTHING RETURNING *',
+      [teacherName, subjectClass]
+    );
+    res.json({ message: 'Assigned successfully', row: result.rows[0] || null });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to assign teacher', details: error.message });
+  }
+});
+
+// Route to remove a teacher assignment
+router.delete('/assign-teacher', async (req, res) => {
+  const { teacherName, subjectClass } = req.body;
+  if (!teacherName || !subjectClass) {
+    return res.status(400).json({ error: 'teacherName and subjectClass are required' });
+  }
+  try {
+    await pool.query(
+      'DELETE FROM subjects_of_school_schema.teachers_subjects WHERE teacher_name = $1 AND subject_class = $2',
+      [teacherName, subjectClass]
+    );
+    res.json({ message: 'Removed successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to remove assignment', details: error.message });
+  }
+});
+
 // Route to get mark list forms for a teacher
 router.get('/teacher-mark-lists/:teacherName', async (req, res) => {
   const { teacherName } = req.params;
