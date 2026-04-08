@@ -68,7 +68,18 @@ const initializeSubjectsSchema = async () => {
     if (configResult.rows.length === 0) {
       await pool.query('INSERT INTO subjects_of_school_schema.school_config (id, term_count) VALUES (1, 2)');
     }
-    
+
+    // Auto-sync subjects from mappings if subjects table is empty
+    const subjectsCount = await pool.query('SELECT COUNT(*) FROM subjects_of_school_schema.subjects');
+    if (parseInt(subjectsCount.rows[0].count) === 0) {
+      await pool.query(`
+        INSERT INTO subjects_of_school_schema.subjects (subject_name)
+        SELECT DISTINCT subject_name FROM subjects_of_school_schema.subject_class_mappings
+        ON CONFLICT (subject_name) DO NOTHING
+      `);
+      console.log('Auto-synced subjects from mappings');
+    }
+
     console.log('Subjects schema initialized successfully');
   } catch (error) {
     console.error('Error initializing subjects schema:', error);
@@ -146,6 +157,22 @@ router.get('/subjects', async (req, res) => {
   } catch (error) {
     console.error('Error fetching subjects:', error);
     res.status(500).json({ error: 'Failed to fetch subjects', details: error.message });
+  }
+});
+
+// Route to sync subjects from subject_class_mappings into subjects table
+router.post('/sync-subjects-from-mappings', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      INSERT INTO subjects_of_school_schema.subjects (subject_name)
+      SELECT DISTINCT subject_name FROM subjects_of_school_schema.subject_class_mappings
+      ON CONFLICT (subject_name) DO NOTHING
+      RETURNING subject_name
+    `);
+    res.json({ message: `Synced ${result.rows.length} subjects`, subjects: result.rows });
+  } catch (error) {
+    console.error('Error syncing subjects:', error);
+    res.status(500).json({ error: 'Failed to sync subjects', details: error.message });
   }
 });
 
@@ -821,50 +848,6 @@ router.get('/subject-class-combinations', async (req, res) => {
   } catch (error) {
     console.error('Error fetching subject-class combinations:', error);
     res.status(500).json({ error: 'Failed to fetch combinations', details: error.message });
-  }
-});
-
-// Route to get all teacher assignments
-router.get('/teacher-assignments', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM subjects_of_school_schema.teachers_subjects ORDER BY teacher_name');
-    res.json(result.rows);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch teacher assignments', details: error.message });
-  }
-});
-
-// Route to assign subject-class to a teacher
-router.post('/assign-teacher', async (req, res) => {
-  const { teacherName, subjectClass } = req.body;
-  if (!teacherName || !subjectClass) {
-    return res.status(400).json({ error: 'teacherName and subjectClass are required' });
-  }
-  try {
-    const result = await pool.query(
-      'INSERT INTO subjects_of_school_schema.teachers_subjects (teacher_name, subject_class) VALUES ($1, $2) ON CONFLICT (teacher_name, subject_class) DO NOTHING RETURNING *',
-      [teacherName, subjectClass]
-    );
-    res.json({ message: 'Assigned successfully', row: result.rows[0] || null });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to assign teacher', details: error.message });
-  }
-});
-
-// Route to remove a teacher assignment
-router.delete('/assign-teacher', async (req, res) => {
-  const { teacherName, subjectClass } = req.body;
-  if (!teacherName || !subjectClass) {
-    return res.status(400).json({ error: 'teacherName and subjectClass are required' });
-  }
-  try {
-    await pool.query(
-      'DELETE FROM subjects_of_school_schema.teachers_subjects WHERE teacher_name = $1 AND subject_class = $2',
-      [teacherName, subjectClass]
-    );
-    res.json({ message: 'Removed successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to remove assignment', details: error.message });
   }
 });
 
