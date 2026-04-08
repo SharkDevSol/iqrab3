@@ -24,9 +24,14 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 // Inline component to create mark list when not found
 const MarkListCreateInline = ({ subject, className, term, onCreated }) => {
   const [components, setComponents] = useState([
-    { name: 'Mid', percentage: 30 },
-    { name: 'Test', percentage: 10 },
-    { name: 'Conduct', percentage: 10 },
+    { name: 'practical_1', percentage: 5 },
+    { name: 'test_1', percentage: 10 },
+    { name: 'practical_2', percentage: 5 },
+    { name: 'test_2', percentage: 10 },
+    { name: 'mid', percentage: 25 },
+    { name: 'book', percentage: 5 },
+    { name: 'final', percentage: 40 }
+  ]);
     { name: 'Exercise', percentage: 10 },
     { name: 'Final', percentage: 40 }
   ]);
