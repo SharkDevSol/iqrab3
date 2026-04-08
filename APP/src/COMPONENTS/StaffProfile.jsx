@@ -32,9 +32,6 @@ const MarkListCreateInline = ({ subject, className, term, onCreated }) => {
     { name: 'book', percentage: 5 },
     { name: 'final', percentage: 40 }
   ]);
-    { name: 'Exercise', percentage: 10 },
-    { name: 'Final', percentage: 40 }
-  ]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
 
