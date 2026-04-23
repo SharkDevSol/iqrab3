@@ -382,104 +382,111 @@ const TeacherAssignment = ({ onAssignmentCompleted }) => {
         <div className={styles.emptyState}><p>No teachers found in the system.</p></div>
       ) : (
         <>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ fontWeight: 600, marginRight: '0.5rem' }}>Select Teacher:</label>
-            <select value={selectedTeacher} onChange={e => setSelectedTeacher(e.target.value)}
-              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}>
-              <option value="">-- Select a teacher --</option>
-              {teachers.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-            </select>
-          </div>
-
-          {selectedTeacher && (
+          <div style={{ 
+            border: '1px solid #e5e7eb', 
+            borderRadius: '12px', 
+            overflow: 'hidden',
+            backgroundColor: '#fff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+          }}>
+            {/* Fixed Header */}
             <div style={{ 
-              border: '1px solid #e5e7eb', 
-              borderRadius: '12px', 
-              overflow: 'hidden',
-              backgroundColor: '#fff',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+              color: 'white',
+              position: 'sticky', 
+              top: 0, 
+              zIndex: 10,
+              borderBottom: '2px solid #5a67d8'
             }}>
-              {/* Fixed Header */}
               <div style={{ 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-                color: 'white',
-                position: 'sticky', 
-                top: 0, 
-                zIndex: 10,
-                borderBottom: '2px solid #5a67d8'
+                display: 'grid', 
+                gridTemplateColumns: '1fr 120px',
+                padding: '16px 20px',
+                fontWeight: 600,
+                fontSize: '0.95rem'
               }}>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: '1fr 120px',
-                  padding: '16px 20px',
-                  fontWeight: 600,
-                  fontSize: '0.95rem'
-                }}>
-                  <div>Subject-Class Combination</div>
-                  <div style={{ textAlign: 'center' }}>Assign</div>
-                </div>
-              </div>
-              
-              {/* Scrollable Body */}
-              <div style={{ 
-                maxHeight: '450px', 
-                overflowY: 'auto',
-                overflowX: 'hidden'
-              }}>
-                {combinations.map((c, index) => (
-                  <div 
-                    key={c.subject_class} 
-                    style={{ 
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 120px',
-                      padding: '14px 20px',
-                      borderBottom: index < combinations.length - 1 ? '1px solid #f1f5f9' : 'none',
-                      backgroundColor: index % 2 === 0 ? '#fafbfc' : '#ffffff',
-                      transition: 'background-color 0.2s ease',
-                      ':hover': { backgroundColor: '#f8fafc' }
-                    }}
-                    onMouseEnter={(e) => e.target.style.backgroundColor = '#f0f4f8'}
-                    onMouseLeave={(e) => e.target.style.backgroundColor = index % 2 === 0 ? '#fafbfc' : '#ffffff'}
-                  >
-                    <div style={{ 
-                      fontWeight: 500, 
-                      color: '#2d3748',
-                      fontSize: '0.9rem',
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}>
-                      {c.subject_class}
-                    </div>
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'center', 
-                      alignItems: 'center' 
-                    }}>
-                      <label style={{ 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
-                        cursor: 'pointer',
-                        position: 'relative'
-                      }}>
-                        <input
-                          type="checkbox"
-                          checked={assignments[`${selectedTeacher}||${c.subject_class}`] || false}
-                          onChange={e => handleToggle(selectedTeacher, c.subject_class, e.target.checked)}
-                          style={{ 
-                            width: '20px', 
-                            height: '20px', 
-                            accentColor: '#667eea',
-                            cursor: 'pointer',
-                            transform: 'scale(1.1)'
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                ))}
+                <div>Subject-Class Combination</div>
+                <div style={{ textAlign: 'center' }}>Teacher</div>
               </div>
             </div>
-          )}
+            
+            {/* Scrollable Body */}
+            <div style={{ 
+              maxHeight: '450px', 
+              overflowY: 'auto',
+              overflowX: 'hidden'
+            }}>
+              {combinations.map((c, index) => (
+                <div 
+                  key={c.subject_class} 
+                  style={{ 
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 120px',
+                    padding: '14px 20px',
+                    borderBottom: index < combinations.length - 1 ? '1px solid #f1f5f9' : 'none',
+                    backgroundColor: index % 2 === 0 ? '#fafbfc' : '#ffffff',
+                    transition: 'background-color 0.2s ease',
+                    ':hover': { backgroundColor: '#f8fafc' }
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#f0f4f8'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = index % 2 === 0 ? '#fafbfc' : '#ffffff'}
+                >
+                  <div style={{ 
+                    fontWeight: 500, 
+                    color: '#2d3748',
+                    fontSize: '0.9rem',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}>
+                    {c.subject_class}
+                  </div>
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center' 
+                  }}>
+                    <select
+                      value={Object.keys(assignments).find(key => 
+                        key.endsWith(`||${c.subject_class}`) && assignments[key]
+                      )?.split('||')[0] || ''}
+                      onChange={(e) => {
+                        // First, clear any existing assignment for this combo
+                        Object.keys(assignments).forEach(key => {
+                          if (key.endsWith(`||${c.subject_class}`) && assignments[key]) {
+                            const teacherName = key.split('||')[0];
+                            handleToggle(teacherName, c.subject_class, false);
+                          }
+                        });
+                        // Then set the new assignment if a teacher was selected
+                        if (e.target.value) {
+                          handleToggle(e.target.value, c.subject_class, true);
+                        }
+                      }}
+                      style={{
+                        padding: '0.4rem 0.6rem',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '0.85rem',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        background: 'white',
+                        color: '#374151',
+                        minWidth: '100px',
+                        maxWidth: '100px'
+                      }}
+                    >
+                      <option value="">Select</option>
+                      {teachers.map(teacher => (
+                        <option key={teacher.name} value={teacher.name}>
+                          {teacher.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </>
       )}
 
