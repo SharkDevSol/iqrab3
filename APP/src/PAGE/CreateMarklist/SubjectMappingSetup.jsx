@@ -327,14 +327,135 @@ const ClassSubjectMapping = ({ onMappingCompleted }) => {
   );
 };
 
+const TeacherAssignment = ({ onAssignmentCompleted }) => {
+  const [teachers, setTeachers] = useState([]);
+  const [combinations, setCombinations] = useState([]);
+  const [assignments, setAssignments] = useState({});
+  const [message, setMessage] = useState('');
+  const [selectedTeacher, setSelectedTeacher] = useState('');
+
+  useEffect(() => { fetchData(); }, []);
+
+  const fetchData = async () => {
+    try {
+      const [teachersRes, combosRes, assignmentsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/mark-list/teachers`),
+        fetch(`${API_BASE_URL}/mark-list/subject-class-combinations`),
+        fetch(`${API_BASE_URL}/mark-list/teacher-assignments`)
+      ]);
+      const [teachersData, combosData, assignmentsData] = await Promise.all([
+        teachersRes.json(), combosRes.json(), assignmentsRes.json()
+      ]);
+      setTeachers(teachersData);
+      setCombinations(combosData);
+      const state = {};
+      assignmentsData.forEach(a => { state[`${a.teacher_name}||${a.subject_class}`] = true; });
+      setAssignments(state);
+    } catch (err) {
+      setMessage('Error loading data: ' + err.message);
+    }
+  };
+
+  const handleToggle = async (teacherName, subjectClass, isChecked) => {
+    const key = `${teacherName}||${subjectClass}`;
+    setAssignments(prev => ({ ...prev, [key]: isChecked }));
+    try {
+      await fetch(`${API_BASE_URL}/mark-list/assign-teacher`, {
+        method: isChecked ? 'POST' : 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teacherName, subjectClass })
+      });
+    } catch (err) {
+      setMessage('Error saving: ' + err.message);
+    }
+  };
+
+  return (
+    <div className={styles.content}>
+      <div className={styles.stepHeader}>
+        <div className={styles.stepIcon}>👩‍🏫</div>
+        <h2>Teacher Assignment</h2>
+        <p>Assign subject-class combinations to teachers</p>
+      </div>
+
+      {teachers.length === 0 ? (
+        <div className={styles.emptyState}><p>No teachers found in the system.</p></div>
+      ) : (
+        <>
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ fontWeight: 600, marginRight: '0.5rem' }}>Select Teacher:</label>
+            <select value={selectedTeacher} onChange={e => setSelectedTeacher(e.target.value)}
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}>
+              <option value="">-- Select a teacher --</option>
+              {teachers.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+            </select>
+          </div>
+
+          {selectedTeacher && (
+            <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', maxHeight: '500px' }}>
+              {/* Fixed Header */}
+              <div style={{ background: '#f8fafc', borderBottom: '2px solid #e5e7eb', position: 'sticky', top: 0, zIndex: 10 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#374151', borderRight: '1px solid #e5e7eb', width: '70%' }}>
+                        Subject-Class Combination
+                      </th>
+                      <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: '#374151', width: '30%' }}>
+                        Assign
+                      </th>
+                    </tr>
+                  </thead>
+                </table>
+              </div>
+              
+              {/* Scrollable Body */}
+              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <tbody>
+                    {combinations.map(c => (
+                      <tr key={c.subject_class} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        <td style={{ padding: '12px 16px', borderRight: '1px solid #e5e7eb', width: '70%' }}>
+                          <span style={{ fontWeight: 500, color: '#1f2937' }}>{c.subject_class}</span>
+                        </td>
+                        <td style={{ padding: '12px 16px', textAlign: 'center', width: '30%' }}>
+                          <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={assignments[`${selectedTeacher}||${c.subject_class}`] || false}
+                              onChange={e => handleToggle(selectedTeacher, c.subject_class, e.target.checked)}
+                              style={{ width: '18px', height: '18px', accentColor: '#3b82f6' }}
+                            />
+                          </label>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {message && <div className={styles.message}>{message}</div>}
+      <div className={styles.buttonGroup}>
+        <button onClick={onAssignmentCompleted} className={styles.primaryButton}>Done</button>
+      </div>
+    </div>
+  );
+};
+
 const SubjectMappingSetup = ({ onComplete }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [subjectsConfigured, setSubjectsConfigured] = useState(false);
   const [mappingCompleted, setMappingCompleted] = useState(false);
+  const [assignmentCompleted, setAssignmentCompleted] = useState(false);
 
   const steps = [
     { number: 1, title: 'Subject Setup', completed: subjectsConfigured },
-    { number: 2, title: 'Class Mapping', completed: mappingCompleted }
+    { number: 2, title: 'Class Mapping', completed: mappingCompleted },
+    { number: 3, title: 'Teacher Assignment', completed: assignmentCompleted }
   ];
 
   return (
@@ -360,7 +481,10 @@ const SubjectMappingSetup = ({ onComplete }) => {
         <SubjectConfiguration onSubjectsConfigured={() => { setSubjectsConfigured(true); setCurrentStep(2); }} />
       )}
       {currentStep === 2 && (
-        <ClassSubjectMapping onMappingCompleted={() => { setMappingCompleted(true); if (onComplete) onComplete(); }} />
+        <ClassSubjectMapping onMappingCompleted={() => { setMappingCompleted(true); setCurrentStep(3); }} />
+      )}
+      {currentStep === 3 && (
+        <TeacherAssignment onAssignmentCompleted={() => { setAssignmentCompleted(true); if (onComplete) onComplete(); }} />
       )}
     </div>
   );
