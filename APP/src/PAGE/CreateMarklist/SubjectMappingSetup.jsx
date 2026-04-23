@@ -392,46 +392,91 @@ const TeacherAssignment = ({ onAssignmentCompleted }) => {
           </div>
 
           {selectedTeacher && (
-            <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', maxHeight: '500px' }}>
+            <div style={{ 
+              border: '1px solid #e5e7eb', 
+              borderRadius: '12px', 
+              overflow: 'hidden',
+              backgroundColor: '#fff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+            }}>
               {/* Fixed Header */}
-              <div style={{ background: '#f8fafc', borderBottom: '2px solid #e5e7eb', position: 'sticky', top: 0, zIndex: 10 }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#374151', borderRight: '1px solid #e5e7eb', width: '70%' }}>
-                        Subject-Class Combination
-                      </th>
-                      <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: '#374151', width: '30%' }}>
-                        Assign
-                      </th>
-                    </tr>
-                  </thead>
-                </table>
+              <div style={{ 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+                color: 'white',
+                position: 'sticky', 
+                top: 0, 
+                zIndex: 10,
+                borderBottom: '2px solid #5a67d8'
+              }}>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '1fr 120px',
+                  padding: '16px 20px',
+                  fontWeight: 600,
+                  fontSize: '0.95rem'
+                }}>
+                  <div>Subject-Class Combination</div>
+                  <div style={{ textAlign: 'center' }}>Assign</div>
+                </div>
               </div>
               
               {/* Scrollable Body */}
-              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <tbody>
-                    {combinations.map(c => (
-                      <tr key={c.subject_class} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                        <td style={{ padding: '12px 16px', borderRight: '1px solid #e5e7eb', width: '70%' }}>
-                          <span style={{ fontWeight: 500, color: '#1f2937' }}>{c.subject_class}</span>
-                        </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'center', width: '30%' }}>
-                          <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
-                            <input
-                              type="checkbox"
-                              checked={assignments[`${selectedTeacher}||${c.subject_class}`] || false}
-                              onChange={e => handleToggle(selectedTeacher, c.subject_class, e.target.checked)}
-                              style={{ width: '18px', height: '18px', accentColor: '#3b82f6' }}
-                            />
-                          </label>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div style={{ 
+                maxHeight: '450px', 
+                overflowY: 'auto',
+                overflowX: 'hidden'
+              }}>
+                {combinations.map((c, index) => (
+                  <div 
+                    key={c.subject_class} 
+                    style={{ 
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 120px',
+                      padding: '14px 20px',
+                      borderBottom: index < combinations.length - 1 ? '1px solid #f1f5f9' : 'none',
+                      backgroundColor: index % 2 === 0 ? '#fafbfc' : '#ffffff',
+                      transition: 'background-color 0.2s ease',
+                      ':hover': { backgroundColor: '#f8fafc' }
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#f0f4f8'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = index % 2 === 0 ? '#fafbfc' : '#ffffff'}
+                  >
+                    <div style={{ 
+                      fontWeight: 500, 
+                      color: '#2d3748',
+                      fontSize: '0.9rem',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}>
+                      {c.subject_class}
+                    </div>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      alignItems: 'center' 
+                    }}>
+                      <label style={{ 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        cursor: 'pointer',
+                        position: 'relative'
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={assignments[`${selectedTeacher}||${c.subject_class}`] || false}
+                          onChange={e => handleToggle(selectedTeacher, c.subject_class, e.target.checked)}
+                          style={{ 
+                            width: '20px', 
+                            height: '20px', 
+                            accentColor: '#667eea',
+                            cursor: 'pointer',
+                            transform: 'scale(1.1)'
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
