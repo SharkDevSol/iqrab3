@@ -30,7 +30,7 @@ const connectionConfigs = [
     port: 5432,
     database: 'school_management10',
     user: 'postgres',
-    password: 'postgres'
+    password: 'postgres123'
   }
 ].filter(Boolean);
 
