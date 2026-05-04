@@ -22,9 +22,6 @@ const pool = new Pool({
 // Apply input sanitization to all routes
 router.use(sanitizeInputs);
 
-// All faults routes require authentication
-router.use(authenticateToken);
-
 const uploadDir = path.join(__dirname, 'Uploads');
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
@@ -69,7 +66,11 @@ const initializeFaultsSchema = async () => {
 };
 initializeFaultsSchema();
 
-// Get all classes
+// ============================================
+// PUBLIC ENDPOINTS (No authentication required)
+// ============================================
+
+// Get all classes - Public endpoint for initial page load
 router.get('/classes', async (req, res) => {
   try {
     console.log('Fetching all class names from public schema');
@@ -88,6 +89,86 @@ router.get('/classes', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch classes', details: error.message });
   }
 });
+
+// Get reports data - Public endpoint for statistics
+router.get('/reports', async (req, res) => {
+  try {
+    console.log('Fetching reports data');
+    const client = await pool.connect();
+    try {
+      // Get all fault tables
+      const tablesResult = await client.query(`
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'class_students_fault'
+      `);
+      const classTables = tablesResult.rows.map(row => row.table_name);
+
+      // Total unique students with faults
+      let uniqueStudents = 0;
+      const studentSet = new Set();
+      const classFaultCounts = [];
+      const studentFaultCounts = [];
+
+      for (const className of classTables) {
+        // Count faults per class
+        const faultCountResult = await client.query(`
+          SELECT COUNT(*) as fault_count
+          FROM class_students_fault."${className}"
+        `);
+        const faultCount = parseInt(faultCountResult.rows[0].fault_count);
+        classFaultCounts.push({ className, faultCount });
+
+        // Get unique students with faults per class
+        const studentsResult = await client.query(`
+          SELECT DISTINCT student_name
+          FROM class_students_fault."${className}"
+        `);
+        studentsResult.rows.forEach(row => studentSet.add(`${row.student_name}:${className}`));
+
+        // Count faults per student in this class
+        const studentCounts = await client.query(`
+          SELECT student_name, COUNT(*) as fault_count
+          FROM class_students_fault."${className}"
+          GROUP BY student_name
+          ORDER BY fault_count DESC
+        `);
+        studentCounts.rows.forEach(row => {
+          studentFaultCounts.push({
+            student_name: row.student_name,
+            className,
+            fault_count: parseInt(row.fault_count),
+          });
+        });
+      }
+
+      uniqueStudents = studentSet.size;
+
+      // Sort classes by fault count (descending)
+      classFaultCounts.sort((a, b) => b.faultCount - a.faultCount);
+
+      // Sort students by fault count (descending)
+      studentFaultCounts.sort((a, b) => b.fault_count - a.fault_count);
+
+      console.log('Reports data fetched:', { uniqueStudents, classFaultCounts, studentFaultCounts });
+      res.json({
+        uniqueStudents,
+        classFaultCounts,
+        studentFaultCounts: studentFaultCounts.slice(0, 5), // Top 5 students
+      });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    res.status(500).json({ error: 'Failed to fetch reports', details: error.message });
+  }
+});
+
+// ============================================
+// PROTECTED ENDPOINTS (Authentication required)
+// ============================================
+router.use(authenticateToken);
 
 // Get students for a class
 router.get('/students/:className', async (req, res) => {
@@ -355,81 +436,6 @@ router.delete('/delete-fault/:className/:faultId', async (req, res) => {
     res.status(500).json({ error: 'Failed to delete fault', details: error.message });
   } finally {
     client.release();
-  }
-});
-
-// Get reports data
-router.get('/reports', async (req, res) => {
-  try {
-    console.log('Fetching reports data');
-    const client = await pool.connect();
-    try {
-      // Get all fault tables
-      const tablesResult = await client.query(`
-        SELECT table_name
-        FROM information_schema.tables
-        WHERE table_schema = 'class_students_fault'
-      `);
-      const classTables = tablesResult.rows.map(row => row.table_name);
-
-      // Total unique students with faults
-      let uniqueStudents = 0;
-      const studentSet = new Set();
-      const classFaultCounts = [];
-      const studentFaultCounts = [];
-
-      for (const className of classTables) {
-        // Count faults per class
-        const faultCountResult = await client.query(`
-          SELECT COUNT(*) as fault_count
-          FROM class_students_fault."${className}"
-        `);
-        const faultCount = parseInt(faultCountResult.rows[0].fault_count);
-        classFaultCounts.push({ className, faultCount });
-
-        // Get unique students with faults per class
-        const studentsResult = await client.query(`
-          SELECT DISTINCT student_name
-          FROM class_students_fault."${className}"
-        `);
-        studentsResult.rows.forEach(row => studentSet.add(`${row.student_name}:${className}`));
-
-        // Count faults per student in this class
-        const studentCounts = await client.query(`
-          SELECT student_name, COUNT(*) as fault_count
-          FROM class_students_fault."${className}"
-          GROUP BY student_name
-          ORDER BY fault_count DESC
-        `);
-        studentCounts.rows.forEach(row => {
-          studentFaultCounts.push({
-            student_name: row.student_name,
-            className,
-            fault_count: parseInt(row.fault_count),
-          });
-        });
-      }
-
-      uniqueStudents = studentSet.size;
-
-      // Sort classes by fault count (descending)
-      classFaultCounts.sort((a, b) => b.faultCount - a.faultCount);
-
-      // Sort students by fault count (descending)
-      studentFaultCounts.sort((a, b) => b.fault_count - a.fault_count);
-
-      console.log('Reports data fetched:', { uniqueStudents, classFaultCounts, studentFaultCounts });
-      res.json({
-        uniqueStudents,
-        classFaultCounts,
-        studentFaultCounts: studentFaultCounts.slice(0, 5), // Top 5 students
-      });
-    } finally {
-      client.release();
-    }
-  } catch (error) {
-    console.error('Error fetching reports:', error);
-    res.status(500).json({ error: 'Failed to fetch reports', details: error.message });
   }
 });
 
