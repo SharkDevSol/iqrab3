@@ -73,12 +73,14 @@ initializeFaultsSchema();
 // Get all classes - Public endpoint for initial page load
 router.get('/classes', async (req, res) => {
   try {
-    console.log('Fetching all class names from public schema');
+    console.log('Fetching all class names from classes_schema');
     const result = await pool.query(`
       SELECT table_name
       FROM information_schema.tables
-      WHERE table_schema = 'public'
-      AND table_name NOT IN ('users', 'school_student_count')
+      WHERE table_schema = 'classes_schema'
+      AND table_name NOT LIKE '%_attendance'
+      AND table_name NOT LIKE '%_marks'
+      AND table_name NOT LIKE 'pg_%'
       ORDER BY table_name
     `);
     const classes = result.rows.map(row => row.table_name);
