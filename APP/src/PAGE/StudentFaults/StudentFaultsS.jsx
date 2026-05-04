@@ -37,6 +37,15 @@ const { TabPane } = Tabs;
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://iqrab3.skoolific.com/api';
 
+// Create a plain axios instance without interceptors for public endpoints
+const publicAxios = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
 const StudentFaultsS = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
@@ -90,8 +99,8 @@ const StudentFaultsS = () => {
       setIsLoading(true);
       try {
         console.log('Fetching classes from /faults/classes');
-        // Use axios directly for public endpoint (no auth token needed)
-        const response = await axios.get(`${API_BASE_URL}/faults/classes`);
+        // Use plain axios instance without auth interceptors
+        const response = await publicAxios.get('/faults/classes');
         console.log('Classes fetched:', response.data);
         setClasses(response.data);
       } catch (error) {
@@ -106,8 +115,8 @@ const StudentFaultsS = () => {
       setIsLoading(true);
       try {
         console.log('Fetching reports from /faults/reports');
-        // Use axios directly for public endpoint (no auth token needed)
-        const response = await axios.get(`${API_BASE_URL}/faults/reports`);
+        // Use plain axios instance without auth interceptors
+        const response = await publicAxios.get('/faults/reports');
         console.log('Reports fetched:', response.data);
         setReports(response.data);
       } catch (error) {
