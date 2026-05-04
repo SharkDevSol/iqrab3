@@ -1,0 +1,57 @@
+================================================================================
+                    🚀 DEPLOY TO VPS - START HERE
+================================================================================
+
+Your VPS: 76.13.48.245 (iqrab3.skoolific.com)
+
+All code changes have been pushed to GitHub ✅
+Now you need to deploy to your VPS.
+
+================================================================================
+                        EASIEST WAY (1 STEP)
+================================================================================
+
+1. Double-click this file:
+   
+   📄 DEPLOY_TO_IQRAB3_VPS.bat
+
+2. Enter your VPS password when prompted
+
+3. Wait 30 seconds
+
+4. Done! ✅
+
+================================================================================
+                    ALTERNATIVE: MANUAL DEPLOYMENT
+================================================================================
+
+If the script doesn't work, open PowerShell and run these commands:
+
+ssh root@76.13.48.245
+
+Then on the VPS, run:
+
+cd /root/iqrab3
+git pull origin main
+cd backend
+pm2 restart backend
+pm2 status
+
+================================================================================
+                        TEST THE FIX
+================================================================================
+
+After deployment:
+
+1. Open: https://iqrab3.skoolific.com
+2. Go to Student Faults page
+3. ✅ Classes should load (no 401 error)
+4. ✅ Reports should load (no 401 error)
+
+================================================================================
+                        NEED HELP?
+================================================================================
+
+Read: DEPLOY_INSTRUCTIONS.md (detailed step-by-step guide)
+
+================================================================================
