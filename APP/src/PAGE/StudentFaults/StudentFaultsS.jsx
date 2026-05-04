@@ -27,12 +27,15 @@ import {
 } from '@ant-design/icons';
 import { Bar } from '@ant-design/charts';
 import api from '../../utils/api';
+import axios from 'axios';
 import dayjs from 'dayjs';
 import styles from './StudentFaultsS.module.css';
 
 const { Option } = Select;
 const { TextArea } = Input;
 const { TabPane } = Tabs;
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://iqrab3.skoolific.com/api';
 
 const StudentFaultsS = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -87,7 +90,8 @@ const StudentFaultsS = () => {
       setIsLoading(true);
       try {
         console.log('Fetching classes from /faults/classes');
-        const response = await api.get('/faults/classes');
+        // Use axios directly for public endpoint (no auth token needed)
+        const response = await axios.get(`${API_BASE_URL}/faults/classes`);
         console.log('Classes fetched:', response.data);
         setClasses(response.data);
       } catch (error) {
@@ -102,7 +106,8 @@ const StudentFaultsS = () => {
       setIsLoading(true);
       try {
         console.log('Fetching reports from /faults/reports');
-        const response = await api.get('/faults/reports');
+        // Use axios directly for public endpoint (no auth token needed)
+        const response = await axios.get(`${API_BASE_URL}/faults/reports`);
         console.log('Reports fetched:', response.data);
         setReports(response.data);
       } catch (error) {
